@@ -1,0 +1,21 @@
+{
+  "name": "MachinistPro",
+  "short_name": "MachinistPro",
+  "description": "Premium Engineering Calculator Suite",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050508",
+  "theme_color": "#00d4ff",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
