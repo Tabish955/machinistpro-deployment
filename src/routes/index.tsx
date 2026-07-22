@@ -46,22 +46,21 @@ function LandingPage() {
   return (
     <div className="min-h-screen gradient-bg grid-pattern">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-6 lg:px-12 py-5">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[var(--accent-cyan)] to-[var(--accent-blue)] flex items-center justify-center text-[var(--dark-950)] font-bold">
+      <nav className="flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-12 py-4 sm:py-5">
+        <Link to="/" className="flex items-center gap-2 min-w-0">
+          <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-br from-[var(--accent-cyan)] to-[var(--accent-blue)] flex items-center justify-center text-[var(--dark-950)] font-bold">
             M
           </div>
-          <span className="font-bold tracking-tight text-white">MachinistPro</span>
+          <span className="truncate font-bold tracking-tight text-white">MachinistPro</span>
         </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/auth"
-            className="inline-flex items-center gap-2 rounded-md bg-[var(--accent-cyan)] px-4 py-2 text-sm font-semibold text-[var(--dark-950)] transition-opacity hover:opacity-90"
-          >
-            <LogIn size={14} /> Sign In
-          </Link>
-        </div>
+        <Link
+          to="/auth"
+          className="inline-flex shrink-0 items-center gap-2 rounded-md bg-[var(--accent-cyan)] px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[var(--dark-950)] transition-opacity hover:opacity-90"
+        >
+          <LogIn size={14} /> <span className="hidden xs:inline sm:inline">Sign In</span>
+        </Link>
       </nav>
+
 
       {/* Hero */}
       <section className="mx-auto max-w-5xl px-6 pt-16 pb-20 text-center lg:pt-28 lg:pb-32">

@@ -14,7 +14,128 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      device_fingerprints: {
+        Row: {
+          fingerprint_hash: string
+          first_seen: string
+          id: string
+          ip_hash: string | null
+          last_seen: string
+          trial_expires_at: string | null
+          trial_started_at: string | null
+          trial_used: boolean
+          trial_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          fingerprint_hash: string
+          first_seen?: string
+          id?: string
+          ip_hash?: string | null
+          last_seen?: string
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
+          trial_used?: boolean
+          trial_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          fingerprint_hash?: string
+          first_seen?: string
+          id?: string
+          ip_hash?: string | null
+          last_seen?: string
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
+          trial_used?: boolean
+          trial_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trial_ip_log: {
+        Row: {
+          first_trial_at: string
+          ip_hash: string
+          last_trial_at: string
+          trial_count: number
+        }
+        Insert: {
+          first_trial_at?: string
+          ip_hash: string
+          last_trial_at?: string
+          trial_count?: number
+        }
+        Update: {
+          first_trial_at?: string
+          ip_hash?: string
+          last_trial_at?: string
+          trial_count?: number
+        }
+        Relationships: []
+      }
+      user_trials: {
+        Row: {
+          device_fingerprint_id: string | null
+          expires_at: string
+          fingerprint_hash: string | null
+          ip_hash: string | null
+          started_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          device_fingerprint_id?: string | null
+          expires_at: string
+          fingerprint_hash?: string | null
+          ip_hash?: string | null
+          started_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          device_fingerprint_id?: string | null
+          expires_at?: string
+          fingerprint_hash?: string | null
+          ip_hash?: string | null
+          started_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_trials_device_fingerprint_id_fkey"
+            columns: ["device_fingerprint_id"]
+            isOneToOne: false
+            referencedRelation: "device_fingerprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
