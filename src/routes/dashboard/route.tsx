@@ -9,7 +9,7 @@ function DashboardShell() {
   );
 }
 
-export const Route = createFileRoute("/_authenticated/dashboard")({
+export const Route = createFileRoute("/dashboard")({
   component: DashboardShell,
   ssr: false,
 });

@@ -9,37 +9,389 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedDashboardRouteRouteImport } from './routes/_authenticated/dashboard/route'
+import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
+import { Route as AuthenticatedDashboardWorkspaceRouteImport } from './routes/_authenticated/dashboard/workspace'
+import { Route as AuthenticatedDashboardWeightRouteImport } from './routes/_authenticated/dashboard/weight'
+import { Route as AuthenticatedDashboardTolerancesRouteImport } from './routes/_authenticated/dashboard/tolerances'
+import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
+import { Route as AuthenticatedDashboardScientificRouteImport } from './routes/_authenticated/dashboard/scientific'
+import { Route as AuthenticatedDashboardPricingRouteImport } from './routes/_authenticated/dashboard/pricing'
+import { Route as AuthenticatedDashboardMaterialsRouteImport } from './routes/_authenticated/dashboard/materials'
+import { Route as AuthenticatedDashboardMachiningRouteImport } from './routes/_authenticated/dashboard/machining'
+import { Route as AuthenticatedDashboardIndustrialRouteImport } from './routes/_authenticated/dashboard/industrial'
+import { Route as AuthenticatedDashboardHistoryRouteImport } from './routes/_authenticated/dashboard/history'
+import { Route as AuthenticatedDashboardGeometryRouteImport } from './routes/_authenticated/dashboard/geometry'
+import { Route as AuthenticatedDashboardFormulasRouteImport } from './routes/_authenticated/dashboard/formulas'
+import { Route as AuthenticatedDashboardFavoritesRouteImport } from './routes/_authenticated/dashboard/favorites'
+import { Route as AuthenticatedDashboardEngineeringRouteImport } from './routes/_authenticated/dashboard/engineering'
+import { Route as AuthenticatedDashboardConverterRouteImport } from './routes/_authenticated/dashboard/converter'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDashboardRouteRoute =
+  AuthenticatedDashboardRouteRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDashboardIndexRoute =
+  AuthenticatedDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardWorkspaceRoute =
+  AuthenticatedDashboardWorkspaceRouteImport.update({
+    id: '/workspace',
+    path: '/workspace',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardWeightRoute =
+  AuthenticatedDashboardWeightRouteImport.update({
+    id: '/weight',
+    path: '/weight',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardTolerancesRoute =
+  AuthenticatedDashboardTolerancesRouteImport.update({
+    id: '/tolerances',
+    path: '/tolerances',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardSettingsRoute =
+  AuthenticatedDashboardSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardScientificRoute =
+  AuthenticatedDashboardScientificRouteImport.update({
+    id: '/scientific',
+    path: '/scientific',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardPricingRoute =
+  AuthenticatedDashboardPricingRouteImport.update({
+    id: '/pricing',
+    path: '/pricing',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardMaterialsRoute =
+  AuthenticatedDashboardMaterialsRouteImport.update({
+    id: '/materials',
+    path: '/materials',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardMachiningRoute =
+  AuthenticatedDashboardMachiningRouteImport.update({
+    id: '/machining',
+    path: '/machining',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardIndustrialRoute =
+  AuthenticatedDashboardIndustrialRouteImport.update({
+    id: '/industrial',
+    path: '/industrial',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardHistoryRoute =
+  AuthenticatedDashboardHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardGeometryRoute =
+  AuthenticatedDashboardGeometryRouteImport.update({
+    id: '/geometry',
+    path: '/geometry',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardFormulasRoute =
+  AuthenticatedDashboardFormulasRouteImport.update({
+    id: '/formulas',
+    path: '/formulas',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardFavoritesRoute =
+  AuthenticatedDashboardFavoritesRouteImport.update({
+    id: '/favorites',
+    path: '/favorites',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardEngineeringRoute =
+  AuthenticatedDashboardEngineeringRouteImport.update({
+    id: '/engineering',
+    path: '/engineering',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
+const AuthenticatedDashboardConverterRoute =
+  AuthenticatedDashboardConverterRouteImport.update({
+    id: '/converter',
+    path: '/converter',
+    getParentRoute: () => AuthenticatedDashboardRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedRouteRoute
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/dashboard': typeof AuthenticatedDashboardRouteRouteWithChildren
+  '/dashboard/converter': typeof AuthenticatedDashboardConverterRoute
+  '/dashboard/engineering': typeof AuthenticatedDashboardEngineeringRoute
+  '/dashboard/favorites': typeof AuthenticatedDashboardFavoritesRoute
+  '/dashboard/formulas': typeof AuthenticatedDashboardFormulasRoute
+  '/dashboard/geometry': typeof AuthenticatedDashboardGeometryRoute
+  '/dashboard/history': typeof AuthenticatedDashboardHistoryRoute
+  '/dashboard/industrial': typeof AuthenticatedDashboardIndustrialRoute
+  '/dashboard/machining': typeof AuthenticatedDashboardMachiningRoute
+  '/dashboard/materials': typeof AuthenticatedDashboardMaterialsRoute
+  '/dashboard/pricing': typeof AuthenticatedDashboardPricingRoute
+  '/dashboard/scientific': typeof AuthenticatedDashboardScientificRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
+  '/dashboard/tolerances': typeof AuthenticatedDashboardTolerancesRoute
+  '/dashboard/weight': typeof AuthenticatedDashboardWeightRoute
+  '/dashboard/workspace': typeof AuthenticatedDashboardWorkspaceRoute
+  '/dashboard/': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AuthenticatedRouteRoute
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/dashboard/converter': typeof AuthenticatedDashboardConverterRoute
+  '/dashboard/engineering': typeof AuthenticatedDashboardEngineeringRoute
+  '/dashboard/favorites': typeof AuthenticatedDashboardFavoritesRoute
+  '/dashboard/formulas': typeof AuthenticatedDashboardFormulasRoute
+  '/dashboard/geometry': typeof AuthenticatedDashboardGeometryRoute
+  '/dashboard/history': typeof AuthenticatedDashboardHistoryRoute
+  '/dashboard/industrial': typeof AuthenticatedDashboardIndustrialRoute
+  '/dashboard/machining': typeof AuthenticatedDashboardMachiningRoute
+  '/dashboard/materials': typeof AuthenticatedDashboardMaterialsRoute
+  '/dashboard/pricing': typeof AuthenticatedDashboardPricingRoute
+  '/dashboard/scientific': typeof AuthenticatedDashboardScientificRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
+  '/dashboard/tolerances': typeof AuthenticatedDashboardTolerancesRoute
+  '/dashboard/weight': typeof AuthenticatedDashboardWeightRoute
+  '/dashboard/workspace': typeof AuthenticatedDashboardWorkspaceRoute
+  '/dashboard': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_authenticated': typeof AuthenticatedRouteRoute
+  '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteRouteWithChildren
+  '/_authenticated/dashboard/converter': typeof AuthenticatedDashboardConverterRoute
+  '/_authenticated/dashboard/engineering': typeof AuthenticatedDashboardEngineeringRoute
+  '/_authenticated/dashboard/favorites': typeof AuthenticatedDashboardFavoritesRoute
+  '/_authenticated/dashboard/formulas': typeof AuthenticatedDashboardFormulasRoute
+  '/_authenticated/dashboard/geometry': typeof AuthenticatedDashboardGeometryRoute
+  '/_authenticated/dashboard/history': typeof AuthenticatedDashboardHistoryRoute
+  '/_authenticated/dashboard/industrial': typeof AuthenticatedDashboardIndustrialRoute
+  '/_authenticated/dashboard/machining': typeof AuthenticatedDashboardMachiningRoute
+  '/_authenticated/dashboard/materials': typeof AuthenticatedDashboardMaterialsRoute
+  '/_authenticated/dashboard/pricing': typeof AuthenticatedDashboardPricingRoute
+  '/_authenticated/dashboard/scientific': typeof AuthenticatedDashboardScientificRoute
+  '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
+  '/_authenticated/dashboard/tolerances': typeof AuthenticatedDashboardTolerancesRoute
+  '/_authenticated/dashboard/weight': typeof AuthenticatedDashboardWeightRoute
+  '/_authenticated/dashboard/workspace': typeof AuthenticatedDashboardWorkspaceRoute
+  '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/privacy'
+    | '/terms'
+    | '/dashboard'
+    | '/dashboard/converter'
+    | '/dashboard/engineering'
+    | '/dashboard/favorites'
+    | '/dashboard/formulas'
+    | '/dashboard/geometry'
+    | '/dashboard/history'
+    | '/dashboard/industrial'
+    | '/dashboard/machining'
+    | '/dashboard/materials'
+    | '/dashboard/pricing'
+    | '/dashboard/scientific'
+    | '/dashboard/settings'
+    | '/dashboard/tolerances'
+    | '/dashboard/weight'
+    | '/dashboard/workspace'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/_authenticated'
+  to:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/privacy'
+    | '/terms'
+    | '/dashboard/converter'
+    | '/dashboard/engineering'
+    | '/dashboard/favorites'
+    | '/dashboard/formulas'
+    | '/dashboard/geometry'
+    | '/dashboard/history'
+    | '/dashboard/industrial'
+    | '/dashboard/machining'
+    | '/dashboard/materials'
+    | '/dashboard/pricing'
+    | '/dashboard/scientific'
+    | '/dashboard/settings'
+    | '/dashboard/tolerances'
+    | '/dashboard/weight'
+    | '/dashboard/workspace'
+    | '/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/privacy'
+    | '/terms'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/dashboard/converter'
+    | '/_authenticated/dashboard/engineering'
+    | '/_authenticated/dashboard/favorites'
+    | '/_authenticated/dashboard/formulas'
+    | '/_authenticated/dashboard/geometry'
+    | '/_authenticated/dashboard/history'
+    | '/_authenticated/dashboard/industrial'
+    | '/_authenticated/dashboard/machining'
+    | '/_authenticated/dashboard/materials'
+    | '/_authenticated/dashboard/pricing'
+    | '/_authenticated/dashboard/scientific'
+    | '/_authenticated/dashboard/settings'
+    | '/_authenticated/dashboard/tolerances'
+    | '/_authenticated/dashboard/weight'
+    | '/_authenticated/dashboard/workspace'
+    | '/_authenticated/dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AuthenticatedRouteRoute: typeof AuthenticatedRouteRoute
+  IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
+  ContactRoute: typeof ContactRoute
+  FaqRoute: typeof FaqRoute
+  LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -47,11 +399,204 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard/': {
+      id: '/_authenticated/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/workspace': {
+      id: '/_authenticated/dashboard/workspace'
+      path: '/workspace'
+      fullPath: '/dashboard/workspace'
+      preLoaderRoute: typeof AuthenticatedDashboardWorkspaceRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/weight': {
+      id: '/_authenticated/dashboard/weight'
+      path: '/weight'
+      fullPath: '/dashboard/weight'
+      preLoaderRoute: typeof AuthenticatedDashboardWeightRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/tolerances': {
+      id: '/_authenticated/dashboard/tolerances'
+      path: '/tolerances'
+      fullPath: '/dashboard/tolerances'
+      preLoaderRoute: typeof AuthenticatedDashboardTolerancesRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/settings': {
+      id: '/_authenticated/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof AuthenticatedDashboardSettingsRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/scientific': {
+      id: '/_authenticated/dashboard/scientific'
+      path: '/scientific'
+      fullPath: '/dashboard/scientific'
+      preLoaderRoute: typeof AuthenticatedDashboardScientificRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/pricing': {
+      id: '/_authenticated/dashboard/pricing'
+      path: '/pricing'
+      fullPath: '/dashboard/pricing'
+      preLoaderRoute: typeof AuthenticatedDashboardPricingRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/materials': {
+      id: '/_authenticated/dashboard/materials'
+      path: '/materials'
+      fullPath: '/dashboard/materials'
+      preLoaderRoute: typeof AuthenticatedDashboardMaterialsRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/machining': {
+      id: '/_authenticated/dashboard/machining'
+      path: '/machining'
+      fullPath: '/dashboard/machining'
+      preLoaderRoute: typeof AuthenticatedDashboardMachiningRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/industrial': {
+      id: '/_authenticated/dashboard/industrial'
+      path: '/industrial'
+      fullPath: '/dashboard/industrial'
+      preLoaderRoute: typeof AuthenticatedDashboardIndustrialRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/history': {
+      id: '/_authenticated/dashboard/history'
+      path: '/history'
+      fullPath: '/dashboard/history'
+      preLoaderRoute: typeof AuthenticatedDashboardHistoryRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/geometry': {
+      id: '/_authenticated/dashboard/geometry'
+      path: '/geometry'
+      fullPath: '/dashboard/geometry'
+      preLoaderRoute: typeof AuthenticatedDashboardGeometryRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/formulas': {
+      id: '/_authenticated/dashboard/formulas'
+      path: '/formulas'
+      fullPath: '/dashboard/formulas'
+      preLoaderRoute: typeof AuthenticatedDashboardFormulasRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/favorites': {
+      id: '/_authenticated/dashboard/favorites'
+      path: '/favorites'
+      fullPath: '/dashboard/favorites'
+      preLoaderRoute: typeof AuthenticatedDashboardFavoritesRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/engineering': {
+      id: '/_authenticated/dashboard/engineering'
+      path: '/engineering'
+      fullPath: '/dashboard/engineering'
+      preLoaderRoute: typeof AuthenticatedDashboardEngineeringRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
+    '/_authenticated/dashboard/converter': {
+      id: '/_authenticated/dashboard/converter'
+      path: '/converter'
+      fullPath: '/dashboard/converter'
+      preLoaderRoute: typeof AuthenticatedDashboardConverterRouteImport
+      parentRoute: typeof AuthenticatedDashboardRouteRoute
+    }
   }
 }
 
+interface AuthenticatedDashboardRouteRouteChildren {
+  AuthenticatedDashboardConverterRoute: typeof AuthenticatedDashboardConverterRoute
+  AuthenticatedDashboardEngineeringRoute: typeof AuthenticatedDashboardEngineeringRoute
+  AuthenticatedDashboardFavoritesRoute: typeof AuthenticatedDashboardFavoritesRoute
+  AuthenticatedDashboardFormulasRoute: typeof AuthenticatedDashboardFormulasRoute
+  AuthenticatedDashboardGeometryRoute: typeof AuthenticatedDashboardGeometryRoute
+  AuthenticatedDashboardHistoryRoute: typeof AuthenticatedDashboardHistoryRoute
+  AuthenticatedDashboardIndustrialRoute: typeof AuthenticatedDashboardIndustrialRoute
+  AuthenticatedDashboardMachiningRoute: typeof AuthenticatedDashboardMachiningRoute
+  AuthenticatedDashboardMaterialsRoute: typeof AuthenticatedDashboardMaterialsRoute
+  AuthenticatedDashboardPricingRoute: typeof AuthenticatedDashboardPricingRoute
+  AuthenticatedDashboardScientificRoute: typeof AuthenticatedDashboardScientificRoute
+  AuthenticatedDashboardSettingsRoute: typeof AuthenticatedDashboardSettingsRoute
+  AuthenticatedDashboardTolerancesRoute: typeof AuthenticatedDashboardTolerancesRoute
+  AuthenticatedDashboardWeightRoute: typeof AuthenticatedDashboardWeightRoute
+  AuthenticatedDashboardWorkspaceRoute: typeof AuthenticatedDashboardWorkspaceRoute
+  AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
+}
+
+const AuthenticatedDashboardRouteRouteChildren: AuthenticatedDashboardRouteRouteChildren =
+  {
+    AuthenticatedDashboardConverterRoute: AuthenticatedDashboardConverterRoute,
+    AuthenticatedDashboardEngineeringRoute:
+      AuthenticatedDashboardEngineeringRoute,
+    AuthenticatedDashboardFavoritesRoute: AuthenticatedDashboardFavoritesRoute,
+    AuthenticatedDashboardFormulasRoute: AuthenticatedDashboardFormulasRoute,
+    AuthenticatedDashboardGeometryRoute: AuthenticatedDashboardGeometryRoute,
+    AuthenticatedDashboardHistoryRoute: AuthenticatedDashboardHistoryRoute,
+    AuthenticatedDashboardIndustrialRoute:
+      AuthenticatedDashboardIndustrialRoute,
+    AuthenticatedDashboardMachiningRoute: AuthenticatedDashboardMachiningRoute,
+    AuthenticatedDashboardMaterialsRoute: AuthenticatedDashboardMaterialsRoute,
+    AuthenticatedDashboardPricingRoute: AuthenticatedDashboardPricingRoute,
+    AuthenticatedDashboardScientificRoute:
+      AuthenticatedDashboardScientificRoute,
+    AuthenticatedDashboardSettingsRoute: AuthenticatedDashboardSettingsRoute,
+    AuthenticatedDashboardTolerancesRoute:
+      AuthenticatedDashboardTolerancesRoute,
+    AuthenticatedDashboardWeightRoute: AuthenticatedDashboardWeightRoute,
+    AuthenticatedDashboardWorkspaceRoute: AuthenticatedDashboardWorkspaceRoute,
+    AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
+  }
+
+const AuthenticatedDashboardRouteRouteWithChildren =
+  AuthenticatedDashboardRouteRoute._addFileChildren(
+    AuthenticatedDashboardRouteRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRouteRoute: typeof AuthenticatedDashboardRouteRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRouteRoute:
+    AuthenticatedDashboardRouteRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  AuthenticatedRouteRoute: AuthenticatedRouteRoute,
+  IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
+  ContactRoute: ContactRoute,
+  FaqRoute: FaqRoute,
+  LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
