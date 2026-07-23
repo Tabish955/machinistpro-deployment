@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { InfoPage } from "@/components/layout/info-page";
 import { ChevronDown } from "lucide-react";
-import type { Metadata } from "next";
 
 const FAQS = [
   { q: "What is MachinistPro?", a: "MachinistPro is a premium, offline-first engineering calculator suite designed for machinists, CNC operators, fabrication shops, mechanical engineers, and technical students. It includes scientific calculations, unit conversion, material weight estimation, machining tools, geometry, engineering analysis, and more." },
