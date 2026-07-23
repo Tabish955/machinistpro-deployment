@@ -30,8 +30,7 @@ export const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(function Link
     );
   }
   return (
-    // @ts-expect-error TanStack Link typed routes
-    <TSLink ref={ref} to={target} replace={replace} {...rest}>
+    <TSLink ref={ref} to={target as string} replace={replace} {...(rest as Record<string, unknown>)}>
       {children}
     </TSLink>
   );
@@ -44,10 +43,14 @@ export function usePathname(): string {
 }
 
 export function useSearchParams() {
-  const search = useRouterState({ select: (s) => s.location.search });
-  const params = new URLSearchParams(
-    typeof search === "string" ? search : new URLSearchParams(search as Record<string, string>).toString(),
-  );
+  const search = useRouterState({ select: (s) => s.location.search }) as unknown;
+  const rec: Record<string, string> = {};
+  if (search && typeof search === "object") {
+    for (const [k, v] of Object.entries(search as Record<string, unknown>)) {
+      rec[k] = String(v);
+    }
+  }
+  const params = new URLSearchParams(rec);
   return {
     get: (k: string) => params.get(k),
     has: (k: string) => params.has(k),
