@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { collectSignals } from "@/lib/fingerprint";
 import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
 
