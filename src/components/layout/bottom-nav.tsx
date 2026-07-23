@@ -1,6 +1,6 @@
 
-import { Link } from "@tanstack/react-router";
-import { usePathname } from "@tanstack/react-router";
+import { Link } from "@/lib/next-compat";
+import { usePathname } from "@/lib/next-compat";
 import { LayoutDashboard, Calculator, Star, Clock, Settings } from "lucide-react";
 
 const items = [

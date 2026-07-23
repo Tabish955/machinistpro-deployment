@@ -11,7 +11,7 @@ import {
   Redo2,
   ClipboardPaste,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link } from "@/lib/next-compat";
 import type { AngleMode } from "@/lib/calculator/types";
 
 export function PremiumCalculator() {

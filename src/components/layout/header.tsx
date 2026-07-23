@@ -1,12 +1,12 @@
 
-import { useRouter } from "@tanstack/react-router";
+import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "@/store/toast-store";
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/ui/search";
 import { Menu, LogOut, User, Bell, Settings } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link } from "@/lib/next-compat";
 
 export function Header() {
   const router = useRouter();

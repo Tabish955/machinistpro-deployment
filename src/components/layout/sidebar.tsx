@@ -1,6 +1,6 @@
 
-import { Link } from "@tanstack/react-router";
-import { usePathname } from "@tanstack/react-router";
+import { Link } from "@/lib/next-compat";
+import { usePathname } from "@/lib/next-compat";
 import { useAppStore } from "@/store/app-store";
 import { Logo } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";

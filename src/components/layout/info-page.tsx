@@ -1,6 +1,6 @@
 
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link } from "@/lib/next-compat";
 import { Logo } from "@/components/ui/logo";
 import { ArrowLeft } from "lucide-react";
 

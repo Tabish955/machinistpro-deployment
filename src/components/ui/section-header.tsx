@@ -1,6 +1,6 @@
 
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link } from "@/lib/next-compat";
 import { ChevronRight } from "lucide-react";
 
 interface SectionHeaderProps {

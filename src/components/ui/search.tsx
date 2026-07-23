@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useRouter } from "@tanstack/react-router";
+import { useRouter } from "@/lib/next-compat";
 import { Search, Command, ArrowRight, X, Hash, Database as DbIcon, Wrench, BookOpen, Calculator } from "lucide-react";
 import { searchModules, allModules, moduleColors, type ModuleConfig } from "@/config/modules";
 import { FORMULAS } from "@/lib/formulas";

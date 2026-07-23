@@ -1,5 +1,5 @@
 
-import { Link } from "@tanstack/react-router";
+import { Link } from "@/lib/next-compat";
 import { Badge } from "@/components/ui/badge";
 import { type ModuleConfig, moduleColors } from "@/config/modules";
 import { ArrowRight, Lock, Sparkles } from "lucide-react";

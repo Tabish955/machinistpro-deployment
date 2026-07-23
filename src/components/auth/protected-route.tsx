@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { useRouter } from "@tanstack/react-router";
+import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { Logo } from "@/components/ui/logo";
 
