@@ -1,6 +1,7 @@
 
 import type { ReactNode } from "react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { TrialBanner } from "@/components/trial-banner";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -14,6 +15,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="flex-1 flex flex-col min-w-0">
           <Header />
           <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6">
+            <TrialBanner />
             {children}
           </main>
         </div>
