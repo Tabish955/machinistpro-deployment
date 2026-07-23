@@ -1,4 +1,3 @@
-"use client";
 
 import { CustomCursor } from "./custom-cursor";
 import { SplashLoader } from "./splash-loader";

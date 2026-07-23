@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useRef } from "react";
 import { useCalculatorStore } from "@/store/calculator-store";
@@ -12,7 +11,7 @@ import {
   Redo2,
   ClipboardPaste,
 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import type { AngleMode } from "@/lib/calculator/types";
 
 export function PremiumCalculator() {

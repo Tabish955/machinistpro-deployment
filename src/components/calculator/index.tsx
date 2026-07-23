@@ -1,4 +1,3 @@
-"use client";
 
 export { PremiumCalculator } from "./premium-calculator";
 export { PremiumDisplay } from "./premium-display";

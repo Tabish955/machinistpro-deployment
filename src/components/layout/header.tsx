@@ -1,13 +1,12 @@
-"use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppStore } from "@/store/app-store";
 import { toast } from "@/store/toast-store";
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/ui/search";
 import { Menu, LogOut, User, Bell, Settings } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 
 export function Header() {
   const router = useRouter();

@@ -1,7 +1,6 @@
-"use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@tanstack/react-router";
+import { usePathname } from "@tanstack/react-router";
 import { useAppStore } from "@/store/app-store";
 import { Logo } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";

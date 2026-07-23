@@ -1,4 +1,3 @@
-"use client";
 
 import { Cog } from "lucide-react";
 

@@ -1,7 +1,6 @@
-"use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/ui/logo";
 import { ArrowLeft } from "lucide-react";
 

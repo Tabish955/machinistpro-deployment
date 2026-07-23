@@ -1,4 +1,3 @@
-"use client";
 
 import { type InputHTMLAttributes, type ReactNode, forwardRef } from "react";
 

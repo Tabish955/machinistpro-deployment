@@ -1,4 +1,3 @@
-"use client";
 
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useCalculatorStore } from "@/store/calculator-store";

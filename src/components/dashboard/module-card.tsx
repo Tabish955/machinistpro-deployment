@@ -1,6 +1,5 @@
-"use client";
 
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { type ModuleConfig, moduleColors } from "@/config/modules";
 import { ArrowRight, Lock, Sparkles } from "lucide-react";

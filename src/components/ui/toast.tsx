@@ -1,4 +1,3 @@
-"use client";
 
 import { useToastStore, type ToastType } from "@/store/toast-store";
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";

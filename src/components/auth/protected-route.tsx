@@ -1,7 +1,6 @@
-"use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import { useAuthStore } from "@/store/auth-store";
 import { Logo } from "@/components/ui/logo";
 
