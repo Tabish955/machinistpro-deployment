@@ -1,32 +1,29 @@
-import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+"use client";
 
-import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
-const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-  {
-    variants: {
-      variant: {
-        default: "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive:
-          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
-        outline: "text-foreground",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  },
-);
-
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+interface BadgeProps {
+  children: ReactNode;
+  color?: "cyan" | "blue" | "purple" | "green" | "amber" | "red" | "gray";
+  className?: string;
 }
 
-export { Badge, badgeVariants };
+const colorClasses = {
+  cyan: "bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20",
+  blue: "bg-accent-blue/10 text-accent-blue border-accent-blue/20",
+  purple: "bg-accent-purple/10 text-accent-purple border-accent-purple/20",
+  green: "bg-accent-green/10 text-accent-green border-accent-green/20",
+  amber: "bg-accent-amber/10 text-accent-amber border-accent-amber/20",
+  red: "bg-accent-red/10 text-accent-red border-accent-red/20",
+  gray: "bg-dark-500/50 text-gray-400 border-dark-400",
+};
+
+export function Badge({ children, color = "cyan", className = "" }: BadgeProps) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${colorClasses[color]} ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
