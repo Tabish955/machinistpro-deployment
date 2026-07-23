@@ -33,6 +33,10 @@ import { Route as DashboardFormulasRouteImport } from './routes/dashboard/formul
 import { Route as DashboardFavoritesRouteImport } from './routes/dashboard/favorites'
 import { Route as DashboardEngineeringRouteImport } from './routes/dashboard/engineering'
 import { Route as DashboardConverterRouteImport } from './routes/dashboard/converter'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -154,6 +158,26 @@ const DashboardConverterRoute = DashboardConverterRouteImport.update({
   path: '/converter',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
+  id: '/api/auth/session',
+  path: '/api/auth/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -164,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/health': typeof ApiHealthRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
   '/dashboard/favorites': typeof DashboardFavoritesRoute
@@ -180,6 +205,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -189,6 +217,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/health': typeof ApiHealthRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
   '/dashboard/favorites': typeof DashboardFavoritesRoute
@@ -205,6 +234,9 @@ export interface FileRoutesByTo {
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -216,6 +248,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/health': typeof ApiHealthRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
   '/dashboard/favorites': typeof DashboardFavoritesRoute
@@ -232,6 +265,9 @@ export interface FileRoutesById {
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -244,6 +280,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/terms'
+    | '/api/health'
     | '/dashboard/converter'
     | '/dashboard/engineering'
     | '/dashboard/favorites'
@@ -260,6 +297,9 @@ export interface FileRouteTypes {
     | '/dashboard/weight'
     | '/dashboard/workspace'
     | '/dashboard/'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -269,6 +309,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/terms'
+    | '/api/health'
     | '/dashboard/converter'
     | '/dashboard/engineering'
     | '/dashboard/favorites'
@@ -285,6 +326,9 @@ export interface FileRouteTypes {
     | '/dashboard/weight'
     | '/dashboard/workspace'
     | '/dashboard'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
   id:
     | '__root__'
     | '/'
@@ -295,6 +339,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/terms'
+    | '/api/health'
     | '/dashboard/converter'
     | '/dashboard/engineering'
     | '/dashboard/favorites'
@@ -311,6 +356,9 @@ export interface FileRouteTypes {
     | '/dashboard/weight'
     | '/dashboard/workspace'
     | '/dashboard/'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -322,6 +370,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiAuthSessionRoute: typeof ApiAuthSessionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -494,6 +546,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardConverterRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/session': {
+      id: '/api/auth/session'
+      path: '/api/auth/session'
+      fullPath: '/api/auth/session'
+      preLoaderRoute: typeof ApiAuthSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -548,6 +628,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiAuthSessionRoute: ApiAuthSessionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
