@@ -9,18 +9,68 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as DashboardWorkspaceRouteImport } from './routes/dashboard/workspace'
+import { Route as DashboardWeightRouteImport } from './routes/dashboard/weight'
+import { Route as DashboardTolerancesRouteImport } from './routes/dashboard/tolerances'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DashboardScientificRouteImport } from './routes/dashboard/scientific'
+import { Route as DashboardPricingRouteImport } from './routes/dashboard/pricing'
+import { Route as DashboardMaterialsRouteImport } from './routes/dashboard/materials'
+import { Route as DashboardMachiningRouteImport } from './routes/dashboard/machining'
+import { Route as DashboardIndustrialRouteImport } from './routes/dashboard/industrial'
+import { Route as DashboardHistoryRouteImport } from './routes/dashboard/history'
+import { Route as DashboardGeometryRouteImport } from './routes/dashboard/geometry'
+import { Route as DashboardFormulasRouteImport } from './routes/dashboard/formulas'
+import { Route as DashboardFavoritesRouteImport } from './routes/dashboard/favorites'
+import { Route as DashboardEngineeringRouteImport } from './routes/dashboard/engineering'
+import { Route as DashboardConverterRouteImport } from './routes/dashboard/converter'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRouteRoute = DashboardRouteRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -28,62 +78,353 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardWorkspaceRoute = DashboardWorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardWeightRoute = DashboardWeightRouteImport.update({
+  id: '/weight',
+  path: '/weight',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardTolerancesRoute = DashboardTolerancesRouteImport.update({
+  id: '/tolerances',
+  path: '/tolerances',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardScientificRoute = DashboardScientificRouteImport.update({
+  id: '/scientific',
+  path: '/scientific',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardPricingRoute = DashboardPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardMaterialsRoute = DashboardMaterialsRouteImport.update({
+  id: '/materials',
+  path: '/materials',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardMachiningRoute = DashboardMachiningRouteImport.update({
+  id: '/machining',
+  path: '/machining',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardIndustrialRoute = DashboardIndustrialRouteImport.update({
+  id: '/industrial',
+  path: '/industrial',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardHistoryRoute = DashboardHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardGeometryRoute = DashboardGeometryRouteImport.update({
+  id: '/geometry',
+  path: '/geometry',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardFormulasRoute = DashboardFormulasRouteImport.update({
+  id: '/formulas',
+  path: '/formulas',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardFavoritesRoute = DashboardFavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardEngineeringRoute = DashboardEngineeringRouteImport.update({
+  id: '/engineering',
+  path: '/engineering',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardConverterRoute = DashboardConverterRouteImport.update({
+  id: '/converter',
+  path: '/converter',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
+  id: '/api/auth/session',
+  path: '/api/auth/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/api/health': typeof ApiHealthRoute
+  '/dashboard/converter': typeof DashboardConverterRoute
+  '/dashboard/engineering': typeof DashboardEngineeringRoute
+  '/dashboard/favorites': typeof DashboardFavoritesRoute
+  '/dashboard/formulas': typeof DashboardFormulasRoute
+  '/dashboard/geometry': typeof DashboardGeometryRoute
+  '/dashboard/history': typeof DashboardHistoryRoute
+  '/dashboard/industrial': typeof DashboardIndustrialRoute
+  '/dashboard/machining': typeof DashboardMachiningRoute
+  '/dashboard/materials': typeof DashboardMaterialsRoute
+  '/dashboard/pricing': typeof DashboardPricingRoute
+  '/dashboard/scientific': typeof DashboardScientificRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/tolerances': typeof DashboardTolerancesRoute
+  '/dashboard/weight': typeof DashboardWeightRoute
+  '/dashboard/workspace': typeof DashboardWorkspaceRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/api/health': typeof ApiHealthRoute
+  '/dashboard/converter': typeof DashboardConverterRoute
+  '/dashboard/engineering': typeof DashboardEngineeringRoute
+  '/dashboard/favorites': typeof DashboardFavoritesRoute
+  '/dashboard/formulas': typeof DashboardFormulasRoute
+  '/dashboard/geometry': typeof DashboardGeometryRoute
+  '/dashboard/history': typeof DashboardHistoryRoute
+  '/dashboard/industrial': typeof DashboardIndustrialRoute
+  '/dashboard/machining': typeof DashboardMachiningRoute
+  '/dashboard/materials': typeof DashboardMaterialsRoute
+  '/dashboard/pricing': typeof DashboardPricingRoute
+  '/dashboard/scientific': typeof DashboardScientificRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/tolerances': typeof DashboardTolerancesRoute
+  '/dashboard/weight': typeof DashboardWeightRoute
+  '/dashboard/workspace': typeof DashboardWorkspaceRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/auth': typeof AuthRoute
-  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/api/health': typeof ApiHealthRoute
+  '/dashboard/converter': typeof DashboardConverterRoute
+  '/dashboard/engineering': typeof DashboardEngineeringRoute
+  '/dashboard/favorites': typeof DashboardFavoritesRoute
+  '/dashboard/formulas': typeof DashboardFormulasRoute
+  '/dashboard/geometry': typeof DashboardGeometryRoute
+  '/dashboard/history': typeof DashboardHistoryRoute
+  '/dashboard/industrial': typeof DashboardIndustrialRoute
+  '/dashboard/machining': typeof DashboardMachiningRoute
+  '/dashboard/materials': typeof DashboardMaterialsRoute
+  '/dashboard/pricing': typeof DashboardPricingRoute
+  '/dashboard/scientific': typeof DashboardScientificRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/tolerances': typeof DashboardTolerancesRoute
+  '/dashboard/weight': typeof DashboardWeightRoute
+  '/dashboard/workspace': typeof DashboardWorkspaceRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/privacy'
+    | '/terms'
+    | '/api/health'
+    | '/dashboard/converter'
+    | '/dashboard/engineering'
+    | '/dashboard/favorites'
+    | '/dashboard/formulas'
+    | '/dashboard/geometry'
+    | '/dashboard/history'
+    | '/dashboard/industrial'
+    | '/dashboard/machining'
+    | '/dashboard/materials'
+    | '/dashboard/pricing'
+    | '/dashboard/scientific'
+    | '/dashboard/settings'
+    | '/dashboard/tolerances'
+    | '/dashboard/weight'
+    | '/dashboard/workspace'
+    | '/dashboard/'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard'
+  to:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/privacy'
+    | '/terms'
+    | '/api/health'
+    | '/dashboard/converter'
+    | '/dashboard/engineering'
+    | '/dashboard/favorites'
+    | '/dashboard/formulas'
+    | '/dashboard/geometry'
+    | '/dashboard/history'
+    | '/dashboard/industrial'
+    | '/dashboard/machining'
+    | '/dashboard/materials'
+    | '/dashboard/pricing'
+    | '/dashboard/scientific'
+    | '/dashboard/settings'
+    | '/dashboard/tolerances'
+    | '/dashboard/weight'
+    | '/dashboard/workspace'
+    | '/dashboard'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
   id:
     | '__root__'
     | '/'
-    | '/_authenticated'
-    | '/auth'
-    | '/_authenticated/dashboard'
+    | '/dashboard'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/privacy'
+    | '/terms'
+    | '/api/health'
+    | '/dashboard/converter'
+    | '/dashboard/engineering'
+    | '/dashboard/favorites'
+    | '/dashboard/formulas'
+    | '/dashboard/geometry'
+    | '/dashboard/history'
+    | '/dashboard/industrial'
+    | '/dashboard/machining'
+    | '/dashboard/materials'
+    | '/dashboard/pricing'
+    | '/dashboard/scientific'
+    | '/dashboard/settings'
+    | '/dashboard/tolerances'
+    | '/dashboard/weight'
+    | '/dashboard/workspace'
+    | '/dashboard/'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
+  ContactRoute: typeof ContactRoute
+  FaqRoute: typeof FaqRoute
+  LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiAuthSessionRoute: typeof ApiAuthSessionRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -93,31 +434,204 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/workspace': {
+      id: '/dashboard/workspace'
+      path: '/workspace'
+      fullPath: '/dashboard/workspace'
+      preLoaderRoute: typeof DashboardWorkspaceRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/weight': {
+      id: '/dashboard/weight'
+      path: '/weight'
+      fullPath: '/dashboard/weight'
+      preLoaderRoute: typeof DashboardWeightRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/tolerances': {
+      id: '/dashboard/tolerances'
+      path: '/tolerances'
+      fullPath: '/dashboard/tolerances'
+      preLoaderRoute: typeof DashboardTolerancesRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/scientific': {
+      id: '/dashboard/scientific'
+      path: '/scientific'
+      fullPath: '/dashboard/scientific'
+      preLoaderRoute: typeof DashboardScientificRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/pricing': {
+      id: '/dashboard/pricing'
+      path: '/pricing'
+      fullPath: '/dashboard/pricing'
+      preLoaderRoute: typeof DashboardPricingRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/materials': {
+      id: '/dashboard/materials'
+      path: '/materials'
+      fullPath: '/dashboard/materials'
+      preLoaderRoute: typeof DashboardMaterialsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/machining': {
+      id: '/dashboard/machining'
+      path: '/machining'
+      fullPath: '/dashboard/machining'
+      preLoaderRoute: typeof DashboardMachiningRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/industrial': {
+      id: '/dashboard/industrial'
+      path: '/industrial'
+      fullPath: '/dashboard/industrial'
+      preLoaderRoute: typeof DashboardIndustrialRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/history': {
+      id: '/dashboard/history'
+      path: '/history'
+      fullPath: '/dashboard/history'
+      preLoaderRoute: typeof DashboardHistoryRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/geometry': {
+      id: '/dashboard/geometry'
+      path: '/geometry'
+      fullPath: '/dashboard/geometry'
+      preLoaderRoute: typeof DashboardGeometryRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/formulas': {
+      id: '/dashboard/formulas'
+      path: '/formulas'
+      fullPath: '/dashboard/formulas'
+      preLoaderRoute: typeof DashboardFormulasRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/favorites': {
+      id: '/dashboard/favorites'
+      path: '/favorites'
+      fullPath: '/dashboard/favorites'
+      preLoaderRoute: typeof DashboardFavoritesRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/engineering': {
+      id: '/dashboard/engineering'
+      path: '/engineering'
+      fullPath: '/dashboard/engineering'
+      preLoaderRoute: typeof DashboardEngineeringRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/converter': {
+      id: '/dashboard/converter'
+      path: '/converter'
+      fullPath: '/dashboard/converter'
+      preLoaderRoute: typeof DashboardConverterRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/session': {
+      id: '/api/auth/session'
+      path: '/api/auth/session'
+      fullPath: '/api/auth/session'
+      preLoaderRoute: typeof ApiAuthSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface AuthenticatedRouteRouteChildren {
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+interface DashboardRouteRouteChildren {
+  DashboardConverterRoute: typeof DashboardConverterRoute
+  DashboardEngineeringRoute: typeof DashboardEngineeringRoute
+  DashboardFavoritesRoute: typeof DashboardFavoritesRoute
+  DashboardFormulasRoute: typeof DashboardFormulasRoute
+  DashboardGeometryRoute: typeof DashboardGeometryRoute
+  DashboardHistoryRoute: typeof DashboardHistoryRoute
+  DashboardIndustrialRoute: typeof DashboardIndustrialRoute
+  DashboardMachiningRoute: typeof DashboardMachiningRoute
+  DashboardMaterialsRoute: typeof DashboardMaterialsRoute
+  DashboardPricingRoute: typeof DashboardPricingRoute
+  DashboardScientificRoute: typeof DashboardScientificRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardTolerancesRoute: typeof DashboardTolerancesRoute
+  DashboardWeightRoute: typeof DashboardWeightRoute
+  DashboardWorkspaceRoute: typeof DashboardWorkspaceRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
-const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
+  DashboardConverterRoute: DashboardConverterRoute,
+  DashboardEngineeringRoute: DashboardEngineeringRoute,
+  DashboardFavoritesRoute: DashboardFavoritesRoute,
+  DashboardFormulasRoute: DashboardFormulasRoute,
+  DashboardGeometryRoute: DashboardGeometryRoute,
+  DashboardHistoryRoute: DashboardHistoryRoute,
+  DashboardIndustrialRoute: DashboardIndustrialRoute,
+  DashboardMachiningRoute: DashboardMachiningRoute,
+  DashboardMaterialsRoute: DashboardMaterialsRoute,
+  DashboardPricingRoute: DashboardPricingRoute,
+  DashboardScientificRoute: DashboardScientificRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardTolerancesRoute: DashboardTolerancesRoute,
+  DashboardWeightRoute: DashboardWeightRoute,
+  DashboardWorkspaceRoute: DashboardWorkspaceRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
 }
 
-const AuthenticatedRouteRouteWithChildren =
-  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
+  DashboardRouteRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
+  ContactRoute: ContactRoute,
+  FaqRoute: FaqRoute,
+  LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiAuthSessionRoute: ApiAuthSessionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

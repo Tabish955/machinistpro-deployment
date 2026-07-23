@@ -1,49 +1,74 @@
-import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils";
+import { type ButtonHTMLAttributes, type ReactNode } from "react";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonSize = "sm" | "md" | "lg";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  children: ReactNode;
+  loading?: boolean;
+  icon?: ReactNode;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
-    );
-  },
-);
-Button.displayName = "Button";
+const variantClasses: Record<ButtonVariant, string> = {
+  primary:
+    "bg-gradient-to-r from-accent-cyan to-accent-blue text-dark-950 font-semibold hover:brightness-110 active:brightness-95 shadow-lg shadow-accent-cyan/10",
+  secondary:
+    "bg-dark-600 text-white border border-dark-400 hover:bg-dark-500 hover:border-dark-300",
+  ghost:
+    "bg-transparent text-gray-300 hover:bg-dark-700 hover:text-white",
+  danger:
+    "bg-accent-red/10 text-accent-red border border-accent-red/20 hover:bg-accent-red/20",
+};
 
-export { Button, buttonVariants };
+const sizeClasses: Record<ButtonSize, string> = {
+  sm: "px-3 py-1.5 text-xs rounded-md gap-1.5",
+  md: "px-4 py-2.5 text-sm rounded-lg gap-2",
+  lg: "px-6 py-3 text-base rounded-lg gap-2.5",
+};
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  children,
+  loading = false,
+  icon,
+  disabled,
+  className = "",
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      className={`inline-flex items-center justify-center font-medium transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading ? (
+        <svg
+          className="h-4 w-4 animate-spin"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          />
+        </svg>
+      ) : icon ? (
+        icon
+      ) : null}
+      {children}
+    </button>
+  );
+}

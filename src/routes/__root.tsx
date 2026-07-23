@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { ClientProviders } from "@/components/ui/client-providers";
+import { ToastContainer } from "@/components/ui/toast";
 
 function NotFoundComponent() {
   return (
@@ -132,7 +134,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ClientProviders />
       <Outlet />
+      <ToastContainer />
     </QueryClientProvider>
   );
 }

@@ -1,0 +1,71 @@
+export interface MaterialProfile {
+  id: string;
+  name: string;
+  category: "steel" | "aluminum" | "copper" | "other_metal" | "plastic";
+  density: number;                // kg/m³
+  yieldStrength?: number;         // MPa
+  tensileStrength?: number;       // MPa
+  hardness?: string;              // e.g. "200 HB"
+  elasticModulus?: number;        // GPa
+  thermalConductivity?: number;   // W/(m·K)
+  electricalConductivity?: number;// % IACS
+  meltingPoint?: number;          // °C
+  machinability?: number;         // % rating (100 = B1112 baseline)
+  applications: string;
+  notes?: string;
+}
+
+export const MATERIAL_PROFILES: MaterialProfile[] = [
+  // ═══ STEELS ═══
+  { id:"mild_steel",   name:"Mild Steel (A36)",        category:"steel",  density:7850, yieldStrength:250, tensileStrength:400, hardness:"120–160 HB",  elasticModulus:200, thermalConductivity:51,  meltingPoint:1425, machinability:72,  applications:"Structural, general fabrication, frames, brackets" },
+  { id:"c1018",        name:"Carbon Steel 1018",       category:"steel",  density:7870, yieldStrength:370, tensileStrength:440, hardness:"126 HB",      elasticModulus:205, thermalConductivity:51,  meltingPoint:1450, machinability:78,  applications:"Shafts, pins, gears, cold-formed parts" },
+  { id:"c1045",        name:"Carbon Steel 1045",       category:"steel",  density:7870, yieldStrength:530, tensileStrength:630, hardness:"170–210 HB",  elasticModulus:206, thermalConductivity:49,  meltingPoint:1455, machinability:57,  applications:"Axles, bolts, crankshafts, connecting rods" },
+  { id:"d2_tool",      name:"Tool Steel D2",           category:"steel",  density:7700, yieldStrength:1550,tensileStrength:1860,hardness:"58–62 HRC",   elasticModulus:210, thermalConductivity:20,  meltingPoint:1420, machinability:27,  applications:"Dies, punches, cutting tools, blades" },
+  { id:"4140",         name:"Alloy Steel 4140",        category:"steel",  density:7850, yieldStrength:655, tensileStrength:1020,hardness:"28–32 HRC",   elasticModulus:210, thermalConductivity:42,  meltingPoint:1416, machinability:66,  applications:"Gears, spindles, fixtures, tooling" },
+  { id:"ss304",        name:"Stainless Steel 304",     category:"steel",  density:8000, yieldStrength:215, tensileStrength:505, hardness:"92 HRB",      elasticModulus:193, thermalConductivity:16,  electricalConductivity:2.5, meltingPoint:1400, machinability:45, applications:"Food equipment, chemical tanks, fasteners", notes:"Most common austenitic stainless" },
+  { id:"ss316",        name:"Stainless Steel 316",     category:"steel",  density:8000, yieldStrength:205, tensileStrength:515, hardness:"95 HRB",      elasticModulus:193, thermalConductivity:16,  electricalConductivity:2.3, meltingPoint:1375, machinability:36, applications:"Marine hardware, chemical processing, medical", notes:"Superior corrosion resistance vs 304" },
+  { id:"ss420",        name:"Stainless Steel 420",     category:"steel",  density:7740, yieldStrength:345, tensileStrength:655, hardness:"50 HRC (HT)", elasticModulus:200, thermalConductivity:25,  meltingPoint:1450, machinability:45, applications:"Cutlery, surgical instruments, valves" },
+  { id:"ss430",        name:"Stainless Steel 430",     category:"steel",  density:7740, yieldStrength:205, tensileStrength:450, hardness:"89 HRB",      elasticModulus:200, thermalConductivity:26,  meltingPoint:1425, machinability:54, applications:"Automotive trim, kitchen sinks, appliances" },
+
+  // ═══ ALUMINUM ═══
+  { id:"al1050", name:"Aluminum 1050",   category:"aluminum", density:2710, yieldStrength:28,  tensileStrength:76,  hardness:"20 HB",   elasticModulus:69, thermalConductivity:231, electricalConductivity:62, meltingPoint:657, machinability:30,  applications:"Chemical equipment, food industry, reflectors" },
+  { id:"al2024", name:"Aluminum 2024-T4",category:"aluminum", density:2780, yieldStrength:325, tensileStrength:470, hardness:"120 HB",  elasticModulus:73, thermalConductivity:121, electricalConductivity:30, meltingPoint:502, machinability:70,  applications:"Aircraft structures, truck wheels, screw products" },
+  { id:"al5052", name:"Aluminum 5052-H32",category:"aluminum",density:2680, yieldStrength:193, tensileStrength:228, hardness:"60 HB",   elasticModulus:70, thermalConductivity:138, electricalConductivity:35, meltingPoint:607, machinability:30,  applications:"Marine, fuel tanks, sheet metal work" },
+  { id:"al5083", name:"Aluminum 5083-H116",category:"aluminum",density:2660,yieldStrength:228, tensileStrength:317, hardness:"75 HB",   elasticModulus:71, thermalConductivity:117, electricalConductivity:29, meltingPoint:574, machinability:30,  applications:"Shipbuilding, cryogenic, pressure vessels" },
+  { id:"al6061", name:"Aluminum 6061-T6",category:"aluminum", density:2710, yieldStrength:276, tensileStrength:310, hardness:"95 HB",   elasticModulus:69, thermalConductivity:167, electricalConductivity:43, meltingPoint:582, machinability:50,  applications:"Structural, extrusions, general machining", notes:"Most versatile heat-treatable aluminum" },
+  { id:"al6082", name:"Aluminum 6082-T6",category:"aluminum", density:2710, yieldStrength:260, tensileStrength:310, hardness:"95 HB",   elasticModulus:69, thermalConductivity:172, electricalConductivity:44, meltingPoint:555, machinability:50,  applications:"Structural, bridges, transport" },
+  { id:"al7075", name:"Aluminum 7075-T6",category:"aluminum", density:2810, yieldStrength:503, tensileStrength:572, hardness:"150 HB",  elasticModulus:72, thermalConductivity:130, electricalConductivity:33, meltingPoint:477, machinability:70,  applications:"Aerospace, high-strength parts, molds", notes:"Strongest common aluminum alloy" },
+
+  // ═══ COPPER ALLOYS ═══
+  { id:"copper",  name:"Copper C110 (ETP)",  category:"copper", density:8940, yieldStrength:69,  tensileStrength:220, hardness:"45 HRF",  elasticModulus:117, thermalConductivity:391, electricalConductivity:101, meltingPoint:1083, machinability:20, applications:"Electrical conductors, busbars, heat sinks" },
+  { id:"brass360",name:"Brass C360 (Free-Cut)",category:"copper",density:8500,yieldStrength:310, tensileStrength:385, hardness:"78 HRB",  elasticModulus:97,  thermalConductivity:115, electricalConductivity:26,  meltingPoint:885,  machinability:100,applications:"Screw machine parts, fittings, valves", notes:"Best machinability of copper alloys" },
+  { id:"bronze",  name:"Bronze C932 (Bearing)",category:"copper",density:8800,yieldStrength:152, tensileStrength:241, hardness:"65 HB",   elasticModulus:100, thermalConductivity:59,  electricalConductivity:10,  meltingPoint:1000, machinability:40, applications:"Bearings, bushings, gears, wear parts" },
+
+  // ═══ OTHER METALS ═══
+  { id:"ti_gr5",   name:"Titanium Grade 5 (Ti-6Al-4V)",category:"other_metal",density:4430, yieldStrength:880, tensileStrength:950, hardness:"36 HRC", elasticModulus:114, thermalConductivity:6.7, meltingPoint:1660, machinability:22, applications:"Aerospace, medical implants, marine, racing" },
+  { id:"magnesium",name:"Magnesium AZ31B", category:"other_metal", density:1770, yieldStrength:200, tensileStrength:260, hardness:"49 HB", elasticModulus:45, thermalConductivity:96, meltingPoint:605, machinability:100, applications:"Aerospace, electronics housings, lightweight parts" },
+  { id:"zinc",     name:"Zinc (Zamak 3)",  category:"other_metal", density:6600, yieldStrength:228, tensileStrength:283, hardness:"82 HB", elasticModulus:85, thermalConductivity:113, meltingPoint:386, applications:"Die casting, hardware, automotive parts" },
+  { id:"nickel200",name:"Nickel 200",      category:"other_metal", density:8890, yieldStrength:148, tensileStrength:462, hardness:"120 HB",elasticModulus:207, thermalConductivity:70, electricalConductivity:25, meltingPoint:1435, machinability:40, applications:"Chemical processing, electronics, caustic handling" },
+  { id:"inconel718",name:"Inconel 718",    category:"other_metal", density:8190, yieldStrength:1035,tensileStrength:1240,hardness:"40 HRC",elasticModulus:211, thermalConductivity:11.4,meltingPoint:1336, machinability:12, applications:"Gas turbines, aerospace, nuclear, high-temp fasteners", notes:"Extremely difficult to machine" },
+  { id:"monel400", name:"Monel 400",       category:"other_metal", density:8800, yieldStrength:240, tensileStrength:550, hardness:"130 HB",elasticModulus:180, thermalConductivity:22, electricalConductivity:4, meltingPoint:1350, machinability:30, applications:"Marine, chemical processing, oil & gas" },
+
+  // ═══ PLASTICS ═══
+  { id:"pvc",   name:"PVC (Rigid)",       category:"plastic", density:1400, tensileStrength:50,  elasticModulus:3.3, thermalConductivity:0.16, meltingPoint:160, applications:"Piping, fittings, profiles, window frames" },
+  { id:"abs",   name:"ABS",               category:"plastic", density:1050, tensileStrength:43,  elasticModulus:2.3, thermalConductivity:0.17, meltingPoint:105, applications:"3D printing, housings, automotive parts" },
+  { id:"nylon", name:"Nylon 6/6",         category:"plastic", density:1140, tensileStrength:85,  elasticModulus:3.3, thermalConductivity:0.25, meltingPoint:260, applications:"Gears, bearings, bushings, fasteners" },
+  { id:"delrin",name:"Delrin (Acetal POM)",category:"plastic", density:1410, tensileStrength:70,  elasticModulus:3.1, thermalConductivity:0.31, meltingPoint:178, applications:"Precision machined parts, gears, springs", notes:"Excellent machinability" },
+  { id:"acrylic",name:"Acrylic (PMMA)",   category:"plastic", density:1180, tensileStrength:72,  elasticModulus:3.1, thermalConductivity:0.19, meltingPoint:160, applications:"Displays, lenses, signs, lighting" },
+  { id:"pc",    name:"Polycarbonate",     category:"plastic", density:1200, tensileStrength:63,  elasticModulus:2.4, thermalConductivity:0.20, meltingPoint:155, applications:"Safety glazing, electronics, medical devices" },
+  { id:"ptfe",  name:"PTFE (Teflon)",     category:"plastic", density:2170, tensileStrength:25,  elasticModulus:0.5, thermalConductivity:0.25, meltingPoint:327, applications:"Seals, bearings, non-stick coatings, insulation", notes:"Lowest friction of any solid" },
+  { id:"hdpe",  name:"HDPE",              category:"plastic", density:960,  tensileStrength:32,  elasticModulus:1.1, thermalConductivity:0.49, meltingPoint:130, applications:"Containers, piping, cutting boards" },
+];
+
+export const MATERIAL_CATEGORIES = {
+  steel: "Steels",
+  aluminum: "Aluminum Alloys",
+  copper: "Copper Alloys",
+  other_metal: "Other Metals",
+  plastic: "Engineering Plastics",
+};
+
+export const MATERIAL_MAP = new Map(MATERIAL_PROFILES.map(m => [m.id, m]));

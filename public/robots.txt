@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /faq
+Allow: /privacy
+Allow: /terms
+Allow: /contact
+Disallow: /api/
+Disallow: /dashboard/
+
+Sitemap: https://machinistpro.vercel.app/sitemap.xml
