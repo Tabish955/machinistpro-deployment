@@ -417,9 +417,65 @@ export default function LoginPage() {
             {/* Divider */}
             <div className="flex items-center gap-4 my-6">
               <div className="flex-1 h-px bg-dark-600" />
-              <span className="text-xs text-gray-600">SECURE LOGIN</span>
+              <span className="text-xs text-gray-600">OR</span>
               <div className="flex-1 h-px bg-dark-600" />
             </div>
+
+            {/* 14-day trial */}
+            {trialStatus.state === "loading" && (
+              <div className="rounded-lg border border-dark-600 bg-dark-900/50 p-4 text-xs text-gray-500">
+                Checking trial eligibility…
+              </div>
+            )}
+            {trialStatus.state === "none" && (
+              <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-4">
+                <div className="flex items-start gap-2 mb-3">
+                  <Sparkles size={16} className="text-accent-cyan mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Try MachinistPro free for 14 days</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">No credit card. One trial per device.</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="md"
+                  loading={startingTrial}
+                  onClick={handleStartTrial}
+                  className="w-full"
+                >
+                  {startingTrial ? "Starting trial…" : "Start 14-Day Free Trial"}
+                </Button>
+              </div>
+            )}
+            {trialStatus.state === "active" && (
+              <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-4">
+                <p className="text-sm text-white font-semibold mb-1">Trial active</p>
+                <p className="text-[11px] text-gray-400 mb-3">
+                  {trialStatus.daysLeft} day{trialStatus.daysLeft === 1 ? "" : "s"} left · expires {new Date(trialStatus.expiresAt).toLocaleDateString()}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="md"
+                  onClick={handleStartTrial}
+                  className="w-full"
+                >
+                  Continue with Trial
+                </Button>
+              </div>
+            )}
+            {trialStatus.state === "expired" && (
+              <div className="rounded-lg border border-accent-red/30 bg-accent-red/5 p-4 text-xs text-accent-red">
+                Your 14-day trial on this device has expired. Please sign in with a paid account.
+              </div>
+            )}
+            {trialStatus.state === "blocked" && (
+              <div className="rounded-lg border border-accent-red/30 bg-accent-red/5 p-4 text-xs text-accent-red">
+                {trialStatus.reason}
+              </div>
+            )}
+
 
             {/* Info */}
             <div className="flex items-start gap-2 rounded-lg bg-dark-700/50 p-3">
