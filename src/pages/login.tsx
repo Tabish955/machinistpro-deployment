@@ -35,8 +35,68 @@ export default function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({});
   const [serverError, setServerError] = useState<{ error: string } | null>(null);
 
-  // Redirect if already authenticated
+  // Trial state
+  const checkTrial = useServerFn(getDeviceTrialStatus);
+  const startTrial = useServerFn(startDeviceTrial);
+  const [trialStatus, setTrialStatus] = useState<
+    | { state: "loading" }
+    | { state: "none" }
+    | { state: "active"; daysLeft: number; expiresAt: string }
+    | { state: "expired" }
+    | { state: "blocked"; reason: string }
+  >({ state: "loading" });
+  const [startingTrial, setStartingTrial] = useState(false);
+
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const signals = await collectSignals();
+        const r = await checkTrial({ data: { signals } });
+        if (cancelled) return;
+        if (!r.hasTrial) setTrialStatus({ state: "none" });
+        else if (r.active) setTrialStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
+        else setTrialStatus({ state: "expired" });
+      } catch {
+        if (!cancelled) setTrialStatus({ state: "none" });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [checkTrial]);
+
+  const handleStartTrial = useCallback(async () => {
+    setStartingTrial(true);
+    try {
+      const signals = await collectSignals();
+      const r = await startTrial({ data: { signals } });
+      if (r.ok) {
+        const expiryDate = new Date(r.expiresAt).toLocaleDateString();
+        const trialToken = `trial_${crypto.randomUUID().replace(/-/g, "")}`;
+        localStorage.setItem("mp_session", trialToken);
+        localStorage.setItem("mp_user", JSON.stringify({
+          username: "Trial User",
+          subscription: "Trial (14 days)",
+          expiry: expiryDate,
+        }));
+        setUser({
+          username: "Trial User",
+          subscription: "Trial (14 days)",
+          expiry: expiryDate,
+          sessionToken: trialToken,
+        });
+        toast.success("Trial started", `14 days · expires ${expiryDate}`);
+        router.push("/dashboard");
+      } else {
+        setTrialStatus({ state: "blocked", reason: r.reason });
+        toast.error("Trial unavailable", r.reason);
+      }
+    } catch {
+      toast.error("Trial unavailable", "Please try again.");
+    } finally {
+      setStartingTrial(false);
+    }
+  }, [startTrial, setUser, router]);
+
     if (status === "authenticated" && user) {
       router.replace("/dashboard");
     }
