@@ -19,6 +19,7 @@ export function PremiumCalculator() {
     );
   });
   const setMode = (nextMode: CalculatorMode) => {
+    useCalculatorStore.getState().clearRepeatOperation();
     setModeState(nextMode);
     window.localStorage.setItem("machinist-pro-calculator-mode", nextMode);
   };
@@ -103,7 +104,7 @@ export function PremiumCalculator() {
       }
       if (key === "Enter" || key === "=") {
         e.preventDefault();
-        calculate();
+        calculate(mode === "standard");
         return;
       }
       if (key === "Backspace") {

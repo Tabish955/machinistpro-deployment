@@ -352,7 +352,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
         <CalcButton onClick={inputDecimal} variant="number" label="Decimal">
           .
         </CalcButton>
-        <CalcButton onClick={calculate} variant="equal" label="Calculate">
+        <CalcButton onClick={() => calculate(!scientific)} variant="equal" label="Calculate">
           <Equal size={22} />
         </CalcButton>
       </div>
