@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { evaluate } from "mathjs";
 import {
   complexDetails,
@@ -266,7 +266,12 @@ function ProgrammerWorkspace() {
           onChange={(e) => setLeft(e.target.value.toUpperCase())}
           aria-label="Left value"
         />
-        <select className={field} value={operation} onChange={(e) => setOperation(e.target.value)}>
+        <select
+          aria-label="Programmer operation"
+          className={field}
+          value={operation}
+          onChange={(e) => setOperation(e.target.value)}
+        >
           {["AND", "OR", "XOR", "NOT", "SHL", "SHR", "ROL", "ROR", "+", "−", "×", "÷"].map((op) => (
             <option key={op} className="bg-dark-900">
               {op}
@@ -280,6 +285,7 @@ function ProgrammerWorkspace() {
           aria-label="Right value"
         />
         <select
+          aria-label="Number base"
           className={field}
           value={base}
           onChange={(e) => setBase(Number(e.target.value) as NumericBase)}
@@ -291,12 +297,13 @@ function ProgrammerWorkspace() {
           ))}
         </select>
         <select
+          aria-label="Word size"
           className={field}
           value={wordSize}
           onChange={(e) => setWordSize(Number(e.target.value) as WordSize)}
         >
           {[8, 16, 32, 64].map((bits) => (
-            <option key={bits} className="bg-dark-900">
+            <option key={bits} value={bits} className="bg-dark-900">
               {bits}-bit
             </option>
           ))}
@@ -474,25 +481,34 @@ const colors = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#fb7185", "#60a5fa"
 
 function GraphingWorkspace() {
   const [expressions, setExpressions] = useState(["sin(x)", "0.2*x^2-2"]);
+  const [enabled, setEnabled] = useState([true, true]);
+  const [seriesColors, setSeriesColors] = useState(colors);
   const [range, setRange] = useState({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
   const [trace, setTrace] = useState({ x: 0, y: 0 });
   const graphResult = useMemo(() => {
     try {
       return {
         series: expressions
-          .filter(Boolean)
+          .map((expression, sourceIndex) => ({ expression, sourceIndex }))
+          .filter(
+            ({ expression, sourceIndex }) => Boolean(expression) && enabled[sourceIndex] !== false,
+          )
           .slice(0, 6)
-          .map((expression) => sampleGraph(expression, range.xMin, range.xMax)),
+          .map(({ expression, sourceIndex }) => ({
+            ...sampleGraph(expression, range.xMin, range.xMax),
+            sourceIndex,
+          })),
         error: "",
       };
     } catch (cause) {
       return {
-        series: [] as GraphSeries[],
+        series: [] as Array<GraphSeries & { sourceIndex: number }>,
         error: cause instanceof Error ? cause.message : "Unable to graph expression.",
       };
     }
-  }, [expressions, range.xMin, range.xMax]);
+  }, [enabled, expressions, range.xMin, range.xMax]);
   const { series, error } = graphResult;
+  const dragRef = useRef<{ clientX: number; clientY: number; range: typeof range } | null>(null);
   const width = 900,
     height = 420;
   const sx = (x: number) => ((x - range.xMin) / (range.xMax - range.xMin)) * width;
@@ -549,9 +565,30 @@ function GraphingWorkspace() {
         <div className="space-y-2">
           {Array.from({ length: Math.max(2, expressions.length) }).map((_, index) => (
             <div key={index} className="flex gap-2">
-              <span
-                className="mt-2 h-3 w-3 shrink-0 rounded-full"
-                style={{ background: colors[index] }}
+              <input
+                aria-label={`Function ${index + 1} color`}
+                type="color"
+                className="mt-1 h-8 w-8 shrink-0 rounded border-0 bg-transparent"
+                value={seriesColors[index]}
+                onChange={(e) =>
+                  setSeriesColors((current) => {
+                    const next = [...current];
+                    next[index] = e.target.value;
+                    return next;
+                  })
+                }
+              />
+              <input
+                aria-label={`Show function ${index + 1}`}
+                type="checkbox"
+                checked={enabled[index] !== false}
+                onChange={(e) =>
+                  setEnabled((current) => {
+                    const next = [...current];
+                    next[index] = e.target.checked;
+                    return next;
+                  })
+                }
               />
               <input
                 className={field}
@@ -565,12 +602,29 @@ function GraphingWorkspace() {
                   })
                 }
               />
+              {expressions.length > 1 && (
+                <button
+                  className={button}
+                  aria-label={`Remove function ${index + 1}`}
+                  onClick={() => {
+                    setExpressions((current) =>
+                      current.filter((_, itemIndex) => itemIndex !== index),
+                    );
+                    setEnabled((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                  }}
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
           {expressions.length < 6 && (
             <button
               className={button}
-              onClick={() => setExpressions((current) => [...current, ""])}
+              onClick={() => {
+                setExpressions((current) => [...current, ""]);
+                setEnabled((current) => [...current, true]);
+              }}
             >
               + Add function
             </button>
@@ -626,8 +680,39 @@ function GraphingWorkspace() {
             className="block w-full touch-none"
             role="img"
             aria-label="Interactive function graph"
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              dragRef.current = {
+                clientX: e.clientX,
+                clientY: e.clientY,
+                range: { ...range },
+              };
+            }}
+            onPointerUp={(e) => {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+              dragRef.current = null;
+            }}
+            onPointerCancel={() => {
+              dragRef.current = null;
+            }}
             onPointerMove={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
+              if (dragRef.current) {
+                const start = dragRef.current;
+                const dx =
+                  ((e.clientX - start.clientX) / rect.width) *
+                  (start.range.xMax - start.range.xMin);
+                const dy =
+                  ((e.clientY - start.clientY) / rect.height) *
+                  (start.range.yMax - start.range.yMin);
+                setRange({
+                  xMin: start.range.xMin - dx,
+                  xMax: start.range.xMax - dx,
+                  yMin: start.range.yMin + dy,
+                  yMax: start.range.yMax + dy,
+                });
+                return;
+              }
               const x =
                 range.xMin + ((e.clientX - rect.left) / rect.width) * (range.xMax - range.xMin);
               const first = series[0]?.points
@@ -664,12 +749,12 @@ function GraphingWorkspace() {
             {range.yMin <= 0 && range.yMax >= 0 && (
               <line x1={0} x2={width} y1={sy(0)} y2={sy(0)} stroke="#ffffff55" />
             )}
-            {series.map((item, index) => (
+            {series.map((item) => (
               <path
                 key={item.expression}
                 d={pathFor(item)}
                 fill="none"
-                stroke={colors[index]}
+                stroke={seriesColors[item.sourceIndex]}
                 strokeWidth="2.5"
                 vectorEffect="non-scaling-stroke"
               />
@@ -701,9 +786,9 @@ function GraphingWorkspace() {
         </div>
       )}
       <div className="grid gap-2 sm:grid-cols-2">
-        {series.map((item, index) => (
+        {series.map((item) => (
           <div key={item.expression} className={panel}>
-            <p className="font-mono text-xs" style={{ color: colors[index] }}>
+            <p className="font-mono text-xs" style={{ color: seriesColors[item.sourceIndex] }}>
               {item.expression}
             </p>
             <p className="mt-1 text-[10px] text-gray-500">
