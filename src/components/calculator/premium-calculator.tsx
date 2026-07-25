@@ -166,7 +166,7 @@ export function PremiumCalculator() {
       */}
       <div
         ref={containerRef}
-        className="flex h-[calc(100dvh-11.25rem)] max-h-[calc(100dvh-11.25rem)] flex-col -m-4 overflow-hidden bg-gradient-to-b from-dark-900 via-dark-950 to-[#020204] lg:h-[calc(100dvh-3.5rem)] lg:max-h-[calc(100dvh-3.5rem)] lg:-m-6"
+        className="flex h-[calc(100dvh-11.25rem)] max-h-[calc(100dvh-11.25rem)] flex-col -m-4 overflow-x-hidden overflow-y-auto bg-gradient-to-b from-dark-900 via-dark-950 to-[#020204] lg:h-[calc(100dvh-3.5rem)] lg:max-h-[calc(100dvh-3.5rem)] lg:-m-6"
         style={{ touchAction: "manipulation" }}
       >
         {/* ─── Top bar ─── */}
@@ -278,7 +278,11 @@ export function PremiumCalculator() {
             </div>
 
             {/* ─── Keypad (fills all remaining space) ─── */}
-            <div className="flex-1 min-h-0 px-2 pb-2 sm:px-3 sm:pb-3 lg:pb-2">
+            <div
+              className={`flex-1 px-2 pb-2 sm:px-3 sm:pb-3 lg:pb-2 ${
+                mode === "standard" ? "min-h-[19rem]" : "min-h-0"
+              }`}
+            >
               <PremiumKeypad scientific={mode === "scientific"} />
             </div>
           </>

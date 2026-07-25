@@ -142,7 +142,10 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
   return (
     <div className="h-full flex flex-col gap-1.5 sm:gap-2">
       {/* Memory row */}
-      <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "8%" }}>
+      <div
+        className={`grid shrink-0 grid-cols-5 gap-1 sm:gap-1.5 ${scientific ? "" : "h-9 sm:h-10"}`}
+        style={scientific ? { height: "8%" } : undefined}
+      >
         <CalcButton
           onClick={memoryClear}
           variant="memory"
@@ -278,7 +281,11 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
       )}
 
       {/* Main keypad */}
-      <div className="flex-1 grid grid-cols-4 gap-1.5 sm:gap-2">
+      <div
+        className={`grid flex-1 grid-cols-4 grid-rows-5 gap-1.5 sm:gap-2 ${
+          scientific ? "" : "min-h-[15.5rem]"
+        }`}
+      >
         {/* Row 1: Clear, CE, %, ÷ */}
         <CalcButton onClick={clear} variant="clear" label="All Clear">
           AC
