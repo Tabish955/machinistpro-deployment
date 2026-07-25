@@ -223,7 +223,13 @@ export function solvePolynomial(coefficients: number[]) {
   const degree = trimmed.length - 1;
   if (degree < 1 || degree > 3)
     throw new Error("Enter coefficients for a linear, quadratic or cubic equation.");
-  if (degree === 1) return [complex(-trimmed[1] / trimmed[0], 0).toString()];
+  const cleanComplex = (value: ReturnType<typeof complex>) => {
+    const epsilon = 1e-10;
+    const real = Math.abs(value.re) < epsilon ? 0 : Number(value.re.toPrecision(12));
+    const imaginary = Math.abs(value.im) < epsilon ? 0 : Number(value.im.toPrecision(12));
+    return complex(real, imaginary).toString();
+  };
+  if (degree === 1) return [cleanComplex(complex(-trimmed[1] / trimmed[0], 0))];
   if (degree === 2) {
     const [a, b, c] = trimmed;
     const discriminant = complex(b * b - 4 * a * c);
@@ -237,7 +243,7 @@ export function solvePolynomial(coefficients: number[]) {
         .mul(-1)
         .sub(b)
         .div(2 * a),
-    ].map(String);
+    ].map(cleanComplex);
   }
   const [a, b, c, d] = trimmed;
   const p = (3 * a * c - b * b) / (3 * a * a);
@@ -251,11 +257,12 @@ export function solvePolynomial(coefficients: number[]) {
     .pow(1 / 3);
   const omega = complex(-0.5, Math.sqrt(3) / 2);
   return [0, 1, 2].map((k) =>
-    u
-      .mul(omega.pow(k))
-      .add(v.mul(omega.pow(3 - k)))
-      .sub(b / (3 * a))
-      .toString(),
+    cleanComplex(
+      u
+        .mul(omega.pow(k))
+        .add(v.mul(omega.pow(3 - k)))
+        .sub(b / (3 * a)),
+    ),
   );
 }
 
@@ -270,7 +277,22 @@ export function programmerOperation(
   wordSize: WordSize,
   signed: boolean,
 ) {
-  const parse = (text: string) => BigInt(parseInt(text || "0", base));
+  const parse = (text: string) => {
+    const normalized = (text || "0").trim().replaceAll("_", "");
+    const negative = normalized.startsWith("-");
+    const digits = negative ? normalized.slice(1) : normalized;
+    if (!digits) throw new Error("Enter a valid integer.");
+    const patterns: Record<NumericBase, RegExp> = {
+      2: /^[01]+$/i,
+      8: /^[0-7]+$/i,
+      10: /^\d+$/i,
+      16: /^[0-9a-f]+$/i,
+    };
+    if (!patterns[base].test(digits)) throw new Error(`Invalid base-${base} integer.`);
+    const prefixes: Record<NumericBase, string> = { 2: "0b", 8: "0o", 10: "", 16: "0x" };
+    const value = BigInt(`${prefixes[base]}${digits}`);
+    return negative ? -value : value;
+  };
   const left = parse(leftText);
   const right = parse(rightText);
   const bits = BigInt(wordSize);
@@ -397,5 +419,10 @@ export function sampleGraph(
     beforePrevious = previous;
     previous = point;
   }
-  return { expression, points, roots: roots.slice(0, 20), extrema: extrema.slice(0, 20) };
+  const rootTolerance = Math.max(step * 1.5, 1e-9);
+  const uniqueRoots = roots.filter(
+    (root, index, all) =>
+      all.findIndex((candidate) => Math.abs(candidate.x - root.x) <= rootTolerance) === index,
+  );
+  return { expression, points, roots: uniqueRoots.slice(0, 20), extrema: extrema.slice(0, 20) };
 }

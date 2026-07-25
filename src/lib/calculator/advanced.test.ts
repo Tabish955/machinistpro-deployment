@@ -51,13 +51,17 @@ describe("advanced calculator engines", () => {
   it("solves quadratic and cubic polynomials", () => {
     expect(solvePolynomial([1, -5, 6])).toEqual(expect.arrayContaining(["2", "3"]));
     const cubic = solvePolynomial([1, -6, 11, -6]);
-    expect(cubic).toHaveLength(3);
+    expect(cubic).toEqual(expect.arrayContaining(["1", "2", "3"]));
   });
 
   it("wraps programmer values to the selected word size", () => {
     const result = programmerOperation("FF", "1", "+", 16, 8, false);
     expect(result.hexadecimal).toBe("0");
     expect(result.overflow).toBe(true);
+    expect(programmerOperation("FFFFFFFFFFFFFFFF", "0", "OR", 16, 64, false).hexadecimal).toBe(
+      "FFFFFFFFFFFFFFFF",
+    );
+    expect(() => programmerOperation("2", "0", "OR", 2, 8, false)).toThrow("Invalid base-2");
   });
 
   it("samples cartesian, polar and parametric graphs", () => {
@@ -65,5 +69,8 @@ describe("advanced calculator engines", () => {
     expect(cartesian.roots.some((root) => Math.abs(root.x - 1) < 0.05)).toBe(true);
     expect(sampleGraph("polar:2", -3, 3, 100).points.filter(Boolean)).toHaveLength(101);
     expect(sampleGraph("param:cos(t);sin(t)", -2, 2, 100).points.filter(Boolean)).toHaveLength(101);
+    expect(
+      sampleGraph("sin(x)", -1, 1, 200).roots.filter((root) => Math.abs(root.x) < 0.01),
+    ).toHaveLength(1);
   });
 });
