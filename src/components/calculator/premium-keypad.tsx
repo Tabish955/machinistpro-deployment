@@ -130,6 +130,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
     clearEntry,
     calculate,
     negate,
+    percentage,
     memoryClear,
     memoryRecall,
     memoryStore,
@@ -285,7 +286,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
         <CalcButton onClick={clearEntry} variant="action" label="Clear Entry">
           CE
         </CalcButton>
-        <CalcButton onClick={() => inputOperator("%")} variant="action" label="Percent">
+        <CalcButton onClick={percentage} variant="action" label="Percent">
           <Percent size={18} />
         </CalcButton>
         <CalcButton onClick={() => inputOperator("/")} variant="operator" label="Divide">
