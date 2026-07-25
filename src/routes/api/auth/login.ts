@@ -1,46 +1,49 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { randomBytes } from "crypto";
 
-interface KeyAuthInitResponse { success: boolean; sessionid?: string; message?: string }
-interface KeyAuthLoginResponse {
+interface MughalInitResponse { success: boolean; sessionid?: string; message?: string }
+interface MughalLoginResponse {
   success: boolean; message?: string;
   info?: { username: string; subscriptions?: Array<{ subscription: string; expiry: string }> };
 }
 
-async function keyAuthInit() {
-  const name = process.env.KEYAUTH_APP_NAME || "MachinistPro";
-  const ownerId = process.env.KEYAUTH_OWNER_ID;
-  const version = process.env.KEYAUTH_VERSION || "1.0";
-  if (!ownerId) return { success: false as const, error: "Server configuration error: Missing KEYAUTH_OWNER_ID" };
+const API_URL = "https://api.mughalxcheat.xyz/api/1.2/index.php";
+
+async function mughalInit() {
+  const name = process.env.MUGHAL_APP_NAME || "MachinistPro";
+  const ownerId = process.env.MUGHAL_OWNER_ID;
+  const version = process.env.MUGHAL_VERSION || "1.0";
+  if (!ownerId) return { success: false as const, error: "Server configuration error: Missing MUGHAL_OWNER_ID" };
   try {
     const params = new URLSearchParams({ type: "init", ver: version, name, ownerid: ownerId });
-    const res = await fetch(`https://keyauth.win/api/1.2/?${params.toString()}`, {
+    const res = await fetch(`${API_URL}?${params.toString()}`, {
       method: "GET", headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
     });
     const text = await res.text();
-    let data: KeyAuthInitResponse;
-    try { data = JSON.parse(text) as KeyAuthInitResponse; }
+    let data: MughalInitResponse;
+    try { data = JSON.parse(text) as MughalInitResponse; }
     catch { return { success: false as const, error: "Invalid response from authentication server" }; }
     if (data.success) return { success: true as const, sessionId: data.sessionid };
     return { success: false as const, error: data.message || "Initialization failed" };
   } catch { return { success: false as const, error: "Failed to connect to authentication server" }; }
 }
 
-async function keyAuthLogin(sessionId: string, username: string, password: string) {
-  const ownerId = process.env.KEYAUTH_OWNER_ID;
-  const name = process.env.KEYAUTH_APP_NAME || "MachinistPro";
+async function mughalLogin(sessionId: string, username: string, password: string) {
+  const ownerId = process.env.MUGHAL_OWNER_ID;
+  const name = process.env.MUGHAL_APP_NAME || "MachinistPro";
   if (!ownerId) return { success: false as const, error: "Server configuration error" };
-  const hwid = randomBytes(16).toString("hex");
+  // Mughal Auth requires HWID >= 20 characters
+  const hwid = randomBytes(16).toString("hex"); // 32 chars
   try {
     const params = new URLSearchParams({
       type: "login", username, pass: password, sessionid: sessionId, name, ownerid: ownerId, hwid,
     });
-    const res = await fetch(`https://keyauth.win/api/1.2/?${params.toString()}`, {
+    const res = await fetch(`${API_URL}?${params.toString()}`, {
       method: "GET", headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
     });
     const text = await res.text();
-    let data: KeyAuthLoginResponse;
-    try { data = JSON.parse(text) as KeyAuthLoginResponse; }
+    let data: MughalLoginResponse;
+    try { data = JSON.parse(text) as MughalLoginResponse; }
     catch { return { success: false as const, error: "Invalid response from authentication server" }; }
     if (data.success && data.info) {
       const sub = data.info.subscriptions?.[0];
@@ -64,11 +67,11 @@ export const Route = createFileRoute("/api/auth/login")({
           const { username, password } = body;
           if (!username?.trim()) return Response.json({ success: false, error: "Username is required" }, { status: 400 });
           if (!password) return Response.json({ success: false, error: "Password is required" }, { status: 400 });
-          const init = await keyAuthInit();
+          const init = await mughalInit();
           if (!init.success || !init.sessionId) {
             return Response.json({ success: false, error: init.error || "Authentication server unavailable" }, { status: 503 });
           }
-          const login = await keyAuthLogin(init.sessionId, username.trim(), password);
+          const login = await mughalLogin(init.sessionId, username.trim(), password);
           if (!login.success) {
             return Response.json({ success: false, error: login.error || "Invalid credentials" }, { status: 401 });
           }
