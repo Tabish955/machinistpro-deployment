@@ -1,4 +1,3 @@
-
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useCalculatorStore } from "@/store/calculator-store";
 import { Delete, Divide, X, Minus, Plus, Equal, Percent } from "lucide-react";
@@ -31,17 +30,21 @@ function CalcButton({
 
   const variantStyles: Record<ButtonVariant, string> = {
     number: "bg-dark-800 hover:bg-dark-700 text-white border-dark-700 shadow-lg shadow-black/20",
-    operator: "bg-dark-700 hover:bg-dark-600 text-accent-cyan border-dark-600 shadow-lg shadow-black/20",
-    function: "bg-dark-800/70 hover:bg-dark-700 text-gray-300 border-dark-700/50 text-[11px] sm:text-sm font-medium",
+    operator:
+      "bg-dark-700 hover:bg-dark-600 text-accent-cyan border-dark-600 shadow-lg shadow-black/20",
+    function:
+      "bg-dark-800/70 hover:bg-dark-700 text-gray-300 border-dark-700/50 text-[11px] sm:text-sm font-medium",
     action: "bg-dark-700/70 hover:bg-dark-600 text-gray-400 border-dark-600/50",
-    memory: "bg-dark-800/50 hover:bg-dark-700 text-gray-500 border-dark-700/30 text-[10px] sm:text-xs",
-    equal: "bg-gradient-to-br from-accent-cyan via-accent-blue to-accent-cyan text-dark-950 font-bold border-transparent shadow-lg shadow-accent-cyan/20",
+    memory:
+      "bg-dark-800/50 hover:bg-dark-700 text-gray-500 border-dark-700/30 text-[10px] sm:text-xs",
+    equal:
+      "bg-gradient-to-br from-accent-cyan via-accent-blue to-accent-cyan text-dark-950 font-bold border-transparent shadow-lg shadow-accent-cyan/20",
     clear: "bg-accent-red/20 hover:bg-accent-red/30 text-accent-red border-accent-red/20",
   };
 
   const handleTouchStart = useCallback(() => {
     setIsPressed(true);
-    
+
     if (onLongPress) {
       longPressTimer.current = setTimeout(() => {
         // Start repeating on long press
@@ -49,7 +52,7 @@ function CalcButton({
         longPressInterval.current = setInterval(onLongPress, 100);
       }, 500);
     }
-    
+
     // Haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate(10);
@@ -58,7 +61,7 @@ function CalcButton({
 
   const handleTouchEnd = useCallback(() => {
     setIsPressed(false);
-    
+
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -113,7 +116,7 @@ function CalcButton({
   );
 }
 
-export function PremiumKeypad() {
+export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
   const {
     isSecondFunction,
     inputDigit,
@@ -139,10 +142,20 @@ export function PremiumKeypad() {
     <div className="h-full flex flex-col gap-1.5 sm:gap-2">
       {/* Memory row */}
       <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "8%" }}>
-        <CalcButton onClick={memoryClear} variant="memory" disabled={!hasMemory} label="Memory Clear">
+        <CalcButton
+          onClick={memoryClear}
+          variant="memory"
+          disabled={!hasMemory}
+          label="Memory Clear"
+        >
           MC
         </CalcButton>
-        <CalcButton onClick={memoryRecall} variant="memory" disabled={!hasMemory} label="Memory Recall">
+        <CalcButton
+          onClick={memoryRecall}
+          variant="memory"
+          disabled={!hasMemory}
+          label="Memory Recall"
+        >
           MR
         </CalcButton>
         <CalcButton onClick={memoryStore} variant="memory" label="Memory Store">
@@ -157,61 +170,111 @@ export function PremiumKeypad() {
       </div>
 
       {/* Scientific functions row 1 */}
-      <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "asin" : "sin")} variant="function" label={isSecondFunction ? "Arc sine" : "Sine"}>
-          {isSecondFunction ? "sin⁻¹" : "sin"}
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "acos" : "cos")} variant="function" label={isSecondFunction ? "Arc cosine" : "Cosine"}>
-          {isSecondFunction ? "cos⁻¹" : "cos"}
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "atan" : "tan")} variant="function" label={isSecondFunction ? "Arc tangent" : "Tangent"}>
-          {isSecondFunction ? "tan⁻¹" : "tan"}
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "sinh" : "ln")} variant="function" label={isSecondFunction ? "Hyperbolic sine" : "Natural log"}>
-          {isSecondFunction ? "sinh" : "ln"}
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "cosh" : "log")} variant="function" label={isSecondFunction ? "Hyperbolic cosine" : "Log base 10"}>
-          {isSecondFunction ? "cosh" : "log"}
-        </CalcButton>
-      </div>
+      {scientific && (
+        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "asin" : "sin")}
+            variant="function"
+            label={isSecondFunction ? "Arc sine" : "Sine"}
+          >
+            {isSecondFunction ? "sin⁻¹" : "sin"}
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "acos" : "cos")}
+            variant="function"
+            label={isSecondFunction ? "Arc cosine" : "Cosine"}
+          >
+            {isSecondFunction ? "cos⁻¹" : "cos"}
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "atan" : "tan")}
+            variant="function"
+            label={isSecondFunction ? "Arc tangent" : "Tangent"}
+          >
+            {isSecondFunction ? "tan⁻¹" : "tan"}
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "sinh" : "ln")}
+            variant="function"
+            label={isSecondFunction ? "Hyperbolic sine" : "Natural log"}
+          >
+            {isSecondFunction ? "sinh" : "ln"}
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "cosh" : "log")}
+            variant="function"
+            label={isSecondFunction ? "Hyperbolic cosine" : "Log base 10"}
+          >
+            {isSecondFunction ? "cosh" : "log"}
+          </CalcButton>
+        </div>
+      )}
 
       {/* Scientific functions row 2 */}
-      <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "exp" : "sqrt")} variant="function" label={isSecondFunction ? "e to power" : "Square root"}>
-          {isSecondFunction ? "eˣ" : "√"}
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "pow10" : "square")} variant="function" label={isSecondFunction ? "10 to power" : "Square"}>
-          {isSecondFunction ? "10ˣ" : "x²"}
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "cbrt" : "cube")} variant="function" label={isSecondFunction ? "Cube root" : "Cube"}>
-          {isSecondFunction ? "∛" : "x³"}
-        </CalcButton>
-        <CalcButton onClick={() => inputOperator("^")} variant="function" label="Power">
-          xʸ
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction(isSecondFunction ? "abs" : "fact")} variant="function" label={isSecondFunction ? "Absolute value" : "Factorial"}>
-          {isSecondFunction ? "|x|" : "x!"}
-        </CalcButton>
-      </div>
+      {scientific && (
+        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "exp" : "sqrt")}
+            variant="function"
+            label={isSecondFunction ? "e to power" : "Square root"}
+          >
+            {isSecondFunction ? "eˣ" : "√"}
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "pow10" : "square")}
+            variant="function"
+            label={isSecondFunction ? "10 to power" : "Square"}
+          >
+            {isSecondFunction ? "10ˣ" : "x²"}
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "cbrt" : "cube")}
+            variant="function"
+            label={isSecondFunction ? "Cube root" : "Cube"}
+          >
+            {isSecondFunction ? "∛" : "x³"}
+          </CalcButton>
+          <CalcButton onClick={() => inputOperator("^")} variant="function" label="Power">
+            xʸ
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputFunction(isSecondFunction ? "abs" : "fact")}
+            variant="function"
+            label={isSecondFunction ? "Absolute value" : "Factorial"}
+          >
+            {isSecondFunction ? "|x|" : "x!"}
+          </CalcButton>
+        </div>
+      )}
 
       {/* Parentheses & constants row */}
-      <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
-        <CalcButton onClick={() => inputParenthesis("(")} variant="function" label="Open parenthesis">
-          (
-        </CalcButton>
-        <CalcButton onClick={() => inputParenthesis(")")} variant="function" label="Close parenthesis">
-          )
-        </CalcButton>
-        <CalcButton onClick={() => inputConstant("π")} variant="function" label="Pi">
-          π
-        </CalcButton>
-        <CalcButton onClick={() => inputConstant("e")} variant="function" label="Euler's number">
-          e
-        </CalcButton>
-        <CalcButton onClick={() => inputFunction("recip")} variant="function" label="Reciprocal">
-          ¹⁄ₓ
-        </CalcButton>
-      </div>
+      {scientific && (
+        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
+          <CalcButton
+            onClick={() => inputParenthesis("(")}
+            variant="function"
+            label="Open parenthesis"
+          >
+            (
+          </CalcButton>
+          <CalcButton
+            onClick={() => inputParenthesis(")")}
+            variant="function"
+            label="Close parenthesis"
+          >
+            )
+          </CalcButton>
+          <CalcButton onClick={() => inputConstant("π")} variant="function" label="Pi">
+            π
+          </CalcButton>
+          <CalcButton onClick={() => inputConstant("e")} variant="function" label="Euler's number">
+            e
+          </CalcButton>
+          <CalcButton onClick={() => inputFunction("recip")} variant="function" label="Reciprocal">
+            ¹⁄ₓ
+          </CalcButton>
+        </div>
+      )}
 
       {/* Main keypad */}
       <div className="flex-1 grid grid-cols-4 gap-1.5 sm:gap-2">
