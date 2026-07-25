@@ -438,7 +438,7 @@ export default function LoginPage() {
                 </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="md"
                   loading={startingTrial}
                   onClick={handleStartTrial}
@@ -456,7 +456,7 @@ export default function LoginPage() {
                 </p>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="md"
                   onClick={handleStartTrial}
                   className="w-full"
