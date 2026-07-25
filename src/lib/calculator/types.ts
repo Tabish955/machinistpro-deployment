@@ -2,13 +2,7 @@
 
 export type AngleMode = "deg" | "rad" | "grad";
 
-export type TokenType =
-  | "number"
-  | "operator"
-  | "function"
-  | "constant"
-  | "paren"
-  | "comma";
+export type TokenType = "number" | "operator" | "function" | "constant" | "paren" | "comma";
 
 export interface Token {
   type: TokenType;
@@ -23,6 +17,8 @@ export interface CalculationResult {
   timestamp: number;
   id: string;
   isFavorite?: boolean;
+  calculatorMode?: "standard" | "scientific";
+  angleMode?: AngleMode;
 }
 
 export interface CalculatorError {
@@ -56,6 +52,7 @@ export interface Operator {
   precedence: number;
   associativity: "left" | "right";
   fn: (a: number, b: number) => number;
+  arity?: 1 | 2;
 }
 
 // Function definitions

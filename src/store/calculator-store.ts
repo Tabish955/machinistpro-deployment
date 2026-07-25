@@ -96,13 +96,15 @@ interface CalculatorStore {
   inputFunction: (fn: string) => void;
   inputConstant: (constant: string) => void;
   inputParenthesis: (paren: "(" | ")") => void;
+  inputComma: () => void;
+  inputExponent: () => void;
   inputAnswer: () => void;
 
   backspace: () => void;
   clear: () => void;
   clearEntry: () => void;
 
-  calculate: (allowRepeat?: boolean) => void;
+  calculate: (allowRepeat?: boolean, calculatorMode?: "standard" | "scientific") => void;
   negate: () => void;
   percentage: () => void;
 
@@ -207,7 +209,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Input operator
       inputOperator: (operator) => {
-        const { expression, result, lastAnswer, error } = get();
+        const { expression, result, previousResult, error } = get();
         set({ repeatOperation: null });
 
         if (error) set({ error: null });
@@ -218,8 +220,8 @@ export const useCalculatorStore = create<CalculatorStore>()(
           newExpression = result.replace(/,/g, "");
         }
 
-        if (!newExpression && lastAnswer !== null) {
-          newExpression = lastAnswer.toString();
+        if (!newExpression && previousResult && result === "0") {
+          newExpression = "0";
         }
 
         if (endsWithOperator(newExpression)) {
@@ -330,6 +332,39 @@ export const useCalculatorStore = create<CalculatorStore>()(
         });
       },
 
+      inputComma: () => {
+        const { expression, error } = get();
+        set({ repeatOperation: null });
+        if (error) set({ error: null });
+        if (!expression || countOpenParens(expression) <= 0 || endsWithOperator(expression)) return;
+
+        const newExpression = `${expression},`;
+        set({
+          ...pushUndo(get()),
+          expression: newExpression,
+          displayExpression: formatExpression(newExpression),
+          result: "",
+        });
+      },
+
+      inputExponent: () => {
+        const { expression, error } = get();
+        set({ repeatOperation: null });
+        if (error) set({ error: null });
+        if (!/\d(?:\.\d+)?$/.test(expression)) return;
+
+        const currentNumber = expression.match(/(?:^|[+\-*/^,(])(\d+(?:\.\d+)?)$/)?.[1];
+        if (!currentNumber || /[eE]/.test(currentNumber)) return;
+
+        const newExpression = `${expression}e`;
+        set({
+          ...pushUndo(get()),
+          expression: newExpression,
+          displayExpression: formatExpression(newExpression),
+          result: "",
+        });
+      },
+
       // Input last answer
       inputAnswer: () => {
         const { expression, lastAnswer, error } = get();
@@ -406,7 +441,10 @@ export const useCalculatorStore = create<CalculatorStore>()(
       },
 
       // Calculate result
-      calculate: (allowRepeat = false) => {
+      calculate: (
+        allowRepeat = false,
+        calculatorMode = allowRepeat ? "standard" : "scientific",
+      ) => {
         const { expression, angleMode, history, lastAnswer, repeatOperation } = get();
         const isRepeatedCalculation = !expression.trim();
         if (isRepeatedCalculation && (!allowRepeat || !repeatOperation || lastAnswer === null)) {
@@ -424,6 +462,8 @@ export const useCalculatorStore = create<CalculatorStore>()(
             closedExpression,
             evalResult.result,
             evalResult.displayResult!,
+            calculatorMode,
+            angleMode,
           );
 
           const newHistory = [calcResult, ...history].slice(0, MAX_HISTORY_SIZE);

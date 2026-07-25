@@ -125,6 +125,9 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
     inputFunction,
     inputConstant,
     inputParenthesis,
+    inputComma,
+    inputExponent,
+    inputAnswer,
     backspace,
     clear,
     clearEntry,
@@ -140,12 +143,9 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
   } = useCalculatorStore();
 
   return (
-    <div className="h-full flex flex-col gap-1.5 sm:gap-2">
+    <div className={`flex h-full flex-col gap-1.5 sm:gap-2 ${scientific ? "min-h-[35rem]" : ""}`}>
       {/* Memory row */}
-      <div
-        className={`grid shrink-0 grid-cols-5 gap-1 sm:gap-1.5 ${scientific ? "" : "h-9 sm:h-10"}`}
-        style={scientific ? { height: "8%" } : undefined}
-      >
+      <div className="grid h-9 shrink-0 grid-cols-5 gap-1 sm:h-10 sm:gap-1.5">
         <CalcButton
           onClick={memoryClear}
           variant="memory"
@@ -175,7 +175,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
 
       {/* Scientific functions row 1 */}
       {scientific && (
-        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
+        <div className="grid h-10 shrink-0 grid-cols-5 gap-1 sm:gap-1.5">
           <CalcButton
             onClick={() => inputFunction(isSecondFunction ? "asin" : "sin")}
             variant="function"
@@ -216,7 +216,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
 
       {/* Scientific functions row 2 */}
       {scientific && (
-        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
+        <div className="grid h-10 shrink-0 grid-cols-5 gap-1 sm:gap-1.5">
           <CalcButton
             onClick={() => inputFunction(isSecondFunction ? "exp" : "sqrt")}
             variant="function"
@@ -253,7 +253,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
 
       {/* Parentheses & constants row */}
       {scientific && (
-        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 shrink-0" style={{ height: "10%" }}>
+        <div className="grid h-10 shrink-0 grid-cols-5 gap-1 sm:gap-1.5">
           <CalcButton
             onClick={() => inputParenthesis("(")}
             variant="function"
@@ -280,12 +280,63 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
         </div>
       )}
 
+      {/* Additional functions stay compact and horizontally scroll on small screens. */}
+      {scientific && (
+        <div
+          className="flex h-9 shrink-0 gap-1 overflow-x-auto pb-0.5 sm:h-10 sm:gap-1.5"
+          aria-label="Additional scientific functions"
+        >
+          <CalcButton
+            onClick={inputAnswer}
+            variant="function"
+            className="min-w-14 px-2"
+            label="Last answer"
+          >
+            Ans
+          </CalcButton>
+          <CalcButton
+            onClick={inputExponent}
+            variant="function"
+            className="min-w-14 px-2"
+            label="Scientific exponent"
+          >
+            EE
+          </CalcButton>
+          <CalcButton
+            onClick={inputComma}
+            variant="function"
+            className="min-w-12 px-2"
+            label="Argument separator"
+          >
+            ,
+          </CalcButton>
+          {[
+            ["tanh", "Hyperbolic tangent", "tanh"],
+            ["asinh", "Inverse hyperbolic sine", "asinh"],
+            ["acosh", "Inverse hyperbolic cosine", "acosh"],
+            ["atanh", "Inverse hyperbolic tangent", "atanh"],
+            ["log2", "Log base 2", "log₂"],
+            ["floor", "Floor", "⌊x⌋"],
+            ["ceil", "Ceiling", "⌈x⌉"],
+            ["round", "Round", "round"],
+            ["ncr", "Combinations", "nCr"],
+            ["npr", "Permutations", "nPr"],
+          ].map(([fn, label, text]) => (
+            <CalcButton
+              key={fn}
+              onClick={() => inputFunction(fn)}
+              variant="function"
+              className="min-w-16 px-2"
+              label={label}
+            >
+              {text}
+            </CalcButton>
+          ))}
+        </div>
+      )}
+
       {/* Main keypad */}
-      <div
-        className={`grid flex-1 grid-cols-4 grid-rows-5 gap-1.5 sm:gap-2 ${
-          scientific ? "" : "min-h-[15.5rem]"
-        }`}
-      >
+      <div className="grid min-h-[15.5rem] flex-1 grid-cols-4 grid-rows-5 gap-1.5 sm:gap-2">
         {/* Row 1: Clear, CE, %, ÷ */}
         <CalcButton onClick={clear} variant="clear" label="All Clear">
           AC
@@ -352,7 +403,11 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
         <CalcButton onClick={inputDecimal} variant="number" label="Decimal">
           .
         </CalcButton>
-        <CalcButton onClick={() => calculate(!scientific)} variant="equal" label="Calculate">
+        <CalcButton
+          onClick={() => calculate(!scientific, scientific ? "scientific" : "standard")}
+          variant="equal"
+          label="Calculate"
+        >
           <Equal size={22} />
         </CalcButton>
       </div>

@@ -35,16 +35,16 @@ function factorial(n: number): number {
   if (!Number.isInteger(n)) throw new Error("Factorial requires integer");
   if (n > 170) throw new Error("Factorial overflow");
   if (n <= 1) return 1;
-  
+
   if (factorialCache.has(n)) {
     return factorialCache.get(n)!;
   }
-  
+
   let result = 1;
   for (let i = 2; i <= n; i++) {
     result *= i;
   }
-  
+
   factorialCache.set(n, result);
   return result;
 }
@@ -135,6 +135,30 @@ export const FUNCTIONS: Record<string, MathFunction> = {
     fn: ([x]) => Math.tanh(x),
     argCount: 1,
     description: "Hyperbolic tangent",
+  },
+  asinh: {
+    name: "asinh",
+    fn: ([x]) => Math.asinh(x),
+    argCount: 1,
+    description: "Inverse hyperbolic sine",
+  },
+  acosh: {
+    name: "acosh",
+    fn: ([x]) => {
+      if (x < 1) throw new Error("Domain error: acosh requires x ≥ 1");
+      return Math.acosh(x);
+    },
+    argCount: 1,
+    description: "Inverse hyperbolic cosine",
+  },
+  atanh: {
+    name: "atanh",
+    fn: ([x]) => {
+      if (x <= -1 || x >= 1) throw new Error("Domain error: atanh requires -1 < x < 1");
+      return Math.atanh(x);
+    },
+    argCount: 1,
+    description: "Inverse hyperbolic tangent",
   },
 
   // Logarithmic functions
@@ -292,6 +316,39 @@ export const FUNCTIONS: Record<string, MathFunction> = {
     fn: ([x]) => Math.round(x),
     argCount: 1,
     description: "Round",
+  },
+  ncr: {
+    name: "ncr",
+    fn: ([n, r]) => {
+      if (!Number.isInteger(n) || !Number.isInteger(r) || n < 0 || r < 0 || r > n) {
+        throw new Error("Domain error: nCr requires integers with 0 ≤ r ≤ n");
+      }
+      const k = Math.min(r, n - r);
+      let result = 1;
+      for (let index = 1; index <= k; index++) {
+        result = (result * (n - k + index)) / index;
+        if (!Number.isFinite(result)) throw new Error("Overflow");
+      }
+      return result;
+    },
+    argCount: 2,
+    description: "Combinations",
+  },
+  npr: {
+    name: "npr",
+    fn: ([n, r]) => {
+      if (!Number.isInteger(n) || !Number.isInteger(r) || n < 0 || r < 0 || r > n) {
+        throw new Error("Domain error: nPr requires integers with 0 ≤ r ≤ n");
+      }
+      let result = 1;
+      for (let index = 0; index < r; index++) {
+        result *= n - index;
+        if (!Number.isFinite(result)) throw new Error("Overflow");
+      }
+      return result;
+    },
+    argCount: 2,
+    description: "Permutations",
   },
 };
 
