@@ -1,12 +1,15 @@
 
 import { useState, useCallback, useEffect, type FormEvent } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/store/toast-store";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { ToastContainer } from "@/components/ui/toast";
-import { User, Lock, Eye, EyeOff, LogIn, Shield, Zap, Cpu, AlertCircle } from "lucide-react";
+import { User, Lock, Eye, EyeOff, LogIn, Shield, Zap, Cpu, AlertCircle, Sparkles } from "lucide-react";
+import { collectSignals } from "@/lib/fingerprint";
+import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
 
 interface LoginResponse {
   success: boolean;
