@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
       { title: "MachinistPro — Engineering Calculator Suite" },
       { name: "description", content: "Premium engineering calculator suite for machinists, CNC operators, fabrication shops, mechanical engineers, and students." },
       { property: "og:title", content: "MachinistPro — Engineering Calculator Suite" },
-      { property: "og:description", content: "Premium engineering calculator suite for machinists and engineers." },
+      { property: "og:description", content: "Premium engineering calculator suite for machinists, CNC operators, fabrication shops, mechanical engineers, and students." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

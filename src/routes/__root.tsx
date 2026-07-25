@@ -79,27 +79,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MachinistPro — Engineering calculators for machinists" },
+      { title: "MachinistPro — Engineering Calculator Suite" },
       {
         name: "description",
         content:
-          "Engineering calculator suite for machinists, CNC operators, and mechanical engineers. Results are based on commonly used engineering formulas and should be independently verified.",
+          "Premium engineering calculator suite for machinists, CNC operators, fabrication shops, mechanical engineers, and students.",
       },
       { name: "author", content: "MachinistPro" },
       { name: "theme-color", content: "#050508" },
-      { property: "og:title", content: "MachinistPro — Engineering calculators for machinists" },
+      { property: "og:title", content: "MachinistPro — Engineering Calculator Suite" },
       {
         property: "og:description",
         content:
-          "Machining, unit conversion, material weight, and reference tools for machinists and engineers.",
+          "Premium engineering calculator suite for machinists, CNC operators, fabrication shops, mechanical engineers, and students.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "MachinistPro — Engineering Calculator Suite" },
+      { name: "twitter:description", content: "Premium engineering calculator suite for machinists, CNC operators, fabrication shops, mechanical engineers, and students." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a5b92dbf-3c9b-49ea-b550-a289703ca6aa" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a5b92dbf-3c9b-49ea-b550-a289703ca6aa" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "icon", href: "/favicon.svg", sizes: "48x48" },
       { rel: "manifest", href: "/manifest.json" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
