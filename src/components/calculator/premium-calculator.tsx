@@ -38,6 +38,7 @@ export function PremiumCalculator() {
     inputDigit,
     inputDecimal,
     inputOperator,
+    percentage,
     inputParenthesis,
     inputConstant,
     backspace,
@@ -89,7 +90,7 @@ export function PremiumCalculator() {
         return;
       }
       if (key === "%") {
-        inputOperator("%");
+        percentage();
         return;
       }
       if (key === "(") {
@@ -114,7 +115,7 @@ export function PremiumCalculator() {
         return;
       }
 
-      if (key === "z" && (e.ctrlKey || e.metaKey)) {
+      if (key.toLowerCase() === "z" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
@@ -136,6 +137,7 @@ export function PremiumCalculator() {
     inputDigit,
     inputDecimal,
     inputOperator,
+    percentage,
     inputParenthesis,
     inputConstant,
     backspace,
@@ -164,12 +166,8 @@ export function PremiumCalculator() {
       */}
       <div
         ref={containerRef}
-        className="flex flex-col -m-4 lg:-m-6 overflow-hidden bg-gradient-to-b from-dark-900 via-dark-950 to-[#020204]"
-        style={{
-          height: "calc(100dvh - 3.5rem)" /* subtract header 56px */,
-          maxHeight: "calc(100dvh - 3.5rem)",
-          touchAction: "manipulation",
-        }}
+        className="flex h-[calc(100dvh-11.25rem)] max-h-[calc(100dvh-11.25rem)] flex-col -m-4 overflow-hidden bg-gradient-to-b from-dark-900 via-dark-950 to-[#020204] lg:h-[calc(100dvh-3.5rem)] lg:max-h-[calc(100dvh-3.5rem)] lg:-m-6"
+        style={{ touchAction: "manipulation" }}
       >
         {/* ─── Top bar ─── */}
         <div className="shrink-0 flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 border-b border-white/[0.04]">
@@ -238,12 +236,14 @@ export function PremiumCalculator() {
         {/* ─── Mode bar ─── */}
         {(mode === "standard" || mode === "scientific") && (
           <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 sm:px-4">
-            <button
-              onClick={cycleAngleMode}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-bold text-accent-cyan hover:bg-white/[0.07] transition-colors"
-            >
-              {angleMode.toUpperCase()}
-            </button>
+            {mode === "scientific" && (
+              <button
+                onClick={cycleAngleMode}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-bold text-accent-cyan hover:bg-white/[0.07] transition-colors"
+              >
+                {angleMode.toUpperCase()}
+              </button>
+            )}
 
             {mode === "scientific" && (
               <button

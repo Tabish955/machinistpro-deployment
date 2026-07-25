@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AngleMode, CalculationResult, CalculatorError } from "@/lib/calculator/types";
@@ -22,32 +21,32 @@ interface CalculatorStore {
   displayExpression: string;
   result: string;
   previousResult: string;
-  
+
   // Error state
   error: CalculatorError | null;
-  
+
   // Memory
   memory: number;
   hasMemory: boolean;
-  
+
   // Angle mode
   angleMode: AngleMode;
-  
+
   // History & Favorites
   history: CalculationResult[];
   favorites: CalculationResult[];
-  
+
   // Last answer for ANS functionality
   lastAnswer: number | null;
-  
+
   // UI state
   isSecondFunction: boolean;
   showHistory: boolean;
-  
+
   // Undo/Redo
   undoStack: string[];
   redoStack: string[];
-  
+
   // Actions
   inputDigit: (digit: string) => void;
   inputDecimal: () => void;
@@ -56,41 +55,41 @@ interface CalculatorStore {
   inputConstant: (constant: string) => void;
   inputParenthesis: (paren: "(" | ")") => void;
   inputAnswer: () => void;
-  
+
   backspace: () => void;
   clear: () => void;
   clearEntry: () => void;
-  
+
   calculate: () => void;
   negate: () => void;
   percentage: () => void;
-  
+
   // Memory operations
   memoryClear: () => void;
   memoryRecall: () => void;
   memoryStore: () => void;
   memoryAdd: () => void;
   memorySubtract: () => void;
-  
+
   // Undo/Redo
   undo: () => void;
   redo: () => void;
-  
+
   // Settings
   setAngleMode: (mode: AngleMode) => void;
   toggleSecondFunction: () => void;
   toggleHistory: () => void;
-  
+
   // History management
   clearHistory: () => void;
   deleteHistoryItem: (id: string) => void;
   toggleFavorite: (id: string) => void;
   loadFromHistory: (item: CalculationResult) => void;
-  
+
   // Clipboard
   copyResult: () => Promise<void>;
   pasteNumber: () => Promise<void>;
-  
+
   // Direct expression set (for editing)
   setExpression: (expr: string) => void;
 }
@@ -124,13 +123,13 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input digit
       inputDigit: (digit) => {
         const { expression, error } = get();
-        
+
         if (error) {
           set({ error: null });
         }
-        
+
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
-        
+
         const newExpression = expression + digit;
         set({
           ...pushUndo(get()),
@@ -143,20 +142,16 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input decimal point
       inputDecimal: () => {
         const { expression, error } = get();
-        
+
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
-        
+
         if (currentNumberHasDecimal(expression)) return;
-        
-        const needsLeadingZero = 
-          expression === "" || 
-          /[+\-*/×÷^%(]$/.test(expression);
-        
-        const newExpression = needsLeadingZero 
-          ? expression + "0." 
-          : expression + ".";
-        
+
+        const needsLeadingZero = expression === "" || /[+\-*/×÷^%(]$/.test(expression);
+
+        const newExpression = needsLeadingZero ? expression + "0." : expression + ".";
+
         set({
           ...pushUndo(get()),
           expression: newExpression,
@@ -167,27 +162,27 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input operator
       inputOperator: (operator) => {
         const { expression, result, lastAnswer, error } = get();
-        
+
         if (error) set({ error: null });
-        
+
         let newExpression = expression;
-        
+
         if (!expression && result && result !== "0") {
           newExpression = result.replace(/,/g, "");
         }
-        
+
         if (!newExpression && lastAnswer !== null) {
           newExpression = lastAnswer.toString();
         }
-        
+
         if (endsWithOperator(newExpression)) {
           newExpression = newExpression.slice(0, -1);
         }
-        
+
         if (!newExpression && operator !== "-") return;
-        
+
         newExpression = newExpression + operator;
-        
+
         set({
           ...pushUndo(get()),
           expression: newExpression,
@@ -199,10 +194,10 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input function
       inputFunction: (fn) => {
         const { expression, error } = get();
-        
+
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
-        
+
         if (fn === "square") {
           const newExpr = expression ? `(${expression})^2` : "";
           set({
@@ -212,7 +207,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           });
           return;
         }
-        
+
         if (fn === "cube") {
           const newExpr = expression ? `(${expression})^3` : "";
           set({
@@ -222,7 +217,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           });
           return;
         }
-        
+
         if (fn === "fact") {
           const newExpr = expression ? `fact(${expression})` : "fact(";
           set({
@@ -232,7 +227,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           });
           return;
         }
-        
+
         if (fn === "recip") {
           const newExpr = expression ? `1/(${expression})` : "1/";
           set({
@@ -242,7 +237,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           });
           return;
         }
-        
+
         const newExpression = expression + fn + "(";
         set({
           ...pushUndo(get()),
@@ -254,10 +249,10 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input constant
       inputConstant: (constant) => {
         const { expression, error } = get();
-        
+
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
-        
+
         const newExpression = expression + constant;
         set({
           ...pushUndo(get()),
@@ -269,14 +264,14 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input parenthesis
       inputParenthesis: (paren) => {
         const { expression, error } = get();
-        
+
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
-        
+
         if (paren === ")") {
           if (countOpenParens(expression) <= 0) return;
         }
-        
+
         const newExpression = expression + paren;
         set({
           ...pushUndo(get()),
@@ -288,10 +283,10 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input last answer
       inputAnswer: () => {
         const { expression, lastAnswer, error } = get();
-        
+
         if (error) set({ error: null });
         if (lastAnswer === null) return;
-        
+
         const newExpression = expression + lastAnswer.toString();
         set({
           ...pushUndo(get()),
@@ -303,17 +298,17 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Backspace
       backspace: () => {
         const { expression, error } = get();
-        
+
         if (error) {
           set({ error: null, expression: "", displayExpression: "", result: "0" });
           return;
         }
-        
+
         if (!expression) return;
-        
+
         const funcMatch = expression.match(/([a-z]+)\($/i);
         if (funcMatch) {
-          const newExpr = expression.slice(0, -(funcMatch[0].length));
+          const newExpr = expression.slice(0, -funcMatch[0].length);
           set({
             ...pushUndo(get()),
             expression: newExpr,
@@ -321,7 +316,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           });
           return;
         }
-        
+
         const newExpression = expression.slice(0, -1);
         set({
           ...pushUndo(get()),
@@ -359,21 +354,21 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Calculate result
       calculate: () => {
         const { expression, angleMode, history } = get();
-        
+
         if (!expression.trim()) return;
-        
+
         const closedExpression = autoCloseParens(expression);
         const evalResult = evaluate(closedExpression, angleMode);
-        
+
         if (evalResult.success && evalResult.result !== undefined) {
           const calcResult = createCalculationResult(
             closedExpression,
             evalResult.result,
-            evalResult.displayResult!
+            evalResult.displayResult!,
           );
-          
+
           const newHistory = [calcResult, ...history].slice(0, MAX_HISTORY_SIZE);
-          
+
           set({
             expression: "",
             displayExpression: formatExpression(closedExpression),
@@ -396,7 +391,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Negate
       negate: () => {
         const { expression, result } = get();
-        
+
         if (!expression && result && result !== "0" && result !== "Error") {
           const numResult = parseFloat(result.replace(/,/g, ""));
           const negated = -numResult;
@@ -408,7 +403,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           });
           return;
         }
-        
+
         const match = expression.match(/(^|[+\-*/×÷^%(])(-?)([0-9.]+)$/);
         if (match) {
           const prefix = match[1];
@@ -428,8 +423,18 @@ export const useCalculatorStore = create<CalculatorStore>()(
       percentage: () => {
         const { expression } = get();
         if (!expression) return;
-        
-        const newExpr = `(${expression})/100`;
+
+        const operation = expression.match(/^(.*)([+*/-])(-?\d+(?:\.\d+)?)$/);
+        let newExpr: string;
+        if (operation) {
+          const [, left, operator, right] = operation;
+          newExpr =
+            operator === "+" || operator === "-"
+              ? `${left}${operator}((${left})*(${right})/100)`
+              : `${left}${operator}((${right})/100)`;
+        } else {
+          newExpr = `(${expression})/100`;
+        }
         set({
           ...pushUndo(get()),
           expression: newExpr,
@@ -439,11 +444,11 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Memory operations
       memoryClear: () => set({ memory: 0, hasMemory: false }),
-      
+
       memoryRecall: () => {
         const { memory, hasMemory, expression } = get();
         if (!hasMemory) return;
-        
+
         const newExpr = expression + memory.toString();
         set({
           ...pushUndo(get()),
@@ -451,12 +456,12 @@ export const useCalculatorStore = create<CalculatorStore>()(
           displayExpression: formatExpression(newExpr),
         });
       },
-      
+
       memoryStore: () => {
         const { result, expression, angleMode } = get();
-        
+
         let valueToStore = 0;
-        
+
         if (result && result !== "0" && result !== "Error") {
           valueToStore = parseFloat(result.replace(/,/g, ""));
         } else if (expression) {
@@ -465,15 +470,15 @@ export const useCalculatorStore = create<CalculatorStore>()(
             valueToStore = evalResult.result;
           }
         }
-        
+
         set({ memory: valueToStore, hasMemory: true });
       },
-      
+
       memoryAdd: () => {
         const { memory, result, expression, angleMode } = get();
-        
+
         let valueToAdd = 0;
-        
+
         if (result && result !== "0" && result !== "Error") {
           valueToAdd = parseFloat(result.replace(/,/g, ""));
         } else if (expression) {
@@ -482,15 +487,15 @@ export const useCalculatorStore = create<CalculatorStore>()(
             valueToAdd = evalResult.result;
           }
         }
-        
+
         set({ memory: memory + valueToAdd, hasMemory: true });
       },
-      
+
       memorySubtract: () => {
         const { memory, result, expression, angleMode } = get();
-        
+
         let valueToSubtract = 0;
-        
+
         if (result && result !== "0" && result !== "Error") {
           valueToSubtract = parseFloat(result.replace(/,/g, ""));
         } else if (expression) {
@@ -499,7 +504,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
             valueToSubtract = evalResult.result;
           }
         }
-        
+
         set({ memory: memory - valueToSubtract, hasMemory: true });
       },
 
@@ -507,7 +512,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       undo: () => {
         const { undoStack, expression, redoStack } = get();
         if (undoStack.length === 0) return;
-        
+
         const [prevExpr, ...restUndo] = undoStack;
         set({
           expression: prevExpr,
@@ -521,7 +526,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       redo: () => {
         const { redoStack, expression, undoStack } = get();
         if (redoStack.length === 0) return;
-        
+
         const [nextExpr, ...restRedo] = redoStack;
         set({
           expression: nextExpr,
@@ -538,7 +543,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // History management
       clearHistory: () => set({ history: [], favorites: [] }),
-      
+
       deleteHistoryItem: (id) => {
         const { history, favorites } = get();
         set({
@@ -546,32 +551,28 @@ export const useCalculatorStore = create<CalculatorStore>()(
           favorites: favorites.filter((f) => f.id !== id),
         });
       },
-      
+
       toggleFavorite: (id) => {
         const { history, favorites } = get();
         const item = history.find((h) => h.id === id);
-        
+
         if (!item) return;
-        
+
         const isFav = favorites.some((f) => f.id === id);
-        
+
         if (isFav) {
           set({
             favorites: favorites.filter((f) => f.id !== id),
-            history: history.map((h) => 
-              h.id === id ? { ...h, isFavorite: false } : h
-            ),
+            history: history.map((h) => (h.id === id ? { ...h, isFavorite: false } : h)),
           });
         } else {
           set({
             favorites: [...favorites, { ...item, isFavorite: true }],
-            history: history.map((h) =>
-              h.id === id ? { ...h, isFavorite: true } : h
-            ),
+            history: history.map((h) => (h.id === id ? { ...h, isFavorite: true } : h)),
           });
         }
       },
-      
+
       loadFromHistory: (item) => {
         set({
           expression: item.expression,
@@ -593,10 +594,10 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Paste number
       pasteNumber: async () => {
         if (!navigator.clipboard) return;
-        
+
         try {
           const text = await navigator.clipboard.readText();
-          const num = text.replace(/[^0-9.\-]/g, "");
+          const num = text.replace(/[^0-9.-]/g, "");
           if (num && !isNaN(parseFloat(num))) {
             const { expression } = get();
             const newExpr = expression + num;
@@ -630,6 +631,6 @@ export const useCalculatorStore = create<CalculatorStore>()(
         memory: state.memory,
         hasMemory: state.hasMemory,
       }),
-    }
-  )
+    },
+  ),
 );
