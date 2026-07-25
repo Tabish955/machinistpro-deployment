@@ -97,6 +97,8 @@ export default function LoginPage() {
     }
   }, [startTrial, setUser, router]);
 
+  // Redirect if already authenticated
+  useEffect(() => {
     if (status === "authenticated" && user) {
       router.replace("/dashboard");
     }
