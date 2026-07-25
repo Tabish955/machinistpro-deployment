@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2 className="text-lg font-semibold text-white pt-2">1. Information We Collect</h2>
-      <p><strong className="text-gray-300">Authentication Data:</strong> When you log in, your username is sent to our authentication provider (KeyAuth) for verification. We do not store passwords.</p>
+      <p><strong className="text-gray-300">Authentication Data:</strong> When you log in, your username is sent to our authentication provider (Mughal Auth) for verification. We do not store passwords.</p>
       <p><strong className="text-gray-300">Local Data:</strong> All calculations, projects, history, favorites, and settings are stored locally on your device using browser local storage. We do not have access to this data.</p>
       <p><strong className="text-gray-300">Analytics:</strong> We use Google Analytics to collect anonymous usage statistics such as page views and general usage patterns. No personally identifiable engineering data is collected.</p>
 
@@ -27,7 +27,7 @@ export default function PrivacyPage() {
 
       <h2 className="text-lg font-semibold text-white pt-2">4. Third-Party Services</h2>
       <ul className="list-disc list-inside space-y-1">
-        <li><strong className="text-gray-300">KeyAuth:</strong> Used for license authentication only. See keyauth.cc/privacy for their privacy policy.</li>
+        <li><strong className="text-gray-300">Mughal Auth:</strong> Used for license authentication only. See panel.mughalxcheat.xyz for their policies.</li>
         <li><strong className="text-gray-300">Google Analytics:</strong> Used for anonymous usage statistics. See Google&apos;s privacy policy at policies.google.com/privacy.</li>
       </ul>
 

@@ -1,12 +1,15 @@
 
 import { useState, useCallback, useEffect, type FormEvent } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/store/toast-store";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { ToastContainer } from "@/components/ui/toast";
-import { User, Lock, Eye, EyeOff, LogIn, Shield, Zap, Cpu, AlertCircle } from "lucide-react";
+import { User, Lock, Eye, EyeOff, LogIn, Shield, Zap, Cpu, AlertCircle, Sparkles } from "lucide-react";
+import { collectSignals } from "@/lib/fingerprint";
+import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
 
 interface LoginResponse {
   success: boolean;
@@ -31,6 +34,68 @@ export default function LoginPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({});
   const [serverError, setServerError] = useState<{ error: string } | null>(null);
+
+  // Trial state
+  const checkTrial = useServerFn(getDeviceTrialStatus);
+  const startTrial = useServerFn(startDeviceTrial);
+  const [trialStatus, setTrialStatus] = useState<
+    | { state: "loading" }
+    | { state: "none" }
+    | { state: "active"; daysLeft: number; expiresAt: string }
+    | { state: "expired" }
+    | { state: "blocked"; reason: string }
+  >({ state: "loading" });
+  const [startingTrial, setStartingTrial] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const signals = await collectSignals();
+        const r = await checkTrial({ data: { signals } });
+        if (cancelled) return;
+        if (!r.hasTrial) setTrialStatus({ state: "none" });
+        else if (r.active) setTrialStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
+        else setTrialStatus({ state: "expired" });
+      } catch {
+        if (!cancelled) setTrialStatus({ state: "none" });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [checkTrial]);
+
+  const handleStartTrial = useCallback(async () => {
+    setStartingTrial(true);
+    try {
+      const signals = await collectSignals();
+      const r = await startTrial({ data: { signals } });
+      if (r.ok) {
+        const expiryDate = new Date(r.expiresAt).toLocaleDateString();
+        const trialToken = `trial_${crypto.randomUUID().replace(/-/g, "")}`;
+        localStorage.setItem("mp_session", trialToken);
+        localStorage.setItem("mp_user", JSON.stringify({
+          username: "Trial User",
+          subscription: "Trial (14 days)",
+          expiry: expiryDate,
+        }));
+        setUser({
+          username: "Trial User",
+          subscription: "Trial (14 days)",
+          expiry: expiryDate,
+          sessionToken: trialToken,
+        });
+        toast.success("Trial started", `14 days · expires ${expiryDate}`);
+        router.push("/dashboard");
+      } else {
+        setTrialStatus({ state: "blocked", reason: r.reason });
+        toast.error("Trial unavailable", r.reason);
+      }
+    } catch {
+      toast.error("Trial unavailable", "Please try again.");
+    } finally {
+      setStartingTrial(false);
+    }
+  }, [startTrial, setUser, router]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -352,9 +417,65 @@ export default function LoginPage() {
             {/* Divider */}
             <div className="flex items-center gap-4 my-6">
               <div className="flex-1 h-px bg-dark-600" />
-              <span className="text-xs text-gray-600">SECURE LOGIN</span>
+              <span className="text-xs text-gray-600">OR</span>
               <div className="flex-1 h-px bg-dark-600" />
             </div>
+
+            {/* 14-day trial */}
+            {trialStatus.state === "loading" && (
+              <div className="rounded-lg border border-dark-600 bg-dark-900/50 p-4 text-xs text-gray-500">
+                Checking trial eligibility…
+              </div>
+            )}
+            {trialStatus.state === "none" && (
+              <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-4">
+                <div className="flex items-start gap-2 mb-3">
+                  <Sparkles size={16} className="text-accent-cyan mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Try MachinistPro free for 14 days</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">No credit card. One trial per device.</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  loading={startingTrial}
+                  onClick={handleStartTrial}
+                  className="w-full"
+                >
+                  {startingTrial ? "Starting trial…" : "Start 14-Day Free Trial"}
+                </Button>
+              </div>
+            )}
+            {trialStatus.state === "active" && (
+              <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-4">
+                <p className="text-sm text-white font-semibold mb-1">Trial active</p>
+                <p className="text-[11px] text-gray-400 mb-3">
+                  {trialStatus.daysLeft} day{trialStatus.daysLeft === 1 ? "" : "s"} left · expires {new Date(trialStatus.expiresAt).toLocaleDateString()}
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={handleStartTrial}
+                  className="w-full"
+                >
+                  Continue with Trial
+                </Button>
+              </div>
+            )}
+            {trialStatus.state === "expired" && (
+              <div className="rounded-lg border border-accent-red/30 bg-accent-red/5 p-4 text-xs text-accent-red">
+                Your 14-day trial on this device has expired. Please sign in with a paid account.
+              </div>
+            )}
+            {trialStatus.state === "blocked" && (
+              <div className="rounded-lg border border-accent-red/30 bg-accent-red/5 p-4 text-xs text-accent-red">
+                {trialStatus.reason}
+              </div>
+            )}
+
 
             {/* Info */}
             <div className="flex items-start gap-2 rounded-lg bg-dark-700/50 p-3">
