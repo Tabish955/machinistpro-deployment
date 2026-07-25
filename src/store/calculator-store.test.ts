@@ -46,5 +46,27 @@ describe("Standard calculator store", () => {
     useCalculatorStore.getState().memoryRecall();
 
     expect(useCalculatorStore.getState().expression).toBe("4");
+
+    useCalculatorStore.getState().memoryClear();
+    expect(useCalculatorStore.getState().hasMemory).toBe(false);
+    expect(useCalculatorStore.getState().memory).toBe(0);
+  });
+
+  it("enforces the expression length limit", () => {
+    useCalculatorStore.setState({ expression: "1".repeat(500) });
+    useCalculatorStore.getState().inputDigit("2");
+
+    expect(useCalculatorStore.getState().expression).toHaveLength(500);
+  });
+
+  it("recovers cleanly after an evaluation error", () => {
+    useCalculatorStore.setState({ expression: "8/0" });
+    useCalculatorStore.getState().calculate();
+    expect(useCalculatorStore.getState().error?.type).toBe("math");
+
+    useCalculatorStore.getState().clear();
+    useCalculatorStore.getState().inputDigit("9");
+    useCalculatorStore.getState().calculate();
+    expect(useCalculatorStore.getState().result).toBe("9");
   });
 });

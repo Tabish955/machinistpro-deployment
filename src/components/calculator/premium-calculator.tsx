@@ -166,12 +166,8 @@ export function PremiumCalculator() {
       */}
       <div
         ref={containerRef}
-        className="flex flex-col -m-4 lg:-m-6 overflow-hidden bg-gradient-to-b from-dark-900 via-dark-950 to-[#020204]"
-        style={{
-          height: "calc(100dvh - 3.5rem)" /* subtract header 56px */,
-          maxHeight: "calc(100dvh - 3.5rem)",
-          touchAction: "manipulation",
-        }}
+        className="flex h-[calc(100dvh-11.25rem)] max-h-[calc(100dvh-11.25rem)] flex-col -m-4 overflow-hidden bg-gradient-to-b from-dark-900 via-dark-950 to-[#020204] lg:h-[calc(100dvh-3.5rem)] lg:max-h-[calc(100dvh-3.5rem)] lg:-m-6"
+        style={{ touchAction: "manipulation" }}
       >
         {/* ─── Top bar ─── */}
         <div className="shrink-0 flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 border-b border-white/[0.04]">
