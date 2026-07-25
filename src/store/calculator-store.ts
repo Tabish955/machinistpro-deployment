@@ -15,6 +15,47 @@ const MAX_HISTORY_SIZE = 100;
 const MAX_EXPRESSION_LENGTH = 500;
 const MAX_UNDO_STACK = 50;
 
+interface RepeatOperation {
+  operator: "+" | "-" | "*" | "/";
+  operand: number;
+}
+
+function getRepeatOperation(expression: string, angleMode: AngleMode): RepeatOperation | null {
+  let depth = 0;
+  let operatorIndex = -1;
+  let operator: RepeatOperation["operator"] | null = null;
+
+  for (let index = 0; index < expression.length; index += 1) {
+    const character = expression[index];
+    if (character === "(") {
+      depth += 1;
+      continue;
+    }
+    if (character === ")") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth !== 0 || !"+-*/".includes(character)) continue;
+
+    const previous = expression.slice(0, index).trimEnd().at(-1);
+    const isUnary =
+      index === 0 ||
+      previous === "(" ||
+      (previous !== undefined && "+-*/^".includes(previous)) ||
+      ((character === "+" || character === "-") && (previous === "e" || previous === "E"));
+    if (!isUnary) {
+      operatorIndex = index;
+      operator = character as RepeatOperation["operator"];
+    }
+  }
+
+  if (operatorIndex < 0 || !operator) return null;
+  const operandExpression = expression.slice(operatorIndex + 1);
+  const operandResult = evaluate(autoCloseParens(operandExpression), angleMode);
+  if (!operandResult.success || operandResult.result === undefined) return null;
+  return { operator, operand: operandResult.result };
+}
+
 interface CalculatorStore {
   // Display state
   expression: string;
@@ -38,6 +79,7 @@ interface CalculatorStore {
 
   // Last answer for ANS functionality
   lastAnswer: number | null;
+  repeatOperation: RepeatOperation | null;
 
   // UI state
   isSecondFunction: boolean;
@@ -60,7 +102,7 @@ interface CalculatorStore {
   clear: () => void;
   clearEntry: () => void;
 
-  calculate: () => void;
+  calculate: (allowRepeat?: boolean) => void;
   negate: () => void;
   percentage: () => void;
 
@@ -79,6 +121,7 @@ interface CalculatorStore {
   setAngleMode: (mode: AngleMode) => void;
   toggleSecondFunction: () => void;
   toggleHistory: () => void;
+  clearRepeatOperation: () => void;
 
   // History management
   clearHistory: () => void;
@@ -115,6 +158,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       history: [],
       favorites: [],
       lastAnswer: null,
+      repeatOperation: null,
       isSecondFunction: false,
       showHistory: false,
       undoStack: [],
@@ -123,6 +167,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input digit
       inputDigit: (digit) => {
         const { expression, error } = get();
+        set({ repeatOperation: null });
 
         if (error) {
           set({ error: null });
@@ -142,6 +187,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input decimal point
       inputDecimal: () => {
         const { expression, error } = get();
+        set({ repeatOperation: null });
 
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
@@ -162,6 +208,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input operator
       inputOperator: (operator) => {
         const { expression, result, lastAnswer, error } = get();
+        set({ repeatOperation: null });
 
         if (error) set({ error: null });
 
@@ -194,6 +241,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input function
       inputFunction: (fn) => {
         const { expression, error } = get();
+        set({ repeatOperation: null });
 
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
@@ -249,6 +297,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input constant
       inputConstant: (constant) => {
         const { expression, error } = get();
+        set({ repeatOperation: null });
 
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
@@ -264,6 +313,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input parenthesis
       inputParenthesis: (paren) => {
         const { expression, error } = get();
+        set({ repeatOperation: null });
 
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
@@ -283,6 +333,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Input last answer
       inputAnswer: () => {
         const { expression, lastAnswer, error } = get();
+        set({ repeatOperation: null });
 
         if (error) set({ error: null });
         if (lastAnswer === null) return;
@@ -298,6 +349,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Backspace
       backspace: () => {
         const { expression, error } = get();
+        set({ repeatOperation: null });
 
         if (error) {
           set({ error: null, expression: "", displayExpression: "", result: "0" });
@@ -334,6 +386,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           result: "0",
           previousResult: "",
           error: null,
+          repeatOperation: null,
           undoStack: [],
           redoStack: [],
         });
@@ -342,6 +395,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Clear entry
       clearEntry: () => {
         const { expression } = get();
+        set({ repeatOperation: null });
         const newExpr = expression.replace(/[0-9.]+$|[+\-*/×÷^%]$/, "");
         set({
           ...pushUndo(get()),
@@ -352,12 +406,17 @@ export const useCalculatorStore = create<CalculatorStore>()(
       },
 
       // Calculate result
-      calculate: () => {
-        const { expression, angleMode, history } = get();
+      calculate: (allowRepeat = false) => {
+        const { expression, angleMode, history, lastAnswer, repeatOperation } = get();
+        const isRepeatedCalculation = !expression.trim();
+        if (isRepeatedCalculation && (!allowRepeat || !repeatOperation || lastAnswer === null)) {
+          return;
+        }
 
-        if (!expression.trim()) return;
-
-        const closedExpression = autoCloseParens(expression);
+        const expressionToEvaluate = isRepeatedCalculation
+          ? `(${lastAnswer})${repeatOperation!.operator}(${repeatOperation!.operand})`
+          : expression;
+        const closedExpression = autoCloseParens(expressionToEvaluate);
         const evalResult = evaluate(closedExpression, angleMode);
 
         if (evalResult.success && evalResult.result !== undefined) {
@@ -377,6 +436,12 @@ export const useCalculatorStore = create<CalculatorStore>()(
             lastAnswer: evalResult.result,
             history: newHistory,
             error: null,
+            repeatOperation:
+              allowRepeat && !isRepeatedCalculation
+                ? getRepeatOperation(closedExpression, angleMode)
+                : allowRepeat
+                  ? repeatOperation
+                  : null,
             undoStack: [],
             redoStack: [],
           });
@@ -384,6 +449,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           set({
             error: evalResult.error || { type: "syntax", message: "Error" },
             result: "Error",
+            repeatOperation: null,
           });
         }
       },
@@ -391,6 +457,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Negate
       negate: () => {
         const { expression, result } = get();
+        set({ repeatOperation: null });
 
         if (!expression && result && result !== "0" && result !== "Error") {
           const numResult = parseFloat(result.replace(/,/g, ""));
@@ -448,6 +515,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       memoryRecall: () => {
         const { memory, hasMemory, expression } = get();
         if (!hasMemory) return;
+        set({ repeatOperation: null });
 
         const newExpr = expression + memory.toString();
         set({
@@ -540,6 +608,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
       setAngleMode: (mode) => set({ angleMode: mode }),
       toggleSecondFunction: () => set((s) => ({ isSecondFunction: !s.isSecondFunction })),
       toggleHistory: () => set((s) => ({ showHistory: !s.showHistory })),
+      clearRepeatOperation: () => set({ repeatOperation: null }),
 
       // History management
       clearHistory: () => set({ history: [], favorites: [] }),
@@ -605,6 +674,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
               ...pushUndo(get()),
               expression: newExpr,
               displayExpression: formatExpression(newExpr),
+              repeatOperation: null,
             });
           }
         } catch {
@@ -619,6 +689,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           expression: expr,
           displayExpression: formatExpression(expr),
           error: null,
+          repeatOperation: null,
         });
       },
     }),
