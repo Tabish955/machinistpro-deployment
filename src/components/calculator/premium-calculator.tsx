@@ -5,7 +5,7 @@ import { PremiumKeypad } from "./premium-keypad";
 import { HistoryPanel } from "./history-panel";
 import { ArrowLeft, Clock, Undo2, Redo2, ClipboardPaste } from "lucide-react";
 import { Link } from "@/lib/next-compat";
-import type { AngleMode } from "@/lib/calculator/types";
+import type { AngleMode, CalculatorError } from "@/lib/calculator/types";
 import type { CalculatorMode } from "@/lib/calculator/advanced";
 import { ModeSelector } from "./mode-selector";
 import { AdvancedWorkspace } from "./advanced-workspaces";
@@ -18,8 +18,53 @@ export function PremiumCalculator() {
       "scientific"
     );
   });
+  type ScalarMode = "standard" | "scientific";
+  interface ScalarDraft {
+    expression: string;
+    displayExpression: string;
+    result: string;
+    previousResult: string;
+    error: CalculatorError | null;
+    lastAnswer: number | null;
+    undoStack: string[];
+    redoStack: string[];
+  }
+  const emptyDraft = (): ScalarDraft => ({
+    expression: "",
+    displayExpression: "",
+    result: "0",
+    previousResult: "",
+    error: null,
+    lastAnswer: null,
+    undoStack: [],
+    redoStack: [],
+  });
+  const scalarDrafts = useRef<Record<ScalarMode, ScalarDraft>>({
+    standard: emptyDraft(),
+    scientific: emptyDraft(),
+  });
   const setMode = (nextMode: CalculatorMode) => {
-    useCalculatorStore.getState().clearRepeatOperation();
+    const store = useCalculatorStore.getState();
+    if (mode === "standard" || mode === "scientific") {
+      scalarDrafts.current[mode] = {
+        expression: store.expression,
+        displayExpression: store.displayExpression,
+        result: store.result,
+        previousResult: store.previousResult,
+        error: store.error,
+        lastAnswer: store.lastAnswer,
+        undoStack: store.undoStack,
+        redoStack: store.redoStack,
+      };
+    }
+    if (nextMode === "standard" || nextMode === "scientific") {
+      useCalculatorStore.setState({
+        ...scalarDrafts.current[nextMode],
+        repeatOperation: null,
+      });
+    } else {
+      store.clearRepeatOperation();
+    }
     setModeState(nextMode);
     window.localStorage.setItem("machinist-pro-calculator-mode", nextMode);
   };
@@ -41,7 +86,10 @@ export function PremiumCalculator() {
     inputOperator,
     percentage,
     inputParenthesis,
+    inputComma,
     inputConstant,
+    inputExponent,
+    inputAnswer,
     backspace,
     clear,
     calculate,
@@ -66,6 +114,23 @@ export function PremiumCalculator() {
       if (key === "." || key === ",") {
         e.preventDefault();
         inputDecimal();
+        return;
+      }
+      if (mode === "scientific" && key === ";") {
+        e.preventDefault();
+        inputComma();
+        return;
+      }
+      if (mode === "scientific" && key === "e") {
+        inputConstant("e");
+        return;
+      }
+      if (mode === "scientific" && key === "E") {
+        inputExponent();
+        return;
+      }
+      if (mode === "scientific" && key.toLowerCase() === "a" && !e.ctrlKey && !e.metaKey) {
+        inputAnswer();
         return;
       }
       if (key === "+") {
@@ -104,7 +169,7 @@ export function PremiumCalculator() {
       }
       if (key === "Enter" || key === "=") {
         e.preventDefault();
-        calculate(mode === "standard");
+        calculate(mode === "standard", mode);
         return;
       }
       if (key === "Backspace") {
@@ -140,7 +205,10 @@ export function PremiumCalculator() {
     inputOperator,
     percentage,
     inputParenthesis,
+    inputComma,
     inputConstant,
+    inputExponent,
+    inputAnswer,
     backspace,
     clear,
     calculate,
@@ -281,7 +349,7 @@ export function PremiumCalculator() {
             {/* ─── Keypad (fills all remaining space) ─── */}
             <div
               className={`flex-1 px-2 pb-2 sm:px-3 sm:pb-3 lg:pb-2 ${
-                mode === "standard" ? "min-h-[19rem]" : "min-h-0"
+                mode === "standard" ? "min-h-[19rem]" : "min-h-0 overflow-y-auto"
               }`}
             >
               <PremiumKeypad scientific={mode === "scientific"} />

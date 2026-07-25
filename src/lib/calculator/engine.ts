@@ -42,7 +42,7 @@ export function formatResult(num: number, precision: number = DISPLAY_PRECISION)
   // Add thousands separators for readability
   const parts = str.split(".");
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  
+
   return parts.join(".");
 }
 
@@ -58,10 +58,7 @@ export function formatExpression(expr: string): string {
 }
 
 // Evaluate an expression
-export function evaluate(
-  expression: string,
-  angleMode: AngleMode = "deg"
-): EvaluationResult {
+export function evaluate(expression: string, angleMode: AngleMode = "deg"): EvaluationResult {
   try {
     // Empty expression
     if (!expression.trim()) {
@@ -73,7 +70,7 @@ export function evaluate(
 
     // Tokenize
     const tokens = tokenize(expression);
-    
+
     if (tokens.length === 0) {
       return {
         success: false,
@@ -97,7 +94,7 @@ export function evaluate(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    
+
     // Categorize the error
     let errorType: CalculatorError["type"] = "syntax";
     if (message.includes("Division by zero")) {
@@ -121,7 +118,9 @@ export function evaluate(
 export function createCalculationResult(
   expression: string,
   result: number,
-  displayResult: string
+  displayResult: string,
+  calculatorMode?: "standard" | "scientific",
+  angleMode?: AngleMode,
 ): CalculationResult {
   return {
     id: `calc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -130,6 +129,8 @@ export function createCalculationResult(
     displayResult,
     timestamp: Date.now(),
     isFavorite: false,
+    calculatorMode,
+    angleMode: calculatorMode === "scientific" ? angleMode : undefined,
   };
 }
 

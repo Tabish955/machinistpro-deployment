@@ -31,7 +31,7 @@ function isIdentifierStart(char: string): boolean {
 
 // Check if character can be part of an identifier
 function isIdentifierPart(char: string): boolean {
-  return /[a-zA-Z0-9₀₁₂₃₄₅₆₇₈₉]/.test(char);
+  return /[a-zA-Z0-9πφ₀₁₂₃₄₅₆₇₈₉]/.test(char);
 }
 
 export function tokenize(expression: string): Token[] {
@@ -48,42 +48,58 @@ export function tokenize(expression: string): Token[] {
       continue;
     }
 
-    // Numbers (including decimals and scientific notation)
-    if (isDigit(char) || (char === "-" && i === 0) || 
-        (char === "-" && tokens.length > 0 && 
-         (tokens[tokens.length - 1].type === "operator" || 
-          tokens[tokens.length - 1].value === "("))) {
+    // Numbers (including decimals and valid scientific notation)
+    if (isDigit(char)) {
       let num = "";
       const startPos = i;
-      
-      // Handle negative sign
-      if (char === "-") {
-        num += char;
-        i++;
-      }
-      
+      let decimalCount = 0;
+
       // Read digits and decimal point
       while (i < len && /[0-9.]/.test(expression[i])) {
+        if (expression[i] === ".") decimalCount++;
         num += expression[i];
         i++;
       }
-      
-      // Handle scientific notation
-      if (i < len && /[eE]/.test(expression[i])) {
-        num += expression[i];
-        i++;
-        if (i < len && /[+-]/.test(expression[i])) {
-          num += expression[i];
-          i++;
-        }
-        while (i < len && /[0-9]/.test(expression[i])) {
-          num += expression[i];
-          i++;
-        }
+
+      if (decimalCount > 1 || num === ".") {
+        throw new Error(`Invalid number: ${num} at position ${startPos}`);
       }
-      
+
+      // Only consume e/E as exponent notation when exponent digits follow.
+      const exponentMatch = expression.slice(i).match(/^[eE][+-]?\d+/);
+      if (exponentMatch) {
+        num += exponentMatch[0];
+        i += exponentMatch[0].length;
+      } else if (i < len && /[eE]/.test(expression[i]) && expression[i + 1] === ".") {
+        throw new Error(`Invalid scientific notation at position ${i}`);
+      }
+
+      if (!Number.isFinite(Number(num))) {
+        throw new Error(`Invalid number: ${num} at position ${startPos}`);
+      }
+
       tokens.push({ type: "number", value: num, position: startPos });
       continue;
+    }
+
+    // Unary signs are real operators, so they work before numbers,
+    // constants, functions and parenthesized expressions.
+    if (char === "+" || char === "-") {
+      const previous = tokens[tokens.length - 1];
+      const isUnary =
+        !previous ||
+        previous.type === "operator" ||
+        previous.type === "comma" ||
+        previous.value === "(";
+      if (isUnary) {
+        tokens.push({
+          type: "operator",
+          value: char === "-" ? "u-" : "u+",
+          position: i,
+        });
+        i++;
+        continue;
+      }
     }
 
     // Operators
@@ -111,15 +127,15 @@ export function tokenize(expression: string): Token[] {
     if (isIdentifierStart(char)) {
       let ident = "";
       const startPos = i;
-      
+
       while (i < len && isIdentifierPart(expression[i])) {
         ident += expression[i];
         i++;
       }
-      
+
       // Check for aliases
       const normalizedIdent = FUNCTION_ALIASES[ident] || ident.toLowerCase();
-      
+
       // Determine if it's a function or constant
       if (FUNCTIONS[normalizedIdent]) {
         tokens.push({ type: "function", value: normalizedIdent, position: startPos });
@@ -137,7 +153,7 @@ export function tokenize(expression: string): Token[] {
       i++;
       continue;
     }
-    
+
     if (char === "∛") {
       tokens.push({ type: "function", value: "cbrt", position: i });
       i++;

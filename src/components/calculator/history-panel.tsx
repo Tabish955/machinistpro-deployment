@@ -1,15 +1,6 @@
-
 import { useState } from "react";
 import { useCalculatorStore } from "@/store/calculator-store";
-import { 
-  X, 
-  Search, 
-  Trash2, 
-  Star, 
-  Copy, 
-  Clock,
-  Check,
-} from "lucide-react";
+import { X, Search, Trash2, Star, Copy, Clock, Check } from "lucide-react";
 
 export function HistoryPanel() {
   const {
@@ -28,16 +19,16 @@ export function HistoryPanel() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const items = activeTab === "history" ? history : favorites;
-  
+
   const filteredItems = searchQuery
     ? items.filter(
         (item) =>
           item.expression.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.displayResult.includes(searchQuery)
+          item.displayResult.includes(searchQuery),
       )
     : items;
 
-  const handleCopy = async (item: typeof history[0]) => {
+  const handleCopy = async (item: (typeof history)[0]) => {
     await navigator.clipboard?.writeText(item.displayResult.replace(/,/g, ""));
     setCopiedId(item.id);
     setTimeout(() => setCopiedId(null), 1500);
@@ -47,7 +38,7 @@ export function HistoryPanel() {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     if (diff < 60000) return "Just now";
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
@@ -59,11 +50,11 @@ export function HistoryPanel() {
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 animate-fade-in"
         onClick={toggleHistory}
       />
-      
+
       {/* Panel */}
       <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-dark-900 border-l border-dark-700 z-50 flex flex-col animate-slide-in-right shadow-2xl shadow-black/50">
         {/* Header */}
@@ -129,9 +120,7 @@ export function HistoryPanel() {
                     <Clock size={24} className="text-gray-600" />
                   </div>
                   <p className="text-sm text-gray-400">No calculations yet</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Your history will appear here
-                  </p>
+                  <p className="text-xs text-gray-600 mt-1">Your history will appear here</p>
                 </>
               ) : (
                 <>
@@ -139,9 +128,7 @@ export function HistoryPanel() {
                     <Star size={24} className="text-gray-600" />
                   </div>
                   <p className="text-sm text-gray-400">No starred items</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Star calculations to save them
-                  </p>
+                  <p className="text-xs text-gray-600 mt-1">Star calculations to save them</p>
                 </>
               )}
             </div>
@@ -151,23 +138,24 @@ export function HistoryPanel() {
                 key={item.id}
                 className="group rounded-xl border border-dark-700 bg-dark-800/50 p-3 hover:bg-dark-800 hover:border-dark-600 transition-all"
               >
-                <button
-                  onClick={() => loadFromHistory(item)}
-                  className="w-full text-left mb-2"
-                >
-                  <p className="text-xs text-gray-500 font-mono truncate mb-1">
-                    {item.expression}
-                  </p>
-                  <p className="text-xl font-bold text-white font-mono">
-                    = {item.displayResult}
-                  </p>
+                <button onClick={() => loadFromHistory(item)} className="w-full text-left mb-2">
+                  <p className="text-xs text-gray-500 font-mono truncate mb-1">{item.expression}</p>
+                  <p className="text-xl font-bold text-white font-mono">= {item.displayResult}</p>
                 </button>
-                
+
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-gray-600">
-                    {formatTime(item.timestamp)}
-                  </span>
-                  
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-600">
+                    <span>{formatTime(item.timestamp)}</span>
+                    {item.calculatorMode && (
+                      <span className="rounded bg-white/5 px-1.5 py-0.5 uppercase tracking-wide text-gray-500">
+                        {item.calculatorMode}
+                        {item.calculatorMode === "scientific" && item.angleMode
+                          ? ` · ${item.angleMode}`
+                          : ""}
+                      </span>
+                    )}
+                  </div>
+
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleCopy(item)}

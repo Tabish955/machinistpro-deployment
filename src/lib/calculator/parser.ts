@@ -6,6 +6,20 @@ import { FUNCTIONS } from "./functions";
 
 // Operator definitions with precedence and associativity
 const OPERATORS: Record<string, Operator> = {
+  "u+": {
+    symbol: "u+",
+    precedence: 4,
+    associativity: "right",
+    fn: (_unused, value) => value,
+    arity: 1,
+  },
+  "u-": {
+    symbol: "u-",
+    precedence: 4,
+    associativity: "right",
+    fn: (_unused, value) => -value,
+    arity: 1,
+  },
   "+": {
     symbol: "+",
     precedence: 2,
@@ -73,13 +87,14 @@ export function toRPN(tokens: Token[]): RPNToken[] {
         output.push({ type: "number", value: parseFloat(token.value) });
         break;
 
-      case "constant":
+      case "constant": {
         const constValue = CONSTANTS[token.value] ?? CONSTANTS[token.value.toLowerCase()];
         if (constValue === undefined) {
           throw new Error(`Unknown constant: ${token.value}`);
         }
         output.push({ type: "number", value: constValue });
         break;
+      }
 
       case "function":
         operatorStack.push({ ...token, argCount: 1 });
@@ -87,10 +102,7 @@ export function toRPN(tokens: Token[]): RPNToken[] {
 
       case "comma":
         // Pop operators until we hit a left paren
-        while (
-          operatorStack.length > 0 &&
-          operatorStack[operatorStack.length - 1].value !== "("
-        ) {
+        while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1].value !== "(") {
           const op = operatorStack.pop()!;
           if (op.type === "operator") {
             output.push({ type: "operator", value: op.value });
@@ -107,7 +119,7 @@ export function toRPN(tokens: Token[]): RPNToken[] {
         }
         break;
 
-      case "operator":
+      case "operator": {
         const op1 = OPERATORS[token.value];
         if (!op1) {
           throw new Error(`Unknown operator: ${token.value}`);
@@ -142,6 +154,7 @@ export function toRPN(tokens: Token[]): RPNToken[] {
         }
         operatorStack.push(token);
         break;
+      }
 
       case "paren":
         if (token.value === "(") {
@@ -207,20 +220,22 @@ export function evaluateRPN(rpn: RPNToken[], angleMode: AngleMode): number {
         stack.push(token.value as number);
         break;
 
-      case "operator":
-        if (stack.length < 2) {
-          throw new Error("Invalid expression");
-        }
-        const b = stack.pop()!;
-        const a = stack.pop()!;
+      case "operator": {
         const op = OPERATORS[token.value as string];
         if (!op) {
           throw new Error(`Unknown operator: ${token.value}`);
         }
+        const arity = op.arity ?? 2;
+        if (stack.length < arity) {
+          throw new Error("Invalid expression");
+        }
+        const b = stack.pop()!;
+        const a = arity === 1 ? 0 : stack.pop()!;
         stack.push(op.fn(a, b));
         break;
+      }
 
-      case "function":
+      case "function": {
         const func = FUNCTIONS[token.value as string];
         if (!func) {
           throw new Error(`Unknown function: ${token.value}`);
@@ -235,6 +250,7 @@ export function evaluateRPN(rpn: RPNToken[], angleMode: AngleMode): number {
         }
         stack.push(func.fn(args, angleMode));
         break;
+      }
     }
   }
 
@@ -243,7 +259,7 @@ export function evaluateRPN(rpn: RPNToken[], angleMode: AngleMode): number {
   }
 
   const result = stack[0];
-  
+
   // Check for invalid results
   if (!isFinite(result)) {
     if (isNaN(result)) {
