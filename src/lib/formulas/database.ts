@@ -1,8 +1,9 @@
 import type { FormulaEntry } from "./types";
+import { EXTENDED_FORMULAS } from "./database-extended";
 
 const v = (symbol: string, name: string, unit?: string) => ({ symbol, name, unit });
 
-export const FORMULAS: FormulaEntry[] = [
+const CORE_FORMULAS: FormulaEntry[] = [
   // ═══ ALGEBRA ══════════════════════════════════════════════════════════════
   { id: "quadratic", name: "Quadratic Formula", category: "algebra",
     expression: "x = (−b ± √(b²−4ac)) / 2a",
@@ -321,5 +322,7 @@ export const FORMULAS: FormulaEntry[] = [
     example: { description: "A=0.001m², v=2m/s", inputs:{A:0.001,v:2}, result:"Q = 0.002 m³/s" },
     keywords: ["flow","rate","volume","velocity","area"], calcLink: "/dashboard/converter" },
 ];
+
+export const FORMULAS: FormulaEntry[] = [...CORE_FORMULAS, ...EXTENDED_FORMULAS];
 
 export const FORMULA_MAP = new Map(FORMULAS.map(f => [f.id, f]));
