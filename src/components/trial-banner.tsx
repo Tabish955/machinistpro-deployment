@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { collectSignals } from "@/lib/fingerprint";
 import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
+import { useAuthStore } from "@/store/auth-store";
 
 type Status =
   | { state: "loading" }
@@ -13,10 +14,16 @@ type Status =
 export function TrialBanner() {
   const [status, setStatus] = useState<Status>({ state: "loading" });
   const [starting, setStarting] = useState(false);
+  const user = useAuthStore((s) => s.user);
+  // Paid accounts never see trial messaging.
+  const isTrialSession =
+    typeof window !== "undefined" && window.localStorage.getItem("mp_trial") === "1";
+  const isPaid = !!user && !isTrialSession;
   const check = useServerFn(getDeviceTrialStatus);
   const start = useServerFn(startDeviceTrial);
 
   useEffect(() => {
+    if (isPaid) return;
     let cancelled = false;
     (async () => {
       try {
@@ -31,7 +38,7 @@ export function TrialBanner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [check]);
+  }, [check, isPaid]);
 
   async function begin() {
     setStarting(true);
@@ -45,6 +52,7 @@ export function TrialBanner() {
     }
   }
 
+  if (isPaid) return null;
   if (status.state === "loading") return null;
   if (status.state === "active" && status.daysLeft > 3) return null;
 

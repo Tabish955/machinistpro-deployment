@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const handleLogout = () => {
     localStorage.removeItem("mp_session");
     localStorage.removeItem("mp_user");
+    localStorage.removeItem("mp_trial");
     logout();
     toast.success("Signed out", "You have been logged out successfully");
     router.push("/login");
@@ -96,6 +97,7 @@ export default function SettingsPage() {
     clearAllData();
     localStorage.removeItem("mp_session");
     localStorage.removeItem("mp_user");
+    localStorage.removeItem("mp_trial");
     logout();
     setShowResetConfirm(false);
     toast.success("App reset", "MachinistPro has been reset to default");
