@@ -22,7 +22,14 @@ const clientSignalsSchema = z.object({
 type ClientSignals = z.infer<typeof clientSignalsSchema>;
 
 function pepper() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 32) ?? "mp-fallback-pepper-v1";
+  // Stable across deployments: prefer an explicit app secret so moving the app
+  // to another host (Vercel, self-host) does not reset every device hash.
+  return (
+    process.env.TRIAL_PEPPER ||
+    process.env.MUGHAL_APP_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 32) ||
+    "mp-fallback-pepper-v1"
+  );
 }
 function sha256(s: string) { return createHash("sha256").update(s).digest("hex"); }
 function hashFingerprint(sig: ClientSignals, ua: string, ipHash: string) {
@@ -75,6 +82,25 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
     // Device already used?
     const dev = await supabaseAdmin.from("device_fingerprints")
       .select("id, trial_used, trial_expires_at").eq("fingerprint_hash", fpHash).maybeSingle();
+    // Already used on this device: resume the SAME trial window instead of
+    // granting a new one. Signing out never costs the user their trial, and it
+    // never extends past the original 14-day window.
+    if (dev.data?.trial_used && dev.data.trial_expires_at) {
+      const exp = new Date(dev.data.trial_expires_at).getTime();
+      const now = Date.now();
+      if (now < exp) {
+        return {
+          ok: true as const,
+          resumed: true as const,
+          expiresAt: dev.data.trial_expires_at,
+          daysLeft: Math.max(1, Math.ceil((exp - now) / 86400000)),
+        };
+      }
+      return {
+        ok: false as const,
+        reason: "Your 14-day trial for this device has already ended.",
+      };
+    }
     if (dev.data?.trial_used) {
       return { ok: false as const, reason: "A trial has already been used on this device." };
     }
@@ -111,5 +137,10 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
       await supabaseAdmin.from("trial_ip_log").insert({ ip_hash: ipHash, trial_count: 1 });
     }
 
-    return { ok: true as const, expiresAt: expires.toISOString(), daysLeft: TRIAL_DAYS };
+    return {
+      ok: true as const,
+      resumed: false as const,
+      expiresAt: expires.toISOString(),
+      daysLeft: TRIAL_DAYS,
+    };
   });

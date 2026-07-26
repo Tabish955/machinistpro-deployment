@@ -1,4 +1,5 @@
 import {
+  compile,
   complex,
   det,
   evaluate,
@@ -210,13 +211,32 @@ export function linearRegression(pairs: Point[]) {
   return { slope, intercept: yMean - slope * xMean, correlation: sxy / Math.sqrt(sxx * syy) };
 }
 
+// mathjs ships incomplete typings for Complex instance methods (they come from
+// complex.js at runtime). This structural type restores type-safety without
+// changing any runtime behaviour.
+type Cx = {
+  re: number;
+  im: number;
+  abs(): number;
+  arg(): number;
+  conjugate(): Cx;
+  sqrt(): Cx;
+  add(other: Cx | number): Cx;
+  sub(other: Cx | number): Cx;
+  mul(other: Cx | number): Cx;
+  div(other: Cx | number): Cx;
+  pow(other: Cx | number): Cx;
+  toString(): string;
+};
+const cx = (re: number, im = 0): Cx => complex(re, im) as unknown as Cx;
+
 export function evaluateComplex(expression: string) {
   const result = evaluate(expression.replace(/\bi\b/g, "(1i)"));
   return formatAdvanced(result);
 }
 
 export function complexDetails(real: number, imaginary: number) {
-  const value = complex(real, imaginary);
+  const value = cx(real, imaginary);
   return {
     rectangular: value.toString(),
     magnitude: value.abs(),
@@ -316,16 +336,16 @@ export function solvePolynomial(coefficients: number[]) {
   const degree = trimmed.length - 1;
   if (degree < 1 || degree > 3)
     throw new Error("Enter coefficients for a linear, quadratic or cubic equation.");
-  const cleanComplex = (value: ReturnType<typeof complex>) => {
+  const cleanComplex = (value: Cx) => {
     const epsilon = 1e-10;
     const real = Math.abs(value.re) < epsilon ? 0 : Number(value.re.toPrecision(12));
     const imaginary = Math.abs(value.im) < epsilon ? 0 : Number(value.im.toPrecision(12));
-    return complex(real, imaginary).toString();
+    return cx(real, imaginary).toString();
   };
-  if (degree === 1) return [cleanComplex(complex(-trimmed[1] / trimmed[0], 0))];
+  if (degree === 1) return [cleanComplex(cx(-trimmed[1] / trimmed[0], 0))];
   if (degree === 2) {
     const [a, b, c] = trimmed;
-    const discriminant = complex(b * b - 4 * a * c);
+    const discriminant = cx(b * b - 4 * a * c);
     const root = discriminant.sqrt();
     return [
       root
@@ -341,14 +361,14 @@ export function solvePolynomial(coefficients: number[]) {
   const [a, b, c, d] = trimmed;
   const p = (3 * a * c - b * b) / (3 * a * a);
   const q = (27 * a * a * d - 9 * a * b * c + 2 * b ** 3) / (27 * a ** 3);
-  const delta = complex((q * q) / 4 + p ** 3 / 27).sqrt();
-  const u = complex(-q / 2)
+  const delta = cx((q * q) / 4 + p ** 3 / 27).sqrt();
+  const u = cx(-q / 2)
     .add(delta)
     .pow(1 / 3);
-  const v = complex(-q / 2)
+  const v = cx(-q / 2)
     .sub(delta)
     .pow(1 / 3);
-  const omega = complex(-0.5, Math.sqrt(3) / 2);
+  const omega = cx(-0.5, Math.sqrt(3) / 2);
   return [0, 1, 2].map((k) =>
     cleanComplex(
       u
@@ -448,8 +468,8 @@ export function programmerOperation(
 }
 
 const compiledExpression = (expression: string, variable: string) => {
-  const node = evaluate.bind(null, expression);
-  return (value: number) => Number(node({ [variable]: value }));
+  const node = compile(expression);
+  return (value: number) => Number(node.evaluate({ [variable]: value }));
 };
 
 export function sampleGraph(

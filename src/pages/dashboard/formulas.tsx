@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
+import { formatMath } from "@/lib/core/math-symbols";
 import {
   BookOpen, Search, X, Copy, Check, ExternalLink,
   ChevronRight, Star, ChevronDown, Hash,
@@ -58,12 +59,12 @@ function FormulaDetail({ f, onClose }: { f: FormulaEntry; onClose: () => void })
               <h2 className="text-xl font-bold text-white">{f.name}</h2>
               <p className="text-sm text-gray-500 mt-1">{f.description}</p>
             </div>
-            <CBtn text={f.expression} />
+            <CBtn text={formatMath(f.expression)} />
           </div>
 
           {/* Expression */}
           <div className="p-4 rounded-xl bg-dark-900/80 border border-dark-700 mb-5">
-            <p className="text-lg font-mono text-accent-cyan text-center font-semibold">{f.expression}</p>
+            <p className="text-lg font-mono text-accent-cyan text-center font-semibold">{formatMath(f.expression)}</p>
           </div>
 
           {/* Variables */}
@@ -114,7 +115,7 @@ function FormulaDetail({ f, onClose }: { f: FormulaEntry; onClose: () => void })
               <button key={r.id} onClick={() => {}} className="w-full flex items-center justify-between p-3 rounded-xl bg-dark-800/60 border border-dark-700 hover:bg-dark-800 transition-colors cursor-pointer">
                 <div className="text-left">
                   <p className="text-sm text-white">{r.name}</p>
-                  <p className="text-xs text-gray-600 font-mono">{r.expression}</p>
+                  <p className="text-xs text-gray-600 font-mono">{formatMath(r.expression)}</p>
                 </div>
                 <ChevronRight size={14} className="text-gray-600" />
               </button>
@@ -237,7 +238,7 @@ export default function FormulasPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white group-hover:text-accent-cyan transition-colors truncate">{f.name}</p>
-                        <p className="text-xs text-gray-600 font-mono truncate mt-0.5">{f.expression}</p>
+                        <p className="text-xs text-gray-600 font-mono truncate mt-0.5">{formatMath(f.expression)}</p>
                       </div>
                       {f.calcLink && <ExternalLink size={12} className="text-gray-700 shrink-0" />}
                       <ChevronRight size={14} className="text-gray-700 shrink-0 group-hover:text-gray-400" />

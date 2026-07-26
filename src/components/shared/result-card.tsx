@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Copy, Check, ChevronRight, Info } from "lucide-react";
+import { formatMath } from "@/lib/core/math-symbols";
 
 interface ResultRowProps {
   label: string;
@@ -72,10 +73,10 @@ export function FormulaDisplay({ formula, steps }: FormulaDisplayProps) {
       </button>
       {open && (
         <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono space-y-1 animate-fade-in">
-          <p className="text-accent-cyan">{formula}</p>
+          <p className="text-accent-cyan">{formatMath(formula)}</p>
           {steps?.map((step, i) => (
             <p key={i} className="text-gray-500">
-              {step.description}: {step.expression} = {step.result}
+              {step.description}: {formatMath(step.expression)} = {formatMath(step.result)}
             </p>
           ))}
         </div>

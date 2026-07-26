@@ -72,19 +72,25 @@ export default function LoginPage() {
       if (r.ok) {
         const expiryDate = new Date(r.expiresAt).toLocaleDateString();
         const trialToken = `trial_${crypto.randomUUID().replace(/-/g, "")}`;
+        const subscription = `Trial (${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} left)`;
         localStorage.setItem("mp_session", trialToken);
+        localStorage.setItem("mp_trial", "1");
         localStorage.setItem("mp_user", JSON.stringify({
           username: "Trial User",
-          subscription: "Trial (14 days)",
+          subscription,
           expiry: expiryDate,
+          isTrial: true,
         }));
         setUser({
           username: "Trial User",
-          subscription: "Trial (14 days)",
+          subscription,
           expiry: expiryDate,
           sessionToken: trialToken,
         });
-        toast.success("Trial started", `14 days · expires ${expiryDate}`);
+        toast.success(
+          r.resumed ? "Trial resumed" : "Trial started",
+          `${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} remaining · expires ${expiryDate}`,
+        );
         router.push("/dashboard");
       } else {
         setTrialStatus({ state: "blocked", reason: r.reason });
@@ -173,6 +179,7 @@ export default function LoginPage() {
 
         if (data.success && data.sessionToken) {
           localStorage.setItem("mp_session", data.sessionToken);
+          localStorage.removeItem("mp_trial");
           localStorage.setItem("mp_user", JSON.stringify({
             username: data.username || username.trim(),
             subscription: data.subscription || "Standard",

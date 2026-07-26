@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Factory, Copy, Check, ChevronRight, Info, AlertTriangle } from "lucide-react";
+import { formatMath } from "@/lib/core/math-symbols";
 
 /* ═══ Shared ═════════════════════════════════════════════════════════════════ */
 
@@ -52,7 +53,7 @@ function Formula({ formula }: { formula: string }) {
       <button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer">
         <Info size={11} /> Formula <ChevronRight size={10} className={`transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
-      {open && <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono text-accent-cyan animate-fade-in">{formula}</div>}
+      {open && <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono text-accent-cyan animate-fade-in">{formatMath(formula)}</div>}
     </div>
   );
 }

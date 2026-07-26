@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
+import { formatMath } from "@/lib/core/math-symbols";
 import {
   Weight,
   ChevronDown,
@@ -462,7 +463,7 @@ export default function WeightPage() {
             {showFormula && (
               <div className="mt-3 space-y-2 text-xs text-gray-500 animate-fade-in">
                 <div className="p-3 rounded-lg bg-dark-900/60 font-mono">
-                  <p className="text-accent-cyan mb-2">{shape.formula}</p>
+                  <p className="text-accent-cyan mb-2">{formatMath(shape.formula)}</p>
                   <p>Weight = Volume × Density</p>
                   <p className="text-gray-600 mt-1">W = V × ρ</p>
                 </div>

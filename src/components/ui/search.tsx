@@ -7,6 +7,7 @@ import { FORMULAS } from "@/lib/formulas";
 import { MATERIAL_PROFILES } from "@/lib/engdb/materials";
 import { THREAD_DB } from "@/lib/engdb/threads";
 import { ENGINEERING_CONSTANTS } from "@/lib/core/constants";
+import { formatMath } from "@/lib/core/math-symbols";
 
 interface SearchItem {
   id: string;
@@ -42,7 +43,7 @@ function universalSearch(query: string): SearchItem[] {
     if (f.name.toLowerCase().includes(q)) s = 80;
     else if (f.keywords.some(k => k.includes(q))) s = 50;
     else if (f.expression.toLowerCase().includes(q)) s = 30;
-    if (s > 0) results.push({ id: `form-${f.id}`, label: f.name, description: f.expression, href: "/dashboard/formulas", category: "Formulas", icon: "formula", score: s });
+    if (s > 0) results.push({ id: `form-${f.id}`, label: f.name, description: formatMath(f.expression), href: "/dashboard/formulas", category: "Formulas", icon: "formula", score: s });
   }
 
   // 3) Materials (top 6)
