@@ -4,11 +4,15 @@ import {
   cartesianToPolar,
   complexDetails,
   convertSIPrefix,
+  evaluateEngineeringExpression,
   engineeringFormat,
   evaluateComplex,
   formatAdvanced,
+  formatEngineeringNumber,
   linearRegression,
   matrixOperation,
+  normalizeEngineeringExpression,
+  parseRequiredNumber,
   polarToCartesian,
   programmerOperation,
   sampleGraph,
@@ -17,11 +21,13 @@ import {
   SI_PREFIXES,
   type CalculatorMode,
   type EngineeringAngleMode,
+  type EngineeringAngleRange,
   type GraphSeries,
   type NumericBase,
   type SIPrefix,
   type WordSize,
 } from "@/lib/calculator/advanced";
+import { useCalculatorStore } from "@/store/calculator-store";
 
 const field =
   "w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-sm text-white placeholder:text-gray-700 focus:border-accent-cyan/40 focus:outline-none";
@@ -44,8 +50,10 @@ function Result({ error, children }: { error?: string; children?: React.ReactNod
 }
 
 function EngineeringWorkspace() {
-  const [expression, setExpression] = useState("1250000 / 3");
+  const addHistoryEntry = useCalculatorStore((state) => state.addHistoryEntry);
+  const [expression, setExpression] = useState("1250000 ÷ 3");
   const [figures, setFigures] = useState(6);
+  const [exponentShift, setExponentShift] = useState(0);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
   const [prefixValue, setPrefixValue] = useState("1");
@@ -56,18 +64,38 @@ function EngineeringWorkspace() {
   const [prefixError, setPrefixError] = useState("");
   const [coordinateType, setCoordinateType] = useState<"cartesian" | "polar">("cartesian");
   const [angleMode, setAngleMode] = useState<EngineeringAngleMode>("deg");
+  const [angleRange, setAngleRange] = useState<EngineeringAngleRange>("signed");
+  const [outputPrecision, setOutputPrecision] = useState(10);
   const [coordinateA, setCoordinateA] = useState("3");
   const [coordinateB, setCoordinateB] = useState("4");
   const [coordinateResult, setCoordinateResult] = useState("");
   const [coordinateError, setCoordinateError] = useState("");
+  const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | null>(null);
 
-  const calculate = () => {
+  const copy = async (value: string, target: typeof copied) => {
+    if (!value || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(value);
+    setCopied(target);
+    window.setTimeout(() => setCopied(null), 1500);
+  };
+
+  const calculate = (shift = exponentShift, recordHistory = true) => {
     try {
-      const value = Number(evaluate(expression));
+      const evaluableExpression = evaluateEngineeringExpression(expression);
+      const value = Number(evaluate(evaluableExpression));
       if (!Number.isFinite(value)) throw new Error("The result is not finite.");
-      const formatted = engineeringFormat(value, figures);
-      setResult(`${formatted} · ${value.toExponential(figures - 1)}`);
+      const formatted = engineeringFormat(value, figures, shift);
+      const display = `${formatted} · ${value.toExponential(figures - 1)}`;
+      setResult(display);
       setError("");
+      if (recordHistory) {
+        addHistoryEntry({
+          expression,
+          result: value,
+          displayResult: display,
+          calculatorMode: "engineering",
+        });
+      }
     } catch (cause) {
       setResult("");
       setError(cause instanceof Error ? cause.message : "Invalid expression.");
@@ -76,11 +104,18 @@ function EngineeringWorkspace() {
 
   const convertPrefix = () => {
     try {
-      const value = Number(prefixValue);
+      const value = parseRequiredNumber(prefixValue, "Value");
       const converted = convertSIPrefix(value, fromPrefix, toPrefix);
       const outputUnit = `${toPrefix}${unit.trim()}`;
-      setPrefixResult(`${formatAdvanced(converted)} ${outputUnit}`.trim());
+      const display = `${formatEngineeringNumber(converted, outputPrecision)} ${outputUnit}`.trim();
+      setPrefixResult(display);
       setPrefixError("");
+      addHistoryEntry({
+        expression: `${prefixValue} ${fromPrefix}${unit.trim()} → ${toPrefix}${unit.trim()}`.trim(),
+        result: converted,
+        displayResult: display,
+        calculatorMode: "engineering",
+      });
     } catch (cause) {
       setPrefixResult("");
       setPrefixError(cause instanceof Error ? cause.message : "Invalid conversion.");
@@ -89,20 +124,36 @@ function EngineeringWorkspace() {
 
   const convertCoordinates = () => {
     try {
-      const first = Number(coordinateA);
-      const second = Number(coordinateB);
+      const first = parseRequiredNumber(
+        coordinateA,
+        coordinateType === "cartesian" ? "X" : "Radius",
+      );
+      const second = parseRequiredNumber(
+        coordinateB,
+        coordinateType === "cartesian" ? "Y" : "Angle",
+      );
+      let display: string;
+      let historyResult: number;
+      let historyExpression: string;
       if (coordinateType === "cartesian") {
-        const converted = cartesianToPolar(first, second, angleMode);
-        setCoordinateResult(
-          `r = ${formatAdvanced(converted.radius)}, θ = ${formatAdvanced(converted.angle)} ${angleMode.toUpperCase()}`,
-        );
+        const converted = cartesianToPolar(first, second, angleMode, angleRange);
+        display = `r = ${formatEngineeringNumber(converted.radius, outputPrecision)}, θ = ${formatEngineeringNumber(converted.angle, outputPrecision)} ${angleMode.toUpperCase()}`;
+        historyResult = converted.radius;
+        historyExpression = `Cartesian (${coordinateA}, ${coordinateB}) → Polar`;
       } else {
         const converted = polarToCartesian(first, second, angleMode);
-        setCoordinateResult(
-          `x = ${formatAdvanced(converted.x)}, y = ${formatAdvanced(converted.y)}`,
-        );
+        display = `x = ${formatEngineeringNumber(converted.x, outputPrecision)}, y = ${formatEngineeringNumber(converted.y, outputPrecision)}`;
+        historyResult = converted.x;
+        historyExpression = `Polar (${coordinateA}, ${coordinateB} ${angleMode.toUpperCase()}) → Cartesian`;
       }
+      setCoordinateResult(display);
       setCoordinateError("");
+      addHistoryEntry({
+        expression: historyExpression,
+        result: historyResult,
+        displayResult: display,
+        calculatorMode: "engineering",
+      });
     } catch (cause) {
       setCoordinateResult("");
       setCoordinateError(cause instanceof Error ? cause.message : "Invalid coordinates.");
@@ -117,20 +168,67 @@ function EngineeringWorkspace() {
     setCoordinateError("");
   };
 
+  const shiftExponent = (delta: number) => {
+    const nextShift = Math.max(-8, Math.min(8, exponentShift + delta));
+    setExponentShift(nextShift);
+    calculate(nextShift, false);
+  };
+
+  const resetNotation = () => {
+    setExpression("1250000 ÷ 3");
+    setFigures(6);
+    setExponentShift(0);
+    setResult("");
+    setError("");
+  };
+
+  const resetPrefix = () => {
+    setPrefixValue("1");
+    setFromPrefix("k");
+    setToPrefix("");
+    setUnit("m");
+    setPrefixResult("");
+    setPrefixError("");
+  };
+
+  const resetCoordinates = () => {
+    setCoordinateType("cartesian");
+    setAngleMode("deg");
+    setAngleRange("signed");
+    setOutputPrecision(10);
+    setCoordinateA("3");
+    setCoordinateB("4");
+    setCoordinateResult("");
+    setCoordinateError("");
+  };
+
+  const angleRangeLabels =
+    angleMode === "deg"
+      ? { signed: "−180° to 180°", positive: "0° to 360°" }
+      : angleMode === "grad"
+        ? { signed: "−200 to 200", positive: "0 to 400" }
+        : { signed: "−π to π", positive: "0 to 2π" };
+
   return (
     <Workspace
       title="Engineering"
       subtitle="Engineering notation, SI-prefix conversion and coordinate conversion"
     >
       <section className={panel}>
-        <h3 className="mb-3 text-xs font-semibold text-gray-300">Engineering notation</h3>
-        <div className="grid items-end gap-3 sm:grid-cols-[1fr_150px_auto]">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold text-gray-300">Engineering notation</h3>
+          <button className={button} onClick={resetNotation}>
+            Reset
+          </button>
+        </div>
+        <div className="grid items-end gap-3 sm:grid-cols-[1fr_150px]">
           <input
             className={field}
             value={expression}
-            onChange={(event) => setExpression(event.target.value)}
+            onChange={(event) => setExpression(normalizeEngineeringExpression(event.target.value))}
             onKeyDown={(event) => event.key === "Enter" && calculate()}
             aria-label="Engineering expression"
+            placeholder="Example: 1250000 ÷ 3"
           />
           <label className="text-[10px] text-gray-500">
             Significant figures
@@ -142,22 +240,47 @@ function EngineeringWorkspace() {
               step={1}
               value={figures}
               onChange={(event) => setFigures(Number(event.target.value))}
+              onKeyDown={(event) => event.key === "Enter" && calculate()}
             />
           </label>
-          <button className={primary} onClick={calculate}>
+        </div>
+        <p className="mt-2 text-[10px] text-gray-600">
+          Keyboard * and / are accepted and displayed as × and ÷.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button className={primary} onClick={() => calculate()}>
             Calculate
           </button>
+          <button className={button} onClick={() => shiftExponent(-1)} disabled={!result}>
+            ENG −3
+          </button>
+          <button className={button} onClick={() => shiftExponent(1)} disabled={!result}>
+            ENG +3
+          </button>
+          <span className="self-center text-[10px] text-gray-600">Shift: {exponentShift * 3}</span>
         </div>
         <div className="mt-3">
           <Result error={error}>
-            {result && <p className="font-mono text-lg text-white">{result}</p>}
+            {result && (
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-lg text-white">{result}</p>
+                <button className={button} onClick={() => void copy(result, "notation")}>
+                  {copied === "notation" ? "Copied" : "Copy"}
+                </button>
+              </div>
+            )}
           </Result>
         </div>
       </section>
 
       <div className="grid gap-3 xl:grid-cols-2">
         <section className={panel}>
-          <h3 className="mb-3 text-xs font-semibold text-gray-300">SI-prefix converter</h3>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-gray-300">SI-prefix converter</h3>
+            <button className={button} onClick={resetPrefix}>
+              Reset
+            </button>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-[10px] text-gray-500">
               Value
@@ -166,6 +289,7 @@ function EngineeringWorkspace() {
                 type="number"
                 value={prefixValue}
                 onChange={(event) => setPrefixValue(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && convertPrefix()}
                 aria-label="SI value"
               />
             </label>
@@ -175,6 +299,7 @@ function EngineeringWorkspace() {
                 className={`${field} mt-1`}
                 value={unit}
                 onChange={(event) => setUnit(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && convertPrefix()}
                 placeholder="m, V, Pa..."
                 aria-label="SI unit"
               />
@@ -210,12 +335,32 @@ function EngineeringWorkspace() {
               </select>
             </label>
           </div>
-          <button className={`${primary} mt-3 w-full sm:w-auto`} onClick={convertPrefix}>
-            Convert prefix
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className={primary} onClick={convertPrefix}>
+              Convert prefix
+            </button>
+            <button
+              className={button}
+              onClick={() => {
+                setFromPrefix(toPrefix);
+                setToPrefix(fromPrefix);
+                setPrefixResult("");
+                setPrefixError("");
+              }}
+            >
+              Swap prefixes
+            </button>
+          </div>
           <div className="mt-3">
             <Result error={prefixError}>
-              {prefixResult && <p className="font-mono text-lg text-white">{prefixResult}</p>}
+              {prefixResult && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-mono text-lg text-white">{prefixResult}</p>
+                  <button className={button} onClick={() => void copy(prefixResult, "prefix")}>
+                    {copied === "prefix" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              )}
             </Result>
           </div>
         </section>
@@ -223,6 +368,11 @@ function EngineeringWorkspace() {
         <section className={panel}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-gray-300">Coordinate converter</h3>
+            <button className={button} onClick={resetCoordinates}>
+              Reset
+            </button>
+          </div>
+          <div className="mb-3 flex flex-wrap items-end gap-3">
             <div className="flex gap-1" role="group" aria-label="Angle mode">
               {(["deg", "rad", "grad"] as const).map((mode) => (
                 <button
@@ -235,6 +385,19 @@ function EngineeringWorkspace() {
                 </button>
               ))}
             </div>
+            <label className="min-w-24 text-[10px] text-gray-500">
+              Output precision
+              <input
+                className={`${field} mt-1`}
+                type="number"
+                min={2}
+                max={12}
+                step={1}
+                value={outputPrecision}
+                onChange={(event) => setOutputPrecision(Number(event.target.value))}
+                aria-label="Coordinate output precision"
+              />
+            </label>
           </div>
           <div
             className="mb-3 grid grid-cols-2 gap-2"
@@ -256,6 +419,24 @@ function EngineeringWorkspace() {
               Polar → Cartesian
             </button>
           </div>
+          {coordinateType === "cartesian" && (
+            <div className="mb-3 grid grid-cols-2 gap-2" role="group" aria-label="Angle range">
+              <button
+                className={angleRange === "signed" ? primary : button}
+                onClick={() => setAngleRange("signed")}
+                aria-pressed={angleRange === "signed"}
+              >
+                {angleRangeLabels.signed}
+              </button>
+              <button
+                className={angleRange === "positive" ? primary : button}
+                onClick={() => setAngleRange("positive")}
+                aria-pressed={angleRange === "positive"}
+              >
+                {angleRangeLabels.positive}
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <label className="text-[10px] text-gray-500">
               {coordinateType === "cartesian" ? "X" : "Radius"}
@@ -264,6 +445,7 @@ function EngineeringWorkspace() {
                 type="number"
                 value={coordinateA}
                 onChange={(event) => setCoordinateA(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && convertCoordinates()}
                 aria-label={coordinateType === "cartesian" ? "X coordinate" : "Radius"}
               />
             </label>
@@ -274,6 +456,7 @@ function EngineeringWorkspace() {
                 type="number"
                 value={coordinateB}
                 onChange={(event) => setCoordinateB(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && convertCoordinates()}
                 aria-label={coordinateType === "cartesian" ? "Y coordinate" : "Angle"}
               />
             </label>
@@ -284,7 +467,15 @@ function EngineeringWorkspace() {
           <div className="mt-3">
             <Result error={coordinateError}>
               {coordinateResult && (
-                <p className="font-mono text-base text-white">{coordinateResult}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-mono text-base text-white">{coordinateResult}</p>
+                  <button
+                    className={button}
+                    onClick={() => void copy(coordinateResult, "coordinate")}
+                  >
+                    {copied === "coordinate" ? "Copied" : "Copy"}
+                  </button>
+                </div>
               )}
             </Result>
           </div>

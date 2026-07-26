@@ -125,6 +125,22 @@ describe("Standard calculator store", () => {
     expect(useCalculatorStore.getState().result).toBe("5");
   });
 
+  it("records typed Engineering history entries", () => {
+    useCalculatorStore.getState().addHistoryEntry({
+      expression: "1200 + 300",
+      result: 1500,
+      displayResult: "1.5k",
+      calculatorMode: "engineering",
+    });
+
+    expect(useCalculatorStore.getState().history[0]).toMatchObject({
+      expression: "1200 + 300",
+      result: 1500,
+      displayResult: "1.5k",
+      calculatorMode: "engineering",
+    });
+  });
+
   it("does not repeat when calculate is used without Standard mode", () => {
     useCalculatorStore.setState({ expression: "2+3" });
     useCalculatorStore.getState().calculate();

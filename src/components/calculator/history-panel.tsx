@@ -138,7 +138,22 @@ export function HistoryPanel() {
                 key={item.id}
                 className="group rounded-xl border border-dark-700 bg-dark-800/50 p-3 hover:bg-dark-800 hover:border-dark-600 transition-all"
               >
-                <button onClick={() => loadFromHistory(item)} className="w-full text-left mb-2">
+                <button
+                  onClick={() => loadFromHistory(item)}
+                  disabled={
+                    item.calculatorMode !== undefined &&
+                    item.calculatorMode !== "standard" &&
+                    item.calculatorMode !== "scientific"
+                  }
+                  className="mb-2 w-full text-left disabled:cursor-default"
+                  title={
+                    item.calculatorMode !== undefined &&
+                    item.calculatorMode !== "standard" &&
+                    item.calculatorMode !== "scientific"
+                      ? "Specialist-mode entries are retained for reference and copying."
+                      : "Load calculation"
+                  }
+                >
                   <p className="text-xs text-gray-500 font-mono truncate mb-1">{item.expression}</p>
                   <p className="text-xl font-bold text-white font-mono">= {item.displayResult}</p>
                 </button>

@@ -126,6 +126,11 @@ interface CalculatorStore {
   clearRepeatOperation: () => void;
 
   // History management
+  addHistoryEntry: (
+    entry: Pick<CalculationResult, "expression" | "result" | "displayResult" | "calculatorMode"> & {
+      angleMode?: AngleMode;
+    },
+  ) => void;
   clearHistory: () => void;
   deleteHistoryItem: (id: string) => void;
   toggleFavorite: (id: string) => void;
@@ -651,6 +656,17 @@ export const useCalculatorStore = create<CalculatorStore>()(
       clearRepeatOperation: () => set({ repeatOperation: null }),
 
       // History management
+      addHistoryEntry: (entry) => {
+        const item = createCalculationResult(
+          entry.expression,
+          entry.result,
+          entry.displayResult,
+          entry.calculatorMode,
+          entry.angleMode,
+        );
+        set((state) => ({ history: [item, ...state.history].slice(0, MAX_HISTORY_SIZE) }));
+      },
+
       clearHistory: () => set({ history: [], favorites: [] }),
 
       deleteHistoryItem: (id) => {
