@@ -71,29 +71,58 @@ export const SI_PREFIXES = [
 
 export type SIPrefix = (typeof SI_PREFIXES)[number]["symbol"];
 export type EngineeringAngleMode = "deg" | "rad" | "grad";
+export type EngineeringAngleRange = "signed" | "positive";
 
 const assertFinite = (value: number, label: string) => {
   if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number.`);
 };
 
-export function engineeringFormat(value: number, significantFigures = 6) {
+export function engineeringFormat(value: number, significantFigures = 6, exponentShift = 0) {
   assertFinite(value, "Value");
   if (!Number.isInteger(significantFigures) || significantFigures < 2 || significantFigures > 12) {
     throw new Error("Significant figures must be a whole number from 2 to 12.");
   }
+  if (!Number.isInteger(exponentShift) || Math.abs(exponentShift) > 8) {
+    throw new Error("Engineering exponent shift must be a whole number from -8 to 8.");
+  }
   if (value === 0) return "0";
 
-  let exponent = Math.floor(Math.log10(Math.abs(value)) / 3) * 3;
-  if (exponent < -24 || exponent > 24) {
+  let exponent = Math.floor(Math.log10(Math.abs(value)) / 3) * 3 + exponentShift * 3;
+  if (exponent < -48 || exponent > 48) {
     return Number(value.toPrecision(significantFigures)).toString().replace("e+", "e");
   }
   let mantissa = Number((value / 10 ** exponent).toPrecision(significantFigures));
-  if (Math.abs(mantissa) >= 1000) {
+  if (exponentShift === 0 && Math.abs(mantissa) >= 1000) {
     exponent += 3;
     mantissa = Number((mantissa / 1000).toPrecision(significantFigures));
   }
   const prefix = SI_PREFIXES.find((item) => item.exponent === exponent)?.symbol;
   return `${mantissa}${prefix ?? `e${exponent}`}`;
+}
+
+export function normalizeEngineeringExpression(expression: string) {
+  return expression.replaceAll("*", "×").replaceAll("/", "÷");
+}
+
+export function evaluateEngineeringExpression(expression: string) {
+  if (!expression.trim()) throw new Error("Enter an expression.");
+  return expression.replaceAll("×", "*").replaceAll("÷", "/");
+}
+
+export function parseRequiredNumber(input: string, label: string) {
+  if (!input.trim()) throw new Error(`${label} is required.`);
+  const value = Number(input);
+  assertFinite(value, label);
+  return value;
+}
+
+export function formatEngineeringNumber(value: number, significantFigures = 12) {
+  assertFinite(value, "Value");
+  if (!Number.isInteger(significantFigures) || significantFigures < 2 || significantFigures > 12) {
+    throw new Error("Output precision must be a whole number from 2 to 12.");
+  }
+  if (Math.abs(value) < 1e-12) return "0";
+  return Number(value.toPrecision(significantFigures)).toString().replace("e+", "e");
 }
 
 export function convertSIPrefix(value: number, from: SIPrefix, to: SIPrefix) {
@@ -112,10 +141,19 @@ const angleToRadians = (angle: number, mode: EngineeringAngleMode) =>
 const radiansToAngle = (angle: number, mode: EngineeringAngleMode) =>
   mode === "deg" ? (angle * 180) / Math.PI : mode === "grad" ? (angle * 200) / Math.PI : angle;
 
-export function cartesianToPolar(x: number, y: number, mode: EngineeringAngleMode = "deg") {
+export function cartesianToPolar(
+  x: number,
+  y: number,
+  mode: EngineeringAngleMode = "deg",
+  range: EngineeringAngleRange = "signed",
+) {
   assertFinite(x, "X");
   assertFinite(y, "Y");
-  return { radius: Math.hypot(x, y), angle: radiansToAngle(Math.atan2(y, x), mode) };
+  let angle = radiansToAngle(Math.atan2(y, x), mode);
+  if (range === "positive" && angle < 0) {
+    angle += mode === "deg" ? 360 : mode === "grad" ? 400 : 2 * Math.PI;
+  }
+  return { radius: Math.hypot(x, y), angle };
 }
 
 export function polarToCartesian(

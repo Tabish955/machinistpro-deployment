@@ -3,9 +3,13 @@ import {
   cartesianToPolar,
   complexDetails,
   convertSIPrefix,
+  evaluateEngineeringExpression,
   engineeringFormat,
+  formatEngineeringNumber,
   linearRegression,
   matrixOperation,
+  normalizeEngineeringExpression,
+  parseRequiredNumber,
   polarToCartesian,
   programmerOperation,
   sampleGraph,
@@ -23,9 +27,22 @@ describe("advanced calculator engines", () => {
     expect(engineeringFormat(0, 6)).toBe("0");
     expect(engineeringFormat(1e27, 6)).toBe("1e27");
     expect(engineeringFormat(Number.MIN_VALUE, 6)).toBe("5e-324");
+    expect(engineeringFormat(1_250_000, 4, -1)).toBe("1250k");
+    expect(engineeringFormat(1_250_000, 4, 1)).toBe("0.00125G");
     expect(() => engineeringFormat(1, 1)).toThrow("2 to 12");
     expect(() => engineeringFormat(1, 13)).toThrow("2 to 12");
     expect(() => engineeringFormat(Number.POSITIVE_INFINITY)).toThrow("finite");
+  });
+
+  it("normalizes Engineering expression symbols and validates required values", () => {
+    expect(normalizeEngineeringExpression("12*3/4")).toBe("12×3÷4");
+    expect(evaluateEngineeringExpression("12×3÷4")).toBe("12*3/4");
+    expect(() => evaluateEngineeringExpression(" ")).toThrow("Enter an expression");
+    expect(parseRequiredNumber(" 2.5 ", "Value")).toBe(2.5);
+    expect(() => parseRequiredNumber("", "Value")).toThrow("Value is required");
+    expect(formatEngineeringNumber(2.44929359829e-16, 12)).toBe("0");
+    expect(formatEngineeringNumber(0.001, 2)).toBe("0.001");
+    expect(formatEngineeringNumber(3.14159265359, 6)).toBe("3.14159");
   });
 
   it("converts between SI prefixes", () => {
@@ -42,6 +59,8 @@ describe("advanced calculator engines", () => {
     expect(degrees.angle).toBeCloseTo(53.130102);
     expect(cartesianToPolar(0, 1, "grad").angle).toBeCloseTo(100);
     expect(cartesianToPolar(0, 1, "rad").angle).toBeCloseTo(Math.PI / 2);
+    expect(cartesianToPolar(-1, -1, "deg", "signed").angle).toBeCloseTo(-135);
+    expect(cartesianToPolar(-1, -1, "deg", "positive").angle).toBeCloseTo(225);
 
     const cartesian = polarToCartesian(5, degrees.angle, "deg");
     expect(cartesian.x).toBeCloseTo(3);

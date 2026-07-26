@@ -119,7 +119,7 @@ export function createCalculationResult(
   expression: string,
   result: number,
   displayResult: string,
-  calculatorMode?: "standard" | "scientific",
+  calculatorMode?: CalculationResult["calculatorMode"],
   angleMode?: AngleMode,
 ): CalculationResult {
   return {

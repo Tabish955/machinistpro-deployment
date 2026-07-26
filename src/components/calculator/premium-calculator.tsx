@@ -11,13 +11,7 @@ import { ModeSelector } from "./mode-selector";
 import { AdvancedWorkspace } from "./advanced-workspaces";
 
 export function PremiumCalculator() {
-  const [mode, setModeState] = useState<CalculatorMode>(() => {
-    if (typeof window === "undefined") return "scientific";
-    return (
-      (window.localStorage.getItem("machinist-pro-calculator-mode") as CalculatorMode) ||
-      "scientific"
-    );
-  });
+  const [mode, setModeState] = useState<CalculatorMode>("scientific");
   type ScalarMode = "standard" | "scientific";
   interface ScalarDraft {
     expression: string;
@@ -96,6 +90,24 @@ export function PremiumCalculator() {
   } = useCalculatorStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const savedMode = window.localStorage.getItem(
+      "machinist-pro-calculator-mode",
+    ) as CalculatorMode | null;
+    const supportedModes: CalculatorMode[] = [
+      "standard",
+      "scientific",
+      "engineering",
+      "statistics",
+      "complex",
+      "programmer",
+      "matrix",
+      "equation",
+      "graphing",
+    ];
+    if (savedMode && supportedModes.includes(savedMode)) setModeState(savedMode);
+  }, []);
 
   // Keyboard handling
   useEffect(() => {
@@ -257,34 +269,38 @@ export function PremiumCalculator() {
 
           {/* Right cluster */}
           <div className="flex items-center gap-0.5">
-            <button
-              onClick={undo}
-              disabled={undoStack.length === 0}
-              className="p-2 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-25"
-              aria-label="Undo"
-            >
-              <Undo2 size={16} />
-            </button>
-            <button
-              onClick={redo}
-              disabled={redoStack.length === 0}
-              className="p-2 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-25"
-              aria-label="Redo"
-            >
-              <Redo2 size={16} />
-            </button>
+            {(mode === "standard" || mode === "scientific") && (
+              <>
+                <button
+                  onClick={undo}
+                  disabled={undoStack.length === 0}
+                  className="p-2 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-25"
+                  aria-label="Undo"
+                >
+                  <Undo2 size={16} />
+                </button>
+                <button
+                  onClick={redo}
+                  disabled={redoStack.length === 0}
+                  className="p-2 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-25"
+                  aria-label="Redo"
+                >
+                  <Redo2 size={16} />
+                </button>
 
-            <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
+                <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
 
-            <button
-              onClick={() => {
-                void pasteNumber();
-              }}
-              className="p-2 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors hidden sm:flex"
-              aria-label="Paste"
-            >
-              <ClipboardPaste size={16} />
-            </button>
+                <button
+                  onClick={() => {
+                    void pasteNumber();
+                  }}
+                  className="p-2 rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors hidden sm:flex"
+                  aria-label="Paste"
+                >
+                  <ClipboardPaste size={16} />
+                </button>
+              </>
+            )}
 
             <button
               onClick={toggleHistory}

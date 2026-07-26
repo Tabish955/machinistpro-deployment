@@ -17,7 +17,16 @@ export interface CalculationResult {
   timestamp: number;
   id: string;
   isFavorite?: boolean;
-  calculatorMode?: "standard" | "scientific";
+  calculatorMode?:
+    | "standard"
+    | "scientific"
+    | "engineering"
+    | "statistics"
+    | "complex"
+    | "programmer"
+    | "matrix"
+    | "equation"
+    | "graphing";
   angleMode?: AngleMode;
 }
 
