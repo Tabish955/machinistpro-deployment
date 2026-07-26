@@ -20,8 +20,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
-import {
 import { formatMath } from "@/lib/core/math-symbols";
+import {
   Weight,
   ChevronDown,
   Info,
