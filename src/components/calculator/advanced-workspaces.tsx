@@ -1,19 +1,25 @@
 import { useMemo, useRef, useState } from "react";
 import { evaluate } from "mathjs";
 import {
+  cartesianToPolar,
   complexDetails,
+  convertSIPrefix,
   engineeringFormat,
   evaluateComplex,
   formatAdvanced,
   linearRegression,
   matrixOperation,
+  polarToCartesian,
   programmerOperation,
   sampleGraph,
   solvePolynomial,
   statistics,
+  SI_PREFIXES,
   type CalculatorMode,
+  type EngineeringAngleMode,
   type GraphSeries,
   type NumericBase,
+  type SIPrefix,
   type WordSize,
 } from "@/lib/calculator/advanced";
 
@@ -42,43 +48,248 @@ function EngineeringWorkspace() {
   const [figures, setFigures] = useState(6);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
+  const [prefixValue, setPrefixValue] = useState("1");
+  const [fromPrefix, setFromPrefix] = useState<SIPrefix>("k");
+  const [toPrefix, setToPrefix] = useState<SIPrefix>("");
+  const [unit, setUnit] = useState("m");
+  const [prefixResult, setPrefixResult] = useState("");
+  const [prefixError, setPrefixError] = useState("");
+  const [coordinateType, setCoordinateType] = useState<"cartesian" | "polar">("cartesian");
+  const [angleMode, setAngleMode] = useState<EngineeringAngleMode>("deg");
+  const [coordinateA, setCoordinateA] = useState("3");
+  const [coordinateB, setCoordinateB] = useState("4");
+  const [coordinateResult, setCoordinateResult] = useState("");
+  const [coordinateError, setCoordinateError] = useState("");
+
   const calculate = () => {
     try {
       const value = Number(evaluate(expression));
       if (!Number.isFinite(value)) throw new Error("The result is not finite.");
-      setResult(`${engineeringFormat(value, figures)}  ·  ${value.toExponential(figures - 1)}`);
+      const formatted = engineeringFormat(value, figures);
+      setResult(`${formatted} · ${value.toExponential(figures - 1)}`);
       setError("");
     } catch (cause) {
+      setResult("");
       setError(cause instanceof Error ? cause.message : "Invalid expression.");
     }
   };
+
+  const convertPrefix = () => {
+    try {
+      const value = Number(prefixValue);
+      const converted = convertSIPrefix(value, fromPrefix, toPrefix);
+      const outputUnit = `${toPrefix}${unit.trim()}`;
+      setPrefixResult(`${formatAdvanced(converted)} ${outputUnit}`.trim());
+      setPrefixError("");
+    } catch (cause) {
+      setPrefixResult("");
+      setPrefixError(cause instanceof Error ? cause.message : "Invalid conversion.");
+    }
+  };
+
+  const convertCoordinates = () => {
+    try {
+      const first = Number(coordinateA);
+      const second = Number(coordinateB);
+      if (coordinateType === "cartesian") {
+        const converted = cartesianToPolar(first, second, angleMode);
+        setCoordinateResult(
+          `r = ${formatAdvanced(converted.radius)}, θ = ${formatAdvanced(converted.angle)} ${angleMode.toUpperCase()}`,
+        );
+      } else {
+        const converted = polarToCartesian(first, second, angleMode);
+        setCoordinateResult(
+          `x = ${formatAdvanced(converted.x)}, y = ${formatAdvanced(converted.y)}`,
+        );
+      }
+      setCoordinateError("");
+    } catch (cause) {
+      setCoordinateResult("");
+      setCoordinateError(cause instanceof Error ? cause.message : "Invalid coordinates.");
+    }
+  };
+
+  const changeCoordinateType = (type: "cartesian" | "polar") => {
+    setCoordinateType(type);
+    setCoordinateA(type === "cartesian" ? "3" : "5");
+    setCoordinateB(type === "cartesian" ? "4" : "53.130102");
+    setCoordinateResult("");
+    setCoordinateError("");
+  };
+
   return (
-    <Workspace title="Engineering" subtitle="Engineering notation and SI-prefix formatting">
-      <div className="grid gap-3 sm:grid-cols-[1fr_150px_auto]">
-        <input
-          className={field}
-          value={expression}
-          onChange={(event) => setExpression(event.target.value)}
-          aria-label="Engineering expression"
-        />
-        <label className="text-[10px] text-gray-500">
-          Significant figures
+    <Workspace
+      title="Engineering"
+      subtitle="Engineering notation, SI-prefix conversion and coordinate conversion"
+    >
+      <section className={panel}>
+        <h3 className="mb-3 text-xs font-semibold text-gray-300">Engineering notation</h3>
+        <div className="grid items-end gap-3 sm:grid-cols-[1fr_150px_auto]">
           <input
-            className={`${field} mt-1`}
-            type="number"
-            min={2}
-            max={12}
-            value={figures}
-            onChange={(e) => setFigures(Number(e.target.value))}
+            className={field}
+            value={expression}
+            onChange={(event) => setExpression(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && calculate()}
+            aria-label="Engineering expression"
           />
-        </label>
-        <button className={primary} onClick={calculate}>
-          Calculate
-        </button>
+          <label className="text-[10px] text-gray-500">
+            Significant figures
+            <input
+              className={`${field} mt-1`}
+              type="number"
+              min={2}
+              max={12}
+              step={1}
+              value={figures}
+              onChange={(event) => setFigures(Number(event.target.value))}
+            />
+          </label>
+          <button className={primary} onClick={calculate}>
+            Calculate
+          </button>
+        </div>
+        <div className="mt-3">
+          <Result error={error}>
+            {result && <p className="font-mono text-lg text-white">{result}</p>}
+          </Result>
+        </div>
+      </section>
+
+      <div className="grid gap-3 xl:grid-cols-2">
+        <section className={panel}>
+          <h3 className="mb-3 text-xs font-semibold text-gray-300">SI-prefix converter</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-[10px] text-gray-500">
+              Value
+              <input
+                className={`${field} mt-1`}
+                type="number"
+                value={prefixValue}
+                onChange={(event) => setPrefixValue(event.target.value)}
+                aria-label="SI value"
+              />
+            </label>
+            <label className="text-[10px] text-gray-500">
+              Unit (optional)
+              <input
+                className={`${field} mt-1`}
+                value={unit}
+                onChange={(event) => setUnit(event.target.value)}
+                placeholder="m, V, Pa..."
+                aria-label="SI unit"
+              />
+            </label>
+            <label className="text-[10px] text-gray-500">
+              From
+              <select
+                className={`${field} mt-1`}
+                value={fromPrefix}
+                onChange={(event) => setFromPrefix(event.target.value as SIPrefix)}
+                aria-label="From SI prefix"
+              >
+                {SI_PREFIXES.map((prefix) => (
+                  <option key={`from-${prefix.name}`} value={prefix.symbol}>
+                    {prefix.name} {prefix.symbol && `(${prefix.symbol})`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-[10px] text-gray-500">
+              To
+              <select
+                className={`${field} mt-1`}
+                value={toPrefix}
+                onChange={(event) => setToPrefix(event.target.value as SIPrefix)}
+                aria-label="To SI prefix"
+              >
+                {SI_PREFIXES.map((prefix) => (
+                  <option key={`to-${prefix.name}`} value={prefix.symbol}>
+                    {prefix.name} {prefix.symbol && `(${prefix.symbol})`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button className={`${primary} mt-3 w-full sm:w-auto`} onClick={convertPrefix}>
+            Convert prefix
+          </button>
+          <div className="mt-3">
+            <Result error={prefixError}>
+              {prefixResult && <p className="font-mono text-lg text-white">{prefixResult}</p>}
+            </Result>
+          </div>
+        </section>
+
+        <section className={panel}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-gray-300">Coordinate converter</h3>
+            <div className="flex gap-1" role="group" aria-label="Angle mode">
+              {(["deg", "rad", "grad"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  className={angleMode === mode ? primary : button}
+                  onClick={() => setAngleMode(mode)}
+                  aria-pressed={angleMode === mode}
+                >
+                  {mode.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div
+            className="mb-3 grid grid-cols-2 gap-2"
+            role="group"
+            aria-label="Coordinate direction"
+          >
+            <button
+              className={coordinateType === "cartesian" ? primary : button}
+              onClick={() => changeCoordinateType("cartesian")}
+              aria-pressed={coordinateType === "cartesian"}
+            >
+              Cartesian → Polar
+            </button>
+            <button
+              className={coordinateType === "polar" ? primary : button}
+              onClick={() => changeCoordinateType("polar")}
+              aria-pressed={coordinateType === "polar"}
+            >
+              Polar → Cartesian
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-[10px] text-gray-500">
+              {coordinateType === "cartesian" ? "X" : "Radius"}
+              <input
+                className={`${field} mt-1`}
+                type="number"
+                value={coordinateA}
+                onChange={(event) => setCoordinateA(event.target.value)}
+                aria-label={coordinateType === "cartesian" ? "X coordinate" : "Radius"}
+              />
+            </label>
+            <label className="text-[10px] text-gray-500">
+              {coordinateType === "cartesian" ? "Y" : `Angle (${angleMode.toUpperCase()})`}
+              <input
+                className={`${field} mt-1`}
+                type="number"
+                value={coordinateB}
+                onChange={(event) => setCoordinateB(event.target.value)}
+                aria-label={coordinateType === "cartesian" ? "Y coordinate" : "Angle"}
+              />
+            </label>
+          </div>
+          <button className={`${primary} mt-3 w-full sm:w-auto`} onClick={convertCoordinates}>
+            Convert coordinates
+          </button>
+          <div className="mt-3">
+            <Result error={coordinateError}>
+              {coordinateResult && (
+                <p className="font-mono text-base text-white">{coordinateResult}</p>
+              )}
+            </Result>
+          </div>
+        </section>
       </div>
-      <Result error={error}>
-        <p className="font-mono text-lg text-white">{result}</p>
-      </Result>
     </Workspace>
   );
 }

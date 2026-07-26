@@ -49,30 +49,85 @@ export const formatAdvanced = (value: unknown): string => {
   return String(value);
 };
 
+export const SI_PREFIXES = [
+  { symbol: "y", name: "yocto", exponent: -24 },
+  { symbol: "z", name: "zepto", exponent: -21 },
+  { symbol: "a", name: "atto", exponent: -18 },
+  { symbol: "f", name: "femto", exponent: -15 },
+  { symbol: "p", name: "pico", exponent: -12 },
+  { symbol: "n", name: "nano", exponent: -9 },
+  { symbol: "µ", name: "micro", exponent: -6 },
+  { symbol: "m", name: "milli", exponent: -3 },
+  { symbol: "", name: "base", exponent: 0 },
+  { symbol: "k", name: "kilo", exponent: 3 },
+  { symbol: "M", name: "mega", exponent: 6 },
+  { symbol: "G", name: "giga", exponent: 9 },
+  { symbol: "T", name: "tera", exponent: 12 },
+  { symbol: "P", name: "peta", exponent: 15 },
+  { symbol: "E", name: "exa", exponent: 18 },
+  { symbol: "Z", name: "zetta", exponent: 21 },
+  { symbol: "Y", name: "yotta", exponent: 24 },
+] as const;
+
+export type SIPrefix = (typeof SI_PREFIXES)[number]["symbol"];
+export type EngineeringAngleMode = "deg" | "rad" | "grad";
+
+const assertFinite = (value: number, label: string) => {
+  if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number.`);
+};
+
 export function engineeringFormat(value: number, significantFigures = 6) {
-  if (!Number.isFinite(value) || value === 0) return String(value);
-  const exponent = Math.floor(Math.log10(Math.abs(value)) / 3) * 3;
-  const mantissa = Number((value / 10 ** exponent).toPrecision(significantFigures));
-  const prefixes: Record<number, string> = {
-    [-24]: "y",
-    [-21]: "z",
-    [-18]: "a",
-    [-15]: "f",
-    [-12]: "p",
-    [-9]: "n",
-    [-6]: "µ",
-    [-3]: "m",
-    0: "",
-    3: "k",
-    6: "M",
-    9: "G",
-    12: "T",
-    15: "P",
-    18: "E",
-    21: "Z",
-    24: "Y",
-  };
-  return `${mantissa}${prefixes[exponent] ?? `e${exponent}`}`;
+  assertFinite(value, "Value");
+  if (!Number.isInteger(significantFigures) || significantFigures < 2 || significantFigures > 12) {
+    throw new Error("Significant figures must be a whole number from 2 to 12.");
+  }
+  if (value === 0) return "0";
+
+  let exponent = Math.floor(Math.log10(Math.abs(value)) / 3) * 3;
+  if (exponent < -24 || exponent > 24) {
+    return Number(value.toPrecision(significantFigures)).toString().replace("e+", "e");
+  }
+  let mantissa = Number((value / 10 ** exponent).toPrecision(significantFigures));
+  if (Math.abs(mantissa) >= 1000) {
+    exponent += 3;
+    mantissa = Number((mantissa / 1000).toPrecision(significantFigures));
+  }
+  const prefix = SI_PREFIXES.find((item) => item.exponent === exponent)?.symbol;
+  return `${mantissa}${prefix ?? `e${exponent}`}`;
+}
+
+export function convertSIPrefix(value: number, from: SIPrefix, to: SIPrefix) {
+  assertFinite(value, "Value");
+  const fromPrefix = SI_PREFIXES.find((item) => item.symbol === from);
+  const toPrefix = SI_PREFIXES.find((item) => item.symbol === to);
+  if (!fromPrefix || !toPrefix) throw new Error("Select valid SI prefixes.");
+  const result = value * 10 ** (fromPrefix.exponent - toPrefix.exponent);
+  assertFinite(result, "Converted result");
+  return result;
+}
+
+const angleToRadians = (angle: number, mode: EngineeringAngleMode) =>
+  mode === "deg" ? (angle * Math.PI) / 180 : mode === "grad" ? (angle * Math.PI) / 200 : angle;
+
+const radiansToAngle = (angle: number, mode: EngineeringAngleMode) =>
+  mode === "deg" ? (angle * 180) / Math.PI : mode === "grad" ? (angle * 200) / Math.PI : angle;
+
+export function cartesianToPolar(x: number, y: number, mode: EngineeringAngleMode = "deg") {
+  assertFinite(x, "X");
+  assertFinite(y, "Y");
+  return { radius: Math.hypot(x, y), angle: radiansToAngle(Math.atan2(y, x), mode) };
+}
+
+export function polarToCartesian(
+  radius: number,
+  angle: number,
+  mode: EngineeringAngleMode = "deg",
+) {
+  assertFinite(radius, "Radius");
+  assertFinite(angle, "Angle");
+  if (radius < 0) throw new Error("Radius cannot be negative.");
+  const radians = angleToRadians(angle, mode);
+  return { x: radius * Math.cos(radians), y: radius * Math.sin(radians) };
 }
 
 export function statistics(values: number[]) {
