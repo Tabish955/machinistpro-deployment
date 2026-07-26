@@ -32,6 +32,8 @@ import type { CalculationResult } from "@/lib/calculator/types";
 
 const field =
   "w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-sm text-white placeholder:text-gray-700 focus:border-accent-cyan/40 focus:outline-none";
+const selectField = `${field} [color-scheme:dark]`;
+const selectOption = "bg-dark-900 text-gray-100";
 const button =
   "rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/[0.08] hover:text-white";
 const primary =
@@ -388,13 +390,17 @@ function EngineeringWorkspace({
             <label className="text-[10px] text-gray-500">
               From
               <select
-                className={`${field} mt-1`}
+                className={`${selectField} mt-1`}
                 value={fromPrefix}
                 onChange={(event) => setFromPrefix(event.target.value as SIPrefix)}
                 aria-label="From SI prefix"
               >
                 {SI_PREFIXES.map((prefix) => (
-                  <option key={`from-${prefix.name}`} value={prefix.symbol}>
+                  <option
+                    key={`from-${prefix.name}`}
+                    value={prefix.symbol}
+                    className={selectOption}
+                  >
                     {prefix.name} {prefix.symbol && `(${prefix.symbol})`}
                   </option>
                 ))}
@@ -403,13 +409,13 @@ function EngineeringWorkspace({
             <label className="text-[10px] text-gray-500">
               To
               <select
-                className={`${field} mt-1`}
+                className={`${selectField} mt-1`}
                 value={toPrefix}
                 onChange={(event) => setToPrefix(event.target.value as SIPrefix)}
                 aria-label="To SI prefix"
               >
                 {SI_PREFIXES.map((prefix) => (
-                  <option key={`to-${prefix.name}`} value={prefix.symbol}>
+                  <option key={`to-${prefix.name}`} value={prefix.symbol} className={selectOption}>
                     {prefix.name} {prefix.symbol && `(${prefix.symbol})`}
                   </option>
                 ))}
