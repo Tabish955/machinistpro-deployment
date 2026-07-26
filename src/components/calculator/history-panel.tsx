@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useCalculatorStore } from "@/store/calculator-store";
 import { X, Search, Trash2, Star, Copy, Clock, Check } from "lucide-react";
+import type { CalculationResult } from "@/lib/calculator/types";
 
-export function HistoryPanel() {
+export function HistoryPanel({ onLoadItem }: { onLoadItem?: (item: CalculationResult) => void }) {
   const {
     history,
     favorites,
@@ -139,17 +140,21 @@ export function HistoryPanel() {
                 className="group rounded-xl border border-dark-700 bg-dark-800/50 p-3 hover:bg-dark-800 hover:border-dark-600 transition-all"
               >
                 <button
-                  onClick={() => loadFromHistory(item)}
+                  onClick={() => (onLoadItem ? onLoadItem(item) : loadFromHistory(item))}
                   disabled={
-                    item.calculatorMode !== undefined &&
-                    item.calculatorMode !== "standard" &&
-                    item.calculatorMode !== "scientific"
+                    (item.calculatorMode === "engineering" && !item.engineeringState) ||
+                    (item.calculatorMode !== undefined &&
+                      item.calculatorMode !== "standard" &&
+                      item.calculatorMode !== "scientific" &&
+                      item.calculatorMode !== "engineering")
                   }
                   className="mb-2 w-full text-left disabled:cursor-default"
                   title={
-                    item.calculatorMode !== undefined &&
-                    item.calculatorMode !== "standard" &&
-                    item.calculatorMode !== "scientific"
+                    (item.calculatorMode === "engineering" && !item.engineeringState) ||
+                    (item.calculatorMode !== undefined &&
+                      item.calculatorMode !== "standard" &&
+                      item.calculatorMode !== "scientific" &&
+                      item.calculatorMode !== "engineering")
                       ? "Specialist-mode entries are retained for reference and copying."
                       : "Load calculation"
                   }

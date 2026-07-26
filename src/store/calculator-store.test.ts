@@ -131,6 +131,12 @@ describe("Standard calculator store", () => {
       result: 1500,
       displayResult: "1.5k",
       calculatorMode: "engineering",
+      engineeringState: {
+        tool: "notation",
+        expression: "1200 + 300",
+        figures: 6,
+        exponentShift: 0,
+      },
     });
 
     expect(useCalculatorStore.getState().history[0]).toMatchObject({
@@ -138,6 +144,12 @@ describe("Standard calculator store", () => {
       result: 1500,
       displayResult: "1.5k",
       calculatorMode: "engineering",
+      engineeringState: {
+        tool: "notation",
+        expression: "1200 + 300",
+        figures: 6,
+        exponentShift: 0,
+      },
     });
   });
 

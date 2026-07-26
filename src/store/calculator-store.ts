@@ -127,7 +127,10 @@ interface CalculatorStore {
 
   // History management
   addHistoryEntry: (
-    entry: Pick<CalculationResult, "expression" | "result" | "displayResult" | "calculatorMode"> & {
+    entry: Pick<
+      CalculationResult,
+      "expression" | "result" | "displayResult" | "calculatorMode" | "engineeringState"
+    > & {
       angleMode?: AngleMode;
     },
   ) => void;
@@ -664,6 +667,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           entry.calculatorMode,
           entry.angleMode,
         );
+        item.engineeringState = entry.engineeringState;
         set((state) => ({ history: [item, ...state.history].slice(0, MAX_HISTORY_SIZE) }));
       },
 

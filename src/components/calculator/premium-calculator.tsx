@@ -5,13 +5,14 @@ import { PremiumKeypad } from "./premium-keypad";
 import { HistoryPanel } from "./history-panel";
 import { ArrowLeft, Clock, Undo2, Redo2, ClipboardPaste } from "lucide-react";
 import { Link } from "@/lib/next-compat";
-import type { AngleMode, CalculatorError } from "@/lib/calculator/types";
+import type { AngleMode, CalculationResult, CalculatorError } from "@/lib/calculator/types";
 import type { CalculatorMode } from "@/lib/calculator/advanced";
 import { ModeSelector } from "./mode-selector";
 import { AdvancedWorkspace } from "./advanced-workspaces";
 
 export function PremiumCalculator() {
   const [mode, setModeState] = useState<CalculatorMode>("scientific");
+  const [advancedHistoryItem, setAdvancedHistoryItem] = useState<CalculationResult | null>(null);
   type ScalarMode = "standard" | "scientific";
   interface ScalarDraft {
     expression: string;
@@ -61,6 +62,22 @@ export function PremiumCalculator() {
     }
     setModeState(nextMode);
     window.localStorage.setItem("machinist-pro-calculator-mode", nextMode);
+  };
+  const loadHistoryItem = (item: CalculationResult) => {
+    if (item.calculatorMode === "engineering" && item.engineeringState) {
+      setMode("engineering");
+      setAdvancedHistoryItem(item);
+      useCalculatorStore.setState({ showHistory: false });
+      return;
+    }
+    if (
+      item.calculatorMode === undefined ||
+      item.calculatorMode === "standard" ||
+      item.calculatorMode === "scientific"
+    ) {
+      if (item.calculatorMode) setMode(item.calculatorMode);
+      useCalculatorStore.getState().loadFromHistory(item);
+    }
   };
   const {
     angleMode,
@@ -385,7 +402,11 @@ export function PremiumCalculator() {
               ] as const
             ).map((workspaceMode) => (
               <div key={workspaceMode} className={mode === workspaceMode ? "h-full" : "hidden"}>
-                <AdvancedWorkspace mode={workspaceMode} />
+                <AdvancedWorkspace
+                  mode={workspaceMode}
+                  historyItem={workspaceMode === "engineering" ? advancedHistoryItem : null}
+                  onHistoryConsumed={() => setAdvancedHistoryItem(null)}
+                />
               </div>
             ))}
           </div>
@@ -393,7 +414,7 @@ export function PremiumCalculator() {
       </div>
 
       {/* History panel (uses fixed positioning internally) */}
-      <HistoryPanel />
+      <HistoryPanel onLoadItem={loadHistoryItem} />
     </>
   );
 }
