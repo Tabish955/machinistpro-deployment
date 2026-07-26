@@ -372,7 +372,7 @@ export function PremiumCalculator() {
           </div>
         )}
 
-        {mode === "standard" || mode === "scientific" ? (
+        {(mode === "standard" || mode === "scientific") && (
           <>
             {/* ─── Display ─── */}
             <div className="shrink-0 px-3 pt-1 pb-2 sm:px-4">
@@ -388,29 +388,29 @@ export function PremiumCalculator() {
               <PremiumKeypad scientific={mode === "scientific"} />
             </div>
           </>
-        ) : (
-          <div className="flex-1 min-h-0">
-            {(
-              [
-                "engineering",
-                "statistics",
-                "complex",
-                "programmer",
-                "matrix",
-                "equation",
-                "graphing",
-              ] as const
-            ).map((workspaceMode) => (
-              <div key={workspaceMode} className={mode === workspaceMode ? "h-full" : "hidden"}>
-                <AdvancedWorkspace
-                  mode={workspaceMode}
-                  historyItem={workspaceMode === "engineering" ? advancedHistoryItem : null}
-                  onHistoryConsumed={() => setAdvancedHistoryItem(null)}
-                />
-              </div>
-            ))}
-          </div>
         )}
+
+        <div className={mode === "standard" || mode === "scientific" ? "hidden" : "flex-1 min-h-0"}>
+          {(
+            [
+              "engineering",
+              "statistics",
+              "complex",
+              "programmer",
+              "matrix",
+              "equation",
+              "graphing",
+            ] as const
+          ).map((workspaceMode) => (
+            <div key={workspaceMode} className={mode === workspaceMode ? "h-full" : "hidden"}>
+              <AdvancedWorkspace
+                mode={workspaceMode}
+                historyItem={workspaceMode === "engineering" ? advancedHistoryItem : null}
+                onHistoryConsumed={() => setAdvancedHistoryItem(null)}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* History panel (uses fixed positioning internally) */}
