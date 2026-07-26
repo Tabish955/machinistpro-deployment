@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  cartesianToPolar,
   complexDetails,
+  convertSIPrefix,
   engineeringFormat,
   linearRegression,
   matrixOperation,
+  polarToCartesian,
   programmerOperation,
   sampleGraph,
   solvePolynomial,
@@ -14,6 +17,39 @@ describe("advanced calculator engines", () => {
   it("formats engineering notation", () => {
     expect(engineeringFormat(1_250_000, 4)).toBe("1.25M");
     expect(engineeringFormat(0.000_004_7, 3)).toBe("4.7µ");
+    expect(engineeringFormat(999_999, 3)).toBe("1M");
+    expect(engineeringFormat(0.000_999_999, 3)).toBe("1m");
+    expect(engineeringFormat(-4_700, 3)).toBe("-4.7k");
+    expect(engineeringFormat(0, 6)).toBe("0");
+    expect(engineeringFormat(1e27, 6)).toBe("1e27");
+    expect(engineeringFormat(Number.MIN_VALUE, 6)).toBe("5e-324");
+    expect(() => engineeringFormat(1, 1)).toThrow("2 to 12");
+    expect(() => engineeringFormat(1, 13)).toThrow("2 to 12");
+    expect(() => engineeringFormat(Number.POSITIVE_INFINITY)).toThrow("finite");
+  });
+
+  it("converts between SI prefixes", () => {
+    expect(convertSIPrefix(1, "k", "")).toBe(1000);
+    expect(convertSIPrefix(1, "M", "k")).toBe(1000);
+    expect(convertSIPrefix(2500, "m", "")).toBe(2.5);
+    expect(convertSIPrefix(4.7, "µ", "n")).toBeCloseTo(4700);
+    expect(() => convertSIPrefix(Number.NaN, "", "k")).toThrow("finite");
+  });
+
+  it("converts Cartesian and polar coordinates in all angle modes", () => {
+    const degrees = cartesianToPolar(3, 4, "deg");
+    expect(degrees.radius).toBe(5);
+    expect(degrees.angle).toBeCloseTo(53.130102);
+    expect(cartesianToPolar(0, 1, "grad").angle).toBeCloseTo(100);
+    expect(cartesianToPolar(0, 1, "rad").angle).toBeCloseTo(Math.PI / 2);
+
+    const cartesian = polarToCartesian(5, degrees.angle, "deg");
+    expect(cartesian.x).toBeCloseTo(3);
+    expect(cartesian.y).toBeCloseTo(4);
+    expect(polarToCartesian(2, 100, "grad").x).toBeCloseTo(0);
+    expect(polarToCartesian(2, Math.PI, "rad").x).toBeCloseTo(-2);
+    expect(() => polarToCartesian(-1, 30, "deg")).toThrow("negative");
+    expect(() => cartesianToPolar(Number.NaN, 0)).toThrow("finite");
   });
 
   it("computes descriptive statistics", () => {
