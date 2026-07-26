@@ -2,6 +2,31 @@
 
 export type AngleMode = "deg" | "rad" | "grad";
 
+export type EngineeringHistoryState =
+  | {
+      tool: "notation";
+      expression: string;
+      figures: number;
+      exponentShift: number;
+    }
+  | {
+      tool: "si";
+      value: string;
+      fromPrefix: string;
+      toPrefix: string;
+      unit: string;
+      precision: number;
+    }
+  | {
+      tool: "coordinate";
+      coordinateType: "cartesian" | "polar";
+      angleMode: AngleMode;
+      angleRange: "signed" | "positive";
+      precision: number;
+      first: string;
+      second: string;
+    };
+
 export type TokenType = "number" | "operator" | "function" | "constant" | "paren" | "comma";
 
 export interface Token {
@@ -28,6 +53,7 @@ export interface CalculationResult {
     | "equation"
     | "graphing";
   angleMode?: AngleMode;
+  engineeringState?: EngineeringHistoryState;
 }
 
 export interface CalculatorError {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { evaluate } from "mathjs";
 import {
   cartesianToPolar,
@@ -28,6 +28,7 @@ import {
   type WordSize,
 } from "@/lib/calculator/advanced";
 import { useCalculatorStore } from "@/store/calculator-store";
+import type { CalculationResult } from "@/lib/calculator/types";
 
 const field =
   "w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-sm text-white placeholder:text-gray-700 focus:border-accent-cyan/40 focus:outline-none";
@@ -49,7 +50,13 @@ function Result({ error, children }: { error?: string; children?: React.ReactNod
   );
 }
 
-function EngineeringWorkspace() {
+function EngineeringWorkspace({
+  historyItem,
+  onHistoryConsumed,
+}: {
+  historyItem?: CalculationResult | null;
+  onHistoryConsumed?: () => void;
+}) {
   const addHistoryEntry = useCalculatorStore((state) => state.addHistoryEntry);
   const [expression, setExpression] = useState("1250000 ÷ 3");
   const [figures, setFigures] = useState(6);
@@ -60,6 +67,7 @@ function EngineeringWorkspace() {
   const [fromPrefix, setFromPrefix] = useState<SIPrefix>("k");
   const [toPrefix, setToPrefix] = useState<SIPrefix>("");
   const [unit, setUnit] = useState("m");
+  const [siPrecision, setSiPrecision] = useState(10);
   const [prefixResult, setPrefixResult] = useState("");
   const [prefixError, setPrefixError] = useState("");
   const [coordinateType, setCoordinateType] = useState<"cartesian" | "polar">("cartesian");
@@ -71,6 +79,36 @@ function EngineeringWorkspace() {
   const [coordinateResult, setCoordinateResult] = useState("");
   const [coordinateError, setCoordinateError] = useState("");
   const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | null>(null);
+
+  useEffect(() => {
+    const restored = historyItem?.engineeringState;
+    if (!restored) return;
+    if (restored.tool === "notation") {
+      setExpression(restored.expression);
+      setFigures(restored.figures);
+      setExponentShift(restored.exponentShift);
+      setResult(historyItem.displayResult);
+      setError("");
+    } else if (restored.tool === "si") {
+      setPrefixValue(restored.value);
+      setFromPrefix(restored.fromPrefix as SIPrefix);
+      setToPrefix(restored.toPrefix as SIPrefix);
+      setUnit(restored.unit);
+      setSiPrecision(restored.precision);
+      setPrefixResult(historyItem.displayResult);
+      setPrefixError("");
+    } else {
+      setCoordinateType(restored.coordinateType);
+      setAngleMode(restored.angleMode);
+      setAngleRange(restored.angleRange);
+      setOutputPrecision(restored.precision);
+      setCoordinateA(restored.first);
+      setCoordinateB(restored.second);
+      setCoordinateResult(historyItem.displayResult);
+      setCoordinateError("");
+    }
+    onHistoryConsumed?.();
+  }, [historyItem, onHistoryConsumed]);
 
   const copy = async (value: string, target: typeof copied) => {
     if (!value || !navigator.clipboard) return;
@@ -94,6 +132,12 @@ function EngineeringWorkspace() {
           result: value,
           displayResult: display,
           calculatorMode: "engineering",
+          engineeringState: {
+            tool: "notation",
+            expression,
+            figures,
+            exponentShift: shift,
+          },
         });
       }
     } catch (cause) {
@@ -107,7 +151,7 @@ function EngineeringWorkspace() {
       const value = parseRequiredNumber(prefixValue, "Value");
       const converted = convertSIPrefix(value, fromPrefix, toPrefix);
       const outputUnit = `${toPrefix}${unit.trim()}`;
-      const display = `${formatEngineeringNumber(converted, outputPrecision)} ${outputUnit}`.trim();
+      const display = `${formatEngineeringNumber(converted, siPrecision)} ${outputUnit}`.trim();
       setPrefixResult(display);
       setPrefixError("");
       addHistoryEntry({
@@ -115,6 +159,14 @@ function EngineeringWorkspace() {
         result: converted,
         displayResult: display,
         calculatorMode: "engineering",
+        engineeringState: {
+          tool: "si",
+          value: prefixValue,
+          fromPrefix,
+          toPrefix,
+          unit,
+          precision: siPrecision,
+        },
       });
     } catch (cause) {
       setPrefixResult("");
@@ -153,6 +205,15 @@ function EngineeringWorkspace() {
         result: historyResult,
         displayResult: display,
         calculatorMode: "engineering",
+        engineeringState: {
+          tool: "coordinate",
+          coordinateType,
+          angleMode,
+          angleRange,
+          precision: outputPrecision,
+          first: coordinateA,
+          second: coordinateB,
+        },
       });
     } catch (cause) {
       setCoordinateResult("");
@@ -187,6 +248,7 @@ function EngineeringWorkspace() {
     setFromPrefix("k");
     setToPrefix("");
     setUnit("m");
+    setSiPrecision(10);
     setPrefixResult("");
     setPrefixError("");
   };
@@ -226,6 +288,11 @@ function EngineeringWorkspace() {
             className={field}
             value={expression}
             onChange={(event) => setExpression(normalizeEngineeringExpression(event.target.value))}
+            onInput={() => {
+              setExponentShift(0);
+              setResult("");
+              setError("");
+            }}
             onKeyDown={(event) => event.key === "Enter" && calculate()}
             aria-label="Engineering expression"
             placeholder="Example: 1250000 ÷ 3"
@@ -302,6 +369,20 @@ function EngineeringWorkspace() {
                 onKeyDown={(event) => event.key === "Enter" && convertPrefix()}
                 placeholder="m, V, Pa..."
                 aria-label="SI unit"
+              />
+            </label>
+            <label className="text-[10px] text-gray-500">
+              Output precision
+              <input
+                className={`${field} mt-1`}
+                type="number"
+                min={2}
+                max={12}
+                step={1}
+                value={siPrecision}
+                onChange={(event) => setSiPrecision(Number(event.target.value))}
+                onKeyDown={(event) => event.key === "Enter" && convertPrefix()}
+                aria-label="SI output precision"
               />
             </label>
             <label className="text-[10px] text-gray-500">
@@ -1262,12 +1343,18 @@ function Workspace({
 
 export function AdvancedWorkspace({
   mode,
+  historyItem,
+  onHistoryConsumed,
 }: {
   mode: Exclude<CalculatorMode, "standard" | "scientific">;
+  historyItem?: CalculationResult | null;
+  onHistoryConsumed?: () => void;
 }) {
   switch (mode) {
     case "engineering":
-      return <EngineeringWorkspace />;
+      return (
+        <EngineeringWorkspace historyItem={historyItem} onHistoryConsumed={onHistoryConsumed} />
+      );
     case "statistics":
       return <StatisticsWorkspace />;
     case "complex":
