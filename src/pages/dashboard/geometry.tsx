@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Hexagon, Copy, Check, ChevronRight, Info } from "lucide-react";
+import { formatMath } from "@/lib/core/math-symbols";
 
 /* ═══ Shared helpers ═════════════════════════════════════════════════════════ */
 
@@ -64,7 +65,7 @@ function FormulaBox({ formula }: { formula: string }) {
         <Info size={11} /> Formula
         <ChevronRight size={10} className={`transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
-      {open && <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono text-accent-cyan animate-fade-in">{formula}</div>}
+      {open && <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono text-accent-cyan animate-fade-in">{formatMath(formula)}</div>}
     </div>
   );
 }

@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Wrench, Copy, Check, ChevronRight, Info } from "lucide-react";
+import { formatMath } from "@/lib/core/math-symbols";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Shared components
@@ -93,8 +94,8 @@ function FormulaBox({ formula, steps }: { formula: string; steps?: string[] }) {
       </button>
       {open && (
         <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono text-gray-500 space-y-1 animate-fade-in">
-          <p className="text-accent-cyan">{formula}</p>
-          {steps?.map((s, i) => <p key={i}>{s}</p>)}
+          <p className="text-accent-cyan">{formatMath(formula)}</p>
+          {steps?.map((s, i) => <p key={i}>{formatMath(s)}</p>)}
         </div>
       )}
     </div>
