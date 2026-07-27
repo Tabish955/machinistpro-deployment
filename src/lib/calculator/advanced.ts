@@ -46,6 +46,15 @@ export const formatAdvanced = (value: unknown): string => {
     return Number(value.toPrecision(12)).toString();
   }
   if (Array.isArray(value)) return JSON.stringify(value);
+  // A mathjs Complex went straight to toString(), so a complex answer showed the
+  // raw 17-digit float while a real answer alongside it showed 12. Round both
+  // parts to the same precision.
+  if (value && typeof value === "object" && "re" in value && "im" in value) {
+    const { re, im } = value as { re: number; im: number };
+    if (Number.isFinite(re) && Number.isFinite(im)) {
+      return complex(Number(re.toPrecision(12)), Number(im.toPrecision(12))).toString();
+    }
+  }
   if (value && typeof value === "object" && "toString" in value) return value.toString();
   return String(value);
 };
@@ -243,6 +252,9 @@ type Cx = {
 const cx = (re: number, im = 0): Cx => complex(re, im) as unknown as Cx;
 
 export function evaluateComplex(expression: string) {
+  // An empty box evaluated to undefined and rendered as the literal text
+  // "undefined", which reads like an answer rather than a prompt to type something.
+  if (!expression.trim()) throw new Error("Enter an expression.");
   const result = evaluate(expression.replace(/\bi\b/g, "(1i)"));
   return formatAdvanced(result);
 }
@@ -287,9 +299,49 @@ const matrixData = (value: unknown): unknown => {
   return value;
 };
 
+// Gauss-Jordan elimination, shared by rref and rank.
+function reducedRowEchelon(source: number[][]): number[][] {
+  const rows = source.map((row) => [...row]);
+  let lead = 0;
+  for (let r = 0; r < rows.length && lead < rows[0].length; r++) {
+    let i = r;
+    while (Math.abs(rows[i][lead]) < 1e-12) {
+      i++;
+      if (i === rows.length) {
+        i = r;
+        lead++;
+        if (lead === rows[0].length) return rows;
+      }
+    }
+    [rows[i], rows[r]] = [rows[r], rows[i]];
+    const divisor = rows[r][lead];
+    rows[r] = rows[r].map((v) => v / divisor);
+    rows.forEach((row, index) => {
+      if (index !== r) {
+        const factor = row[lead];
+        rows[index] = row.map((v, col) => v - factor * rows[r][col]);
+      }
+    });
+    lead++;
+  }
+  return rows;
+}
+
+const OPERATIONS_NEEDING_B: Record<string, string> = {
+  add: "Enter Matrix B to add.",
+  subtract: "Enter Matrix B to subtract.",
+  multiply: "Enter Matrix B to multiply.",
+  solve: "Enter the solution vector in the second box.",
+};
+
 export function matrixOperation(aText: string, operation: string, bText = "") {
   const a = matrix(parseMatrix(aText));
   const b = bText.trim() ? matrix(parseMatrix(bText)) : null;
+  // Without this the missing operand surfaced as mathjs internals, e.g.
+  // "Unexpected type of argument in function addScalar ... actual: identifier | null".
+  if (!b && OPERATIONS_NEEDING_B[operation]) {
+    throw new Error(OPERATIONS_NEEDING_B[operation]);
+  }
   switch (operation) {
     case "add":
       return matrixData(evaluate("a + b", { a, b }));
@@ -306,33 +358,13 @@ export function matrixOperation(aText: string, operation: string, bText = "") {
     case "trace":
       return evaluate("trace(a)", { a });
     case "rank":
-      return evaluate("rank(a)", { a });
-    case "rref": {
-      const rows = parseMatrix(aText).map((row) => [...row]);
-      let lead = 0;
-      for (let r = 0; r < rows.length && lead < rows[0].length; r++) {
-        let i = r;
-        while (Math.abs(rows[i][lead]) < 1e-12) {
-          i++;
-          if (i === rows.length) {
-            i = r;
-            lead++;
-            if (lead === rows[0].length) return rows;
-          }
-        }
-        [rows[i], rows[r]] = [rows[r], rows[i]];
-        const divisor = rows[r][lead];
-        rows[r] = rows[r].map((v) => v / divisor);
-        rows.forEach((row, index) => {
-          if (index !== r) {
-            const factor = row[lead];
-            rows[index] = row.map((v, col) => v - factor * rows[r][col]);
-          }
-        });
-        lead++;
-      }
-      return rows;
-    }
+      // mathjs has no rank(), so this button always failed with "Undefined
+      // function rank". Count the non-zero rows of the reduced form instead.
+      return reducedRowEchelon(parseMatrix(aText)).filter((row) =>
+        row.some((value) => Math.abs(value) > 1e-12),
+      ).length;
+    case "rref":
+      return reducedRowEchelon(parseMatrix(aText));
     case "solve":
       return matrixData(lusolve(a, b!));
     case "qr":
@@ -374,12 +406,15 @@ export function solvePolynomial(coefficients: number[]) {
   const p = (3 * a * c - b * b) / (3 * a * a);
   const q = (27 * a * a * d - 9 * a * b * c + 2 * b ** 3) / (27 * a ** 3);
   const delta = cx((q * q) / 4 + p ** 3 / 27).sqrt();
-  const u = cx(-q / 2)
-    .add(delta)
-    .pow(1 / 3);
-  const v = cx(-q / 2)
-    .sub(delta)
-    .pow(1 / 3);
+  // Cardano requires u·v = -p/3. Taking a principal cube root for u and v
+  // independently breaks that: the principal cube root of -1 is 0.5+0.866i, not -1,
+  // so x^3-3x+2 (roots 1, 1, -2) came back as three wrong complex numbers.
+  // Pick the larger branch for u, then derive v from the constraint.
+  const half = cx(-q / 2);
+  const branchA = half.add(delta);
+  const branchB = half.sub(delta);
+  const u = (branchA.abs() >= branchB.abs() ? branchA : branchB).pow(1 / 3);
+  const v = u.abs() < 1e-14 ? cx(0) : cx(-p / 3).div(u);
   const omega = cx(-0.5, Math.sqrt(3) / 2);
   return [0, 1, 2].map((k) =>
     cleanComplex(
@@ -470,12 +505,22 @@ export function programmerOperation(
   }
   const wrapped = raw & mask;
   const signedValue = signed && wrapped & (1n << (bits - 1n)) ? wrapped - (1n << bits) : wrapped;
+
+  // Overflow means the true result did not fit the word, not that the bit pattern
+  // reads differently as signed. Comparing raw against the signed value flagged
+  // ordinary results — NOT FF (which is 0), and 80 read as -128, which fits exactly.
+  // Bitwise operations are defined on the word itself and cannot overflow.
+  const bitwiseOnly = new Set(["AND", "OR", "XOR", "NOT", "ROL", "ROR", "SHR"]);
+  const minimum = signed ? -(1n << (bits - 1n)) : 0n;
+  const maximum = signed ? (1n << (bits - 1n)) - 1n : mask;
+  const overflow = bitwiseOnly.has(operation) ? false : raw < minimum || raw > maximum;
+
   return {
     binary: wrapped.toString(2).padStart(wordSize, "0"),
     octal: wrapped.toString(8),
     decimal: signedValue.toString(10),
     hexadecimal: wrapped.toString(16).toUpperCase(),
-    overflow: raw !== signedValue,
+    overflow,
   };
 }
 
@@ -497,12 +542,9 @@ export function sampleGraph(
   const polar = polarMatch ? compiledExpression(polarMatch[1], "t") : null;
   const parametricX = parametricMatch ? compiledExpression(parametricMatch[1], "t") : null;
   const parametricY = parametricMatch ? compiledExpression(parametricMatch[2], "t") : null;
-  const points: Array<Point | null> = [];
-  const roots: Point[] = [];
-  const extrema: GraphSeries["extrema"] = [];
   const step = (xMax - xMin) / samples;
-  let previous: Point | null = null;
-  let beforePrevious: Point | null = null;
+
+  const sampled: Array<Point | null> = [];
   for (let i = 0; i <= samples; i++) {
     const parameter = polar || parametricX ? (i / samples) * Math.PI * 2 : xMin + i * step;
     let x = parameter;
@@ -521,8 +563,39 @@ export function sampleGraph(
     } catch {
       y = Number.NaN;
     }
-    const point = Number.isFinite(x) && Number.isFinite(y) && Math.abs(y) < 1e12 ? { x, y } : null;
-    if (point && previous) {
+    sampled.push(Number.isFinite(x) && Number.isFinite(y) && Math.abs(y) < 1e12 ? { x, y } : null);
+  }
+
+  // A pole looks like a sign change, so tan(x) was credited with roots and turning
+  // points at ±π/2 where it actually diverges. Compare each step against the
+  // curve's typical step: a jump far larger than that is a break, not a crossing.
+  const jumps: number[] = [];
+  for (let i = 1; i < sampled.length; i++) {
+    const before = sampled[i - 1];
+    const after = sampled[i];
+    if (before && after) jumps.push(Math.abs(after.y - before.y));
+  }
+  const ordered = [...jumps].sort((a, b) => a - b);
+  const medianJump = ordered.length ? ordered[Math.floor(ordered.length / 2)] : 0;
+  const breakLimit = medianJump > 0 ? medianJump * 50 : Number.POSITIVE_INFINITY;
+  // Require the sign to flip as well, which is what separates a pole from a merely
+  // steep stretch: 1/x climbs hard either side of its asymptote but never flips
+  // across a single step, so its curve stays joined up.
+  const broken = (before: Point | null, after: Point | null) =>
+    !before ||
+    !after ||
+    (Math.abs(after.y - before.y) > breakLimit && Math.sign(after.y) !== Math.sign(before.y));
+
+  const points: Array<Point | null> = [];
+  const roots: Point[] = [];
+  const extrema: GraphSeries["extrema"] = [];
+  for (let i = 0; i <= samples; i++) {
+    const point = sampled[i];
+    const previous = i > 0 ? sampled[i - 1] : null;
+    const beforePrevious = i > 1 ? sampled[i - 2] : null;
+    const jumped = broken(previous, point);
+
+    if (point && previous && !jumped) {
       if (
         !polar &&
         !parametricX &&
@@ -532,17 +605,15 @@ export function sampleGraph(
           previous.x + ((0 - previous.y) * (point.x - previous.x)) / (point.y - previous.y);
         if (Number.isFinite(rootX)) roots.push({ x: rootX, y: 0 });
       }
-      if (beforePrevious) {
+      if (beforePrevious && !broken(beforePrevious, previous)) {
         if (previous.y < beforePrevious.y && previous.y < point.y)
           extrema.push({ ...previous, kind: "min" });
         if (previous.y > beforePrevious.y && previous.y > point.y)
           extrema.push({ ...previous, kind: "max" });
       }
-      if (Math.abs(point.y - previous.y) > 1e6) points.push(null);
     }
+    if (point && previous && jumped) points.push(null);
     points.push(point);
-    beforePrevious = previous;
-    previous = point;
   }
   const rootTolerance = Math.max(step * 1.5, 1e-9);
   const uniqueRoots = roots.filter(

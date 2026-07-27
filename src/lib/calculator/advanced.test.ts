@@ -3,6 +3,7 @@ import {
   cartesianToPolar,
   complexDetails,
   convertSIPrefix,
+  evaluateComplex,
   evaluateEngineeringExpression,
   engineeringFormat,
   formatEngineeringNumber,
@@ -88,6 +89,21 @@ describe("advanced calculator engines", () => {
     expect(() => cartesianToPolar(Number.NaN, 0)).toThrow("finite");
   });
 
+  it("rounds complex results to the same precision as real ones", () => {
+    // A Complex went straight to toString(): 17 digits beside a real answer's 12.
+    expect(evaluateComplex("(1 + 1i) / 3")).toBe("0.333333333333 + 0.333333333333i");
+    expect(evaluateComplex("sin(i)")).toBe("1.17520119364i");
+    // Exact results must stay exact.
+    expect(evaluateComplex("(3 + 4i) * (2 - i)")).toBe("10 + 5i");
+    expect(evaluateComplex("e^(i * pi)")).toBe("-1");
+    expect(evaluateComplex("sqrt(-1)")).toBe("i");
+  });
+
+  it("asks for an expression instead of answering 'undefined'", () => {
+    expect(() => evaluateComplex("")).toThrow("Enter an expression");
+    expect(() => evaluateComplex("   ")).toThrow("Enter an expression");
+  });
+
   it("rejects half-written regression pairs instead of answering Undefined", () => {
     // A missing y previously sailed through as NaN and every field read "Undefined".
     expect(() =>
@@ -158,6 +174,115 @@ describe("advanced calculator engines", () => {
       "FFFFFFFFFFFFFFFF",
     );
     expect(() => programmerOperation("2", "0", "OR", 2, 8, false)).toThrow("Invalid base-2");
+  });
+
+  it("does not mistake an asymptote for a root or a turning point", () => {
+    // tan(x) diverges at ±π/2; the sign flip there was being read as a crossing,
+    // so it was credited with roots at ±1.579 and eight turning points it has none of.
+    const tangent = sampleGraph("tan(x)", -5, 5);
+    expect(tangent.roots.map((r) => Number(r.x.toFixed(3)))).toEqual([-3.142, 0, 3.142]);
+    expect(tangent.extrema).toHaveLength(0);
+    // Each pole becomes a break so the curve is not drawn straight through it.
+    expect(tangent.points.filter((p) => p === null)).toHaveLength(4);
+
+    expect(sampleGraph("1/x", -10, 10).roots).toHaveLength(0);
+    expect(sampleGraph("1/(x-2)", -10, 10).roots).toHaveLength(0);
+  });
+
+  it("keeps a steep curve joined up rather than dashing it", () => {
+    // 1/x climbs hard either side of zero without flipping sign in one step,
+    // so only the asymptote itself breaks the line.
+    expect(sampleGraph("1/x", -10, 10).points.filter((p) => p === null)).toHaveLength(1);
+  });
+
+  it("still finds genuine roots and turning points", () => {
+    const sine = sampleGraph("sin(x)", -10, 10);
+    expect(sine.roots.map((r) => Number(r.x.toFixed(4)))).toContain(3.1416);
+    expect(sine.extrema).toHaveLength(6);
+    expect(sine.points.filter((p) => p === null)).toHaveLength(0);
+
+    const parabola = sampleGraph("x^2-4", -10, 10);
+    expect(parabola.roots.map((r) => Number(r.x.toFixed(4)))).toEqual([-2, 2]);
+    expect(parabola.extrema).toHaveLength(1);
+    expect(parabola.extrema[0].kind).toBe("min");
+  });
+
+  it("solves cubics with repeated roots", () => {
+    // Cardano with two independently-taken principal cube roots returned three
+    // wrong complex numbers here; the real roots are 1, 1 and -2.
+    const repeated = solvePolynomial([1, 0, -3, 2]);
+    expect(repeated.filter((r) => r === "1")).toHaveLength(2);
+    expect(repeated).toContain("-2");
+
+    // x^3 + x has roots 0, i and -i.
+    const imaginary = solvePolynomial([1, 0, 1, 0]);
+    expect(imaginary).toEqual(expect.arrayContaining(["0", "i", "-i"]));
+  });
+
+  it("keeps every cubic root satisfying its polynomial", () => {
+    const evaluateAt = (coefficients: number[], x: number) =>
+      coefficients.reduce((acc, c) => acc * x + c, 0);
+    for (const coefficients of [
+      [1, -6, 11, -6],
+      [1, 0, -7, 6],
+      [2, -4, -22, 24],
+      [1, 0, -15, -4],
+      [1, 0, -3, 2],
+    ]) {
+      for (const root of solvePolynomial(coefficients)) {
+        if (/^-?[\d.]+$/.test(root)) {
+          expect(Math.abs(evaluateAt(coefficients, Number(root)))).toBeLessThan(1e-6);
+        }
+      }
+    }
+  });
+
+  it("computes matrix rank, which mathjs does not provide", () => {
+    // The rank button previously failed every time with "Undefined function rank".
+    expect(matrixOperation("1 2; 3 4", "rank")).toBe(2);
+    expect(matrixOperation("1 2; 2 4", "rank")).toBe(1);
+    expect(matrixOperation("0 0; 0 0", "rank")).toBe(0);
+    expect(matrixOperation("1 2 3; 4 5 6; 7 8 9", "rank")).toBe(2);
+  });
+
+  it("names the missing second matrix instead of leaking mathjs internals", () => {
+    expect(() => matrixOperation("1 2; 3 4", "add")).toThrow("Enter Matrix B to add.");
+    expect(() => matrixOperation("1 2; 3 4", "multiply")).toThrow("Enter Matrix B to multiply.");
+    expect(() => matrixOperation("2 1; 1 -1", "solve")).toThrow("solution vector");
+    // Operations that need only A are unaffected.
+    expect(matrixOperation("1 2; 3 4", "determinant")).toBe(-2);
+  });
+
+  it("flags overflow only when the result does not fit the word", () => {
+    // Previously any bit pattern that read differently as signed was called an
+    // overflow, so ordinary results were marked suspect.
+    const notFF = programmerOperation("FF", "0", "NOT", 16, 8, false);
+    expect(notFF.hexadecimal).toBe("0");
+    expect(notFF.overflow).toBe(false);
+
+    // -128 and -1 are exactly representable in signed 8-bit.
+    expect(programmerOperation("80", "0", "OR", 16, 8, true).decimal).toBe("-128");
+    expect(programmerOperation("80", "0", "OR", 16, 8, true).overflow).toBe(false);
+    expect(programmerOperation("FF", "0", "OR", 16, 8, true).overflow).toBe(false);
+    // 255 fits unsigned 8-bit.
+    expect(programmerOperation("00", "0", "NOT", 16, 8, false).overflow).toBe(false);
+
+    // Genuine overflows are still reported.
+    expect(programmerOperation("80", "1", "SHL", 16, 8, false).overflow).toBe(true);
+    expect(programmerOperation("20", "20", "×", 10, 8, false).overflow).toBe(true);
+    expect(programmerOperation("10", "20", "−", 10, 8, false).overflow).toBe(true);
+    // ...but the same subtraction fits when signed.
+    expect(programmerOperation("10", "20", "−", 10, 8, true).overflow).toBe(false);
+    expect(programmerOperation("10", "20", "−", 10, 8, true).decimal).toBe("-10");
+  });
+
+  it("rotates and shifts within the word", () => {
+    expect(programmerOperation("80", "1", "ROL", 16, 8, false).hexadecimal).toBe("1");
+    expect(programmerOperation("01", "1", "ROR", 16, 8, false).hexadecimal).toBe("80");
+    expect(programmerOperation("12", "8", "ROL", 16, 8, false).hexadecimal).toBe("12");
+    expect(programmerOperation("1", "63", "SHL", 10, 64, true).decimal).toBe(
+      "-9223372036854775808",
+    );
   });
 
   it("samples cartesian, polar and parametric graphs", () => {
