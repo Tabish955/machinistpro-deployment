@@ -1090,7 +1090,8 @@ function GraphingWorkspace() {
                 onChange={(e) =>
                   setExpressions((current) => {
                     const next = [...current];
-                    next[index] = e.target.value;
+                    next[index] = toDisplayOps(e.target.value);
+
                     return next;
                   })
                 }
