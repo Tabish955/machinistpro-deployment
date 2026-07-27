@@ -401,7 +401,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
               x²
             </CalcButton>
             <CalcButton
-              onClick={() => inputFunction("sqrt")}
+              onClick={() => inputFunction("sqrtOf")}
               variant="function"
               label="Square root"
             >
