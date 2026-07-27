@@ -250,58 +250,66 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Input function
       inputFunction: (fn) => {
-        const { expression, error } = get();
+        const { expression, error, result } = get();
+        const base =
+          expression ||
+          (result && result !== "0" && result !== "Error" ? result.replace(/,/g, "") : "");
         set({ repeatOperation: null });
 
         if (error) set({ error: null });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
 
         if (fn === "square") {
-          const newExpr = expression ? `(${expression})^2` : "";
+          const newExpr = base ? `(${base})^2` : "";
           set({
             ...pushUndo(get()),
             expression: newExpr,
             displayExpression: formatExpression(newExpr),
+            result: "",
           });
           return;
         }
 
         if (fn === "cube") {
-          const newExpr = expression ? `(${expression})^3` : "";
+          const newExpr = base ? `(${base})^3` : "";
           set({
             ...pushUndo(get()),
             expression: newExpr,
             displayExpression: formatExpression(newExpr),
+            result: "",
           });
           return;
         }
 
         if (fn === "fact") {
-          const newExpr = expression ? `fact(${expression})` : "fact(";
+          const newExpr = base ? `fact(${base})` : "fact(";
           set({
             ...pushUndo(get()),
             expression: newExpr,
             displayExpression: formatExpression(newExpr),
+            result: "",
           });
           return;
         }
 
         if (fn === "sqrtOf") {
-          const newExpr = expression ? `sqrt(${expression})` : "sqrt(";
+          const newExpr = base ? `sqrt(${base})` : "sqrt(";
           set({
             ...pushUndo(get()),
             expression: newExpr,
             displayExpression: formatExpression(newExpr),
+            result: "",
           });
           return;
         }
 
         if (fn === "recip") {
-          const newExpr = expression ? `1/(${expression})` : "1/";
+          const newExpr = base ? `1/(${base})` : "1/";
           set({
             ...pushUndo(get()),
             expression: newExpr,
             displayExpression: formatExpression(newExpr),
+            result: "",
           });
           return;
         }
@@ -779,7 +787,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
         hasMemory: state.hasMemory,
         expression: state.expression,
         displayExpression: state.displayExpression,
-        result: state.result,
+        result: state.result === "Error" ? "0" : state.result,
         previousResult: state.previousResult,
         lastAnswer: state.lastAnswer,
       }),
