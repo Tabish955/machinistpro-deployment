@@ -176,6 +176,36 @@ describe("advanced calculator engines", () => {
     expect(() => programmerOperation("2", "0", "OR", 2, 8, false)).toThrow("Invalid base-2");
   });
 
+  it("solves cubics with repeated roots", () => {
+    // Cardano with two independently-taken principal cube roots returned three
+    // wrong complex numbers here; the real roots are 1, 1 and -2.
+    const repeated = solvePolynomial([1, 0, -3, 2]);
+    expect(repeated.filter((r) => r === "1")).toHaveLength(2);
+    expect(repeated).toContain("-2");
+
+    // x^3 + x has roots 0, i and -i.
+    const imaginary = solvePolynomial([1, 0, 1, 0]);
+    expect(imaginary).toEqual(expect.arrayContaining(["0", "i", "-i"]));
+  });
+
+  it("keeps every cubic root satisfying its polynomial", () => {
+    const evaluateAt = (coefficients: number[], x: number) =>
+      coefficients.reduce((acc, c) => acc * x + c, 0);
+    for (const coefficients of [
+      [1, -6, 11, -6],
+      [1, 0, -7, 6],
+      [2, -4, -22, 24],
+      [1, 0, -15, -4],
+      [1, 0, -3, 2],
+    ]) {
+      for (const root of solvePolynomial(coefficients)) {
+        if (/^-?[\d.]+$/.test(root)) {
+          expect(Math.abs(evaluateAt(coefficients, Number(root)))).toBeLessThan(1e-6);
+        }
+      }
+    }
+  });
+
   it("computes matrix rank, which mathjs does not provide", () => {
     // The rank button previously failed every time with "Undefined function rank".
     expect(matrixOperation("1 2; 3 4", "rank")).toBe(2);

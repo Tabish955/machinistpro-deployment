@@ -406,12 +406,15 @@ export function solvePolynomial(coefficients: number[]) {
   const p = (3 * a * c - b * b) / (3 * a * a);
   const q = (27 * a * a * d - 9 * a * b * c + 2 * b ** 3) / (27 * a ** 3);
   const delta = cx((q * q) / 4 + p ** 3 / 27).sqrt();
-  const u = cx(-q / 2)
-    .add(delta)
-    .pow(1 / 3);
-  const v = cx(-q / 2)
-    .sub(delta)
-    .pow(1 / 3);
+  // Cardano requires u·v = -p/3. Taking a principal cube root for u and v
+  // independently breaks that: the principal cube root of -1 is 0.5+0.866i, not -1,
+  // so x^3-3x+2 (roots 1, 1, -2) came back as three wrong complex numbers.
+  // Pick the larger branch for u, then derive v from the constraint.
+  const half = cx(-q / 2);
+  const branchA = half.add(delta);
+  const branchB = half.sub(delta);
+  const u = (branchA.abs() >= branchB.abs() ? branchA : branchB).pow(1 / 3);
+  const v = u.abs() < 1e-14 ? cx(0) : cx(-p / 3).div(u);
   const omega = cx(-0.5, Math.sqrt(3) / 2);
   return [0, 1, 2].map((k) =>
     cleanComplex(
