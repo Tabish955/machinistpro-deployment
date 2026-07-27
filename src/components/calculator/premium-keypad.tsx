@@ -26,6 +26,8 @@ function CalcButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressInterval = useRef<NodeJS.Timeout | null>(null);
+  const pressActive = useRef(false);
+  const didLongPress = useRef(false);
   const [isPressed, setIsPressed] = useState(false);
 
   const variantStyles: Record<ButtonVariant, string> = {
@@ -43,11 +45,15 @@ function CalcButton({
   };
 
   const handleTouchStart = useCallback(() => {
+    if (pressActive.current) return;
+    pressActive.current = true;
+    didLongPress.current = false;
     setIsPressed(true);
 
     if (onLongPress) {
       longPressTimer.current = setTimeout(() => {
         // Start repeating on long press
+        didLongPress.current = true;
         onLongPress();
         longPressInterval.current = setInterval(onLongPress, 100);
       }, 500);
@@ -60,6 +66,7 @@ function CalcButton({
   }, [onLongPress]);
 
   const handleTouchEnd = useCallback(() => {
+    pressActive.current = false;
     setIsPressed(false);
 
     if (longPressTimer.current) {
@@ -73,6 +80,10 @@ function CalcButton({
   }, []);
 
   const handleClick = useCallback(() => {
+    if (didLongPress.current) {
+      didLongPress.current = false;
+      return;
+    }
     if (!longPressInterval.current) {
       onClick();
     }
@@ -336,20 +347,71 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
       )}
 
       {/* Main keypad */}
-      <div className="grid min-h-[15.5rem] flex-1 grid-cols-4 grid-rows-5 gap-1.5 sm:gap-2">
-        {/* Row 1: Clear, CE, %, ÷ */}
-        <CalcButton onClick={clear} variant="clear" label="All Clear">
-          AC
-        </CalcButton>
-        <CalcButton onClick={clearEntry} variant="action" label="Clear Entry">
-          CE
-        </CalcButton>
-        <CalcButton onClick={percentage} variant="action" label="Percent">
-          <Percent size={18} />
-        </CalcButton>
-        <CalcButton onClick={() => inputOperator("/")} variant="operator" label="Divide">
-          <Divide size={20} />
-        </CalcButton>
+      <div
+        className={`grid flex-1 grid-cols-4 gap-1.5 sm:gap-2 ${
+          scientific ? "min-h-[15.5rem] grid-rows-5" : "min-h-[19rem] grid-rows-6"
+        }`}
+      >
+        {scientific ? (
+          <>
+            {/* Row 1: AC, CE, %, ÷ */}
+            <CalcButton onClick={clear} variant="clear" label="All Clear">
+              AC
+            </CalcButton>
+            <CalcButton onClick={clearEntry} variant="action" label="Clear Entry">
+              CE
+            </CalcButton>
+            <CalcButton onClick={percentage} variant="action" label="Percent">
+              <Percent size={18} />
+            </CalcButton>
+            <CalcButton onClick={() => inputOperator("/")} variant="operator" label="Divide">
+              <Divide size={20} />
+            </CalcButton>
+          </>
+        ) : (
+          <>
+            {/* Row 1: %, CE, AC, backspace */}
+            <CalcButton onClick={percentage} variant="action" label="Percent">
+              <Percent size={18} />
+            </CalcButton>
+            <CalcButton onClick={clearEntry} variant="action" label="Clear Entry">
+              CE
+            </CalcButton>
+            <CalcButton onClick={clear} variant="clear" label="All Clear">
+              AC
+            </CalcButton>
+            <CalcButton
+              onClick={backspace}
+              onLongPress={backspace}
+              variant="action"
+              label="Backspace"
+            >
+              <Delete size={20} />
+            </CalcButton>
+
+            {/* Row 2: 1/x, x², √, ÷ */}
+            <CalcButton
+              onClick={() => inputFunction("recip")}
+              variant="function"
+              label="Reciprocal"
+            >
+              ¹⁄ₓ
+            </CalcButton>
+            <CalcButton onClick={() => inputFunction("square")} variant="function" label="Square">
+              x²
+            </CalcButton>
+            <CalcButton
+              onClick={() => inputFunction("sqrt")}
+              variant="function"
+              label="Square root"
+            >
+              √
+            </CalcButton>
+            <CalcButton onClick={() => inputOperator("/")} variant="operator" label="Divide">
+              <Divide size={20} />
+            </CalcButton>
+          </>
+        )}
 
         {/* Row 2: 7, 8, 9, × */}
         <CalcButton onClick={() => inputDigit("7")} variant="number" label="7">
