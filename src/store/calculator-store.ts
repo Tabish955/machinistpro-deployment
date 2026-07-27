@@ -536,10 +536,14 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Percentage
       percentage: () => {
-        const { expression } = get();
-        if (!expression) return;
+        const { expression, result } = get();
+        const base =
+          expression ||
+          (result && result !== "0" && result !== "Error" ? result.replace(/,/g, "") : "");
+        if (!base) return;
+        set({ repeatOperation: null });
 
-        const operation = expression.match(/^(.*)([+*/-])(-?\d+(?:\.\d+)?)$/);
+        const operation = base.match(/^(.*)([+*/-])(-?\d+(?:\.\d+)?)$/);
         let newExpr: string;
         if (operation) {
           const [, left, operator, right] = operation;
@@ -548,12 +552,14 @@ export const useCalculatorStore = create<CalculatorStore>()(
               ? `${left}${operator}((${left})*(${right})/100)`
               : `${left}${operator}((${right})/100)`;
         } else {
-          newExpr = `(${expression})/100`;
+          newExpr = `(${base})/100`;
         }
         set({
           ...pushUndo(get()),
           expression: newExpr,
           displayExpression: formatExpression(newExpr),
+          result: "",
+          error: null,
         });
       },
 
@@ -761,6 +767,11 @@ export const useCalculatorStore = create<CalculatorStore>()(
         angleMode: state.angleMode,
         memory: state.memory,
         hasMemory: state.hasMemory,
+        expression: state.expression,
+        displayExpression: state.displayExpression,
+        result: state.result,
+        previousResult: state.previousResult,
+        lastAnswer: state.lastAnswer,
       }),
     },
   ),
