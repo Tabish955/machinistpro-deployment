@@ -429,3 +429,55 @@ svg.interactive, button svg, a svg {
     inset 0 2px 4px rgba(0, 0, 0, 0.3),
     0 0 40px rgba(0, 212, 255, 0.03);
 }
+
+/* ─── Light theme ─────────────────────────────────────────────────────────────
+   The UI is authored against the dark palette. Light mode flips the palette
+   tokens (surfaces + neutral text scale) so every existing utility class keeps
+   working without touching component markup. */
+html.light {
+  --color-dark-950: #f6f7fb;
+  --color-dark-900: #ffffff;
+  --color-dark-800: #f2f4f9;
+  --color-dark-700: #e5e8f0;
+  --color-dark-600: #d7dbe6;
+  --color-dark-500: #c2c8d8;
+  --color-dark-400: #a3abc0;
+  --color-dark-300: #7d859b;
+  --color-dark-200: #5d6478;
+
+  --color-accent-cyan: #0284a8;
+  --color-accent-blue: #2563eb;
+  --color-accent-purple: #7c3aed;
+  --color-accent-green: #047857;
+  --color-accent-amber: #b45309;
+  --color-accent-red: #dc2626;
+
+  --color-glass-white: rgba(15, 23, 42, 0.03);
+  --color-glass-border: rgba(15, 23, 42, 0.10);
+  --color-glass-hover: rgba(15, 23, 42, 0.06);
+
+  /* Neutral text scale is inverted so text-white / text-gray-* stay readable */
+  --color-white: #0b1020;
+  --color-black: #ffffff;
+  --color-gray-50: #1e293b;
+  --color-gray-100: #1f2937;
+  --color-gray-200: #263243;
+  --color-gray-300: #2f3a4d;
+  --color-gray-400: #3d4859;
+  --color-gray-500: #4b5563;
+  --color-gray-600: #5b6577;
+  --color-gray-700: #6b7280;
+  --color-gray-800: #94a3b8;
+  --color-gray-900: #cbd5e1;
+  --color-gray-950: #e2e8f0;
+}
+
+html.light body {
+  background-color: var(--color-dark-950);
+  color: #0f172a;
+}
+
+html.light .cursor-dot,
+html.light .cursor-ring {
+  mix-blend-mode: normal;
+}
