@@ -40,9 +40,26 @@ describe("advanced calculator engines", () => {
     expect(() => evaluateEngineeringExpression(" ")).toThrow("Enter an expression");
     expect(parseRequiredNumber(" 2.5 ", "Value")).toBe(2.5);
     expect(() => parseRequiredNumber("", "Value")).toThrow("Value is required");
-    expect(formatEngineeringNumber(2.44929359829e-16, 12)).toBe("0");
+    // Small magnitudes are reported faithfully: clamping them to zero made the SI
+    // converter answer "1 femto → base" as 0. Trig noise is cleaned in
+    // polarToCartesian instead, where the radius gives it a sense of scale.
+    expect(formatEngineeringNumber(1e-15, 12)).toBe("1e-15");
+    expect(formatEngineeringNumber(2e-18, 12)).toBe("2e-18");
     expect(formatEngineeringNumber(0.001, 2)).toBe("0.001");
     expect(formatEngineeringNumber(3.14159265359, 6)).toBe("3.14159");
+  });
+
+  it("keeps sub-pico SI conversions instead of reporting zero", () => {
+    expect(formatEngineeringNumber(convertSIPrefix(1, "f", ""), 12)).toBe("1e-15");
+    expect(formatEngineeringNumber(convertSIPrefix(2, "a", ""), 12)).toBe("2e-18");
+    expect(formatEngineeringNumber(convertSIPrefix(1, "y", ""), 12)).toBe("1e-24");
+  });
+
+  it("snaps trig noise in polar conversion to a clean zero", () => {
+    expect(polarToCartesian(1, 90, "deg").x).toBe(0);
+    expect(polarToCartesian(1, 180, "deg").y).toBe(0);
+    // ...without flattening a genuinely tiny radius
+    expect(polarToCartesian(1e-15, 0, "deg").x).toBeCloseTo(1e-15, 20);
   });
 
   it("converts between SI prefixes", () => {

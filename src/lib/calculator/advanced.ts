@@ -122,7 +122,9 @@ export function formatEngineeringNumber(value: number, significantFigures = 12) 
   if (!Number.isInteger(significantFigures) || significantFigures < 2 || significantFigures > 12) {
     throw new Error("Output precision must be a whole number from 2 to 12.");
   }
-  if (Math.abs(value) < 1e-12) return "0";
+  // No absolute cut-off here: femto and smaller are legitimate SI results, and
+  // clamping them to zero reported "1 femto → base" as 0. Trig noise is cleaned
+  // at the point it is produced instead — see polarToCartesian.
   return Number(value.toPrecision(significantFigures)).toString().replace("e+", "e");
 }
 
@@ -166,7 +168,11 @@ export function polarToCartesian(
   assertFinite(angle, "Angle");
   if (radius < 0) throw new Error("Radius cannot be negative.");
   const radians = angleToRadians(angle, mode);
-  return { x: radius * Math.cos(radians), y: radius * Math.sin(radians) };
+  // cos(90°) lands on 6.1e-17 rather than 0. Snap components that are negligible
+  // relative to the radius, so a right angle reads as a clean 0 at any scale.
+  const clean = (component: number) =>
+    Math.abs(component) < Math.abs(radius) * 1e-12 ? 0 : component;
+  return { x: clean(radius * Math.cos(radians)), y: clean(radius * Math.sin(radians)) };
 }
 
 export function statistics(values: number[]) {
