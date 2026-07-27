@@ -122,7 +122,9 @@ export function formatEngineeringNumber(value: number, significantFigures = 12) 
   if (!Number.isInteger(significantFigures) || significantFigures < 2 || significantFigures > 12) {
     throw new Error("Output precision must be a whole number from 2 to 12.");
   }
-  if (Math.abs(value) < 1e-12) return "0";
+  // No absolute cut-off here: femto and smaller are legitimate SI results, and
+  // clamping them to zero reported "1 femto → base" as 0. Trig noise is cleaned
+  // at the point it is produced instead — see polarToCartesian.
   return Number(value.toPrecision(significantFigures)).toString().replace("e+", "e");
 }
 
@@ -166,7 +168,11 @@ export function polarToCartesian(
   assertFinite(angle, "Angle");
   if (radius < 0) throw new Error("Radius cannot be negative.");
   const radians = angleToRadians(angle, mode);
-  return { x: radius * Math.cos(radians), y: radius * Math.sin(radians) };
+  // cos(90°) lands on 6.1e-17 rather than 0. Snap components that are negligible
+  // relative to the radius, so a right angle reads as a clean 0 at any scale.
+  const clean = (component: number) =>
+    Math.abs(component) < Math.abs(radius) * 1e-12 ? 0 : component;
+  return { x: clean(radius * Math.cos(radians)), y: clean(radius * Math.sin(radians)) };
 }
 
 export function statistics(values: number[]) {
@@ -193,14 +199,20 @@ export function statistics(values: number[]) {
     q1: percentile(0.25),
     q3: percentile(0.75),
     variancePopulation: variance(values, "uncorrected") as number,
-    varianceSample: values.length > 1 ? (variance(values, "unbiased") as number) : 0,
+    // Undefined for a single reading, not zero — reporting 0 reads as "no spread".
+    varianceSample: values.length > 1 ? (variance(values, "unbiased") as number) : Number.NaN,
     standardDeviationPopulation: std(values, "uncorrected") as number,
-    standardDeviationSample: values.length > 1 ? (std(values, "unbiased") as number) : 0,
+    standardDeviationSample: values.length > 1 ? (std(values, "unbiased") as number) : Number.NaN,
   };
 }
 
 export function linearRegression(pairs: Point[]) {
   if (pairs.length < 2) throw new Error("Regression needs at least two x,y pairs.");
+  // A half-written pair used to sail through as NaN and surface as "Undefined"
+  // in every output field, with nothing to say which pair was at fault.
+  if (pairs.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))) {
+    throw new Error("Each pair needs an x and a y value, written as x,y.");
+  }
   const xMean = pairs.reduce((total, point) => total + point.x, 0) / pairs.length;
   const yMean = pairs.reduce((total, point) => total + point.y, 0) / pairs.length;
   const sxx = pairs.reduce((total, point) => total + (point.x - xMean) ** 2, 0);

@@ -595,10 +595,16 @@ function StatisticsWorkspace() {
   };
   const regress = () => {
     try {
-      const parsed = pairs.split(";").map((pair) => {
-        const [x, y] = pair.split(",").map(Number);
-        return { x, y };
-      });
+      // Drop blank segments so a trailing semicolon — which the placeholder
+      // invites — does not turn into an empty pair.
+      const parsed = pairs
+        .split(";")
+        .map((pair) => pair.trim())
+        .filter(Boolean)
+        .map((pair) => {
+          const [x, y] = pair.split(",").map(Number);
+          return { x, y };
+        });
       setResult(linearRegression(parsed));
       setError("");
     } catch (cause) {

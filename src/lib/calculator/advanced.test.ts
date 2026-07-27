@@ -40,9 +40,26 @@ describe("advanced calculator engines", () => {
     expect(() => evaluateEngineeringExpression(" ")).toThrow("Enter an expression");
     expect(parseRequiredNumber(" 2.5 ", "Value")).toBe(2.5);
     expect(() => parseRequiredNumber("", "Value")).toThrow("Value is required");
-    expect(formatEngineeringNumber(2.44929359829e-16, 12)).toBe("0");
+    // Small magnitudes are reported faithfully: clamping them to zero made the SI
+    // converter answer "1 femto → base" as 0. Trig noise is cleaned in
+    // polarToCartesian instead, where the radius gives it a sense of scale.
+    expect(formatEngineeringNumber(1e-15, 12)).toBe("1e-15");
+    expect(formatEngineeringNumber(2e-18, 12)).toBe("2e-18");
     expect(formatEngineeringNumber(0.001, 2)).toBe("0.001");
     expect(formatEngineeringNumber(3.14159265359, 6)).toBe("3.14159");
+  });
+
+  it("keeps sub-pico SI conversions instead of reporting zero", () => {
+    expect(formatEngineeringNumber(convertSIPrefix(1, "f", ""), 12)).toBe("1e-15");
+    expect(formatEngineeringNumber(convertSIPrefix(2, "a", ""), 12)).toBe("2e-18");
+    expect(formatEngineeringNumber(convertSIPrefix(1, "y", ""), 12)).toBe("1e-24");
+  });
+
+  it("snaps trig noise in polar conversion to a clean zero", () => {
+    expect(polarToCartesian(1, 90, "deg").x).toBe(0);
+    expect(polarToCartesian(1, 180, "deg").y).toBe(0);
+    // ...without flattening a genuinely tiny radius
+    expect(polarToCartesian(1e-15, 0, "deg").x).toBeCloseTo(1e-15, 20);
   });
 
   it("converts between SI prefixes", () => {
@@ -69,6 +86,30 @@ describe("advanced calculator engines", () => {
     expect(polarToCartesian(2, Math.PI, "rad").x).toBeCloseTo(-2);
     expect(() => polarToCartesian(-1, 30, "deg")).toThrow("negative");
     expect(() => cartesianToPolar(Number.NaN, 0)).toThrow("finite");
+  });
+
+  it("rejects half-written regression pairs instead of answering Undefined", () => {
+    // A missing y previously sailed through as NaN and every field read "Undefined".
+    expect(() =>
+      linearRegression([
+        { x: 1, y: 2 },
+        { x: 2, y: undefined as unknown as number },
+      ]),
+    ).toThrow("Each pair needs an x and a y value");
+    expect(() =>
+      linearRegression([
+        { x: 1, y: 2 },
+        { x: Number.NaN, y: Number.NaN },
+      ]),
+    ).toThrow("Each pair needs an x and a y value");
+  });
+
+  it("reports sample spread as undefined for a single reading", () => {
+    const single = statistics([5]);
+    expect(Number.isNaN(single.varianceSample)).toBe(true);
+    expect(Number.isNaN(single.standardDeviationSample)).toBe(true);
+    // Population spread is still legitimately zero for one value.
+    expect(single.variancePopulation).toBe(0);
   });
 
   it("computes descriptive statistics", () => {
