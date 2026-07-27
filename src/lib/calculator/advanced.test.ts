@@ -176,6 +176,37 @@ describe("advanced calculator engines", () => {
     expect(() => programmerOperation("2", "0", "OR", 2, 8, false)).toThrow("Invalid base-2");
   });
 
+  it("does not mistake an asymptote for a root or a turning point", () => {
+    // tan(x) diverges at ±π/2; the sign flip there was being read as a crossing,
+    // so it was credited with roots at ±1.579 and eight turning points it has none of.
+    const tangent = sampleGraph("tan(x)", -5, 5);
+    expect(tangent.roots.map((r) => Number(r.x.toFixed(3)))).toEqual([-3.142, 0, 3.142]);
+    expect(tangent.extrema).toHaveLength(0);
+    // Each pole becomes a break so the curve is not drawn straight through it.
+    expect(tangent.points.filter((p) => p === null)).toHaveLength(4);
+
+    expect(sampleGraph("1/x", -10, 10).roots).toHaveLength(0);
+    expect(sampleGraph("1/(x-2)", -10, 10).roots).toHaveLength(0);
+  });
+
+  it("keeps a steep curve joined up rather than dashing it", () => {
+    // 1/x climbs hard either side of zero without flipping sign in one step,
+    // so only the asymptote itself breaks the line.
+    expect(sampleGraph("1/x", -10, 10).points.filter((p) => p === null)).toHaveLength(1);
+  });
+
+  it("still finds genuine roots and turning points", () => {
+    const sine = sampleGraph("sin(x)", -10, 10);
+    expect(sine.roots.map((r) => Number(r.x.toFixed(4)))).toContain(3.1416);
+    expect(sine.extrema).toHaveLength(6);
+    expect(sine.points.filter((p) => p === null)).toHaveLength(0);
+
+    const parabola = sampleGraph("x^2-4", -10, 10);
+    expect(parabola.roots.map((r) => Number(r.x.toFixed(4)))).toEqual([-2, 2]);
+    expect(parabola.extrema).toHaveLength(1);
+    expect(parabola.extrema[0].kind).toBe("min");
+  });
+
   it("solves cubics with repeated roots", () => {
     // Cardano with two independently-taken principal cube roots returned three
     // wrong complex numbers here; the real roots are 1, 1 and -2.

@@ -542,12 +542,9 @@ export function sampleGraph(
   const polar = polarMatch ? compiledExpression(polarMatch[1], "t") : null;
   const parametricX = parametricMatch ? compiledExpression(parametricMatch[1], "t") : null;
   const parametricY = parametricMatch ? compiledExpression(parametricMatch[2], "t") : null;
-  const points: Array<Point | null> = [];
-  const roots: Point[] = [];
-  const extrema: GraphSeries["extrema"] = [];
   const step = (xMax - xMin) / samples;
-  let previous: Point | null = null;
-  let beforePrevious: Point | null = null;
+
+  const sampled: Array<Point | null> = [];
   for (let i = 0; i <= samples; i++) {
     const parameter = polar || parametricX ? (i / samples) * Math.PI * 2 : xMin + i * step;
     let x = parameter;
@@ -566,8 +563,39 @@ export function sampleGraph(
     } catch {
       y = Number.NaN;
     }
-    const point = Number.isFinite(x) && Number.isFinite(y) && Math.abs(y) < 1e12 ? { x, y } : null;
-    if (point && previous) {
+    sampled.push(Number.isFinite(x) && Number.isFinite(y) && Math.abs(y) < 1e12 ? { x, y } : null);
+  }
+
+  // A pole looks like a sign change, so tan(x) was credited with roots and turning
+  // points at ±π/2 where it actually diverges. Compare each step against the
+  // curve's typical step: a jump far larger than that is a break, not a crossing.
+  const jumps: number[] = [];
+  for (let i = 1; i < sampled.length; i++) {
+    const before = sampled[i - 1];
+    const after = sampled[i];
+    if (before && after) jumps.push(Math.abs(after.y - before.y));
+  }
+  const ordered = [...jumps].sort((a, b) => a - b);
+  const medianJump = ordered.length ? ordered[Math.floor(ordered.length / 2)] : 0;
+  const breakLimit = medianJump > 0 ? medianJump * 50 : Number.POSITIVE_INFINITY;
+  // Require the sign to flip as well, which is what separates a pole from a merely
+  // steep stretch: 1/x climbs hard either side of its asymptote but never flips
+  // across a single step, so its curve stays joined up.
+  const broken = (before: Point | null, after: Point | null) =>
+    !before ||
+    !after ||
+    (Math.abs(after.y - before.y) > breakLimit && Math.sign(after.y) !== Math.sign(before.y));
+
+  const points: Array<Point | null> = [];
+  const roots: Point[] = [];
+  const extrema: GraphSeries["extrema"] = [];
+  for (let i = 0; i <= samples; i++) {
+    const point = sampled[i];
+    const previous = i > 0 ? sampled[i - 1] : null;
+    const beforePrevious = i > 1 ? sampled[i - 2] : null;
+    const jumped = broken(previous, point);
+
+    if (point && previous && !jumped) {
       if (
         !polar &&
         !parametricX &&
@@ -577,17 +605,15 @@ export function sampleGraph(
           previous.x + ((0 - previous.y) * (point.x - previous.x)) / (point.y - previous.y);
         if (Number.isFinite(rootX)) roots.push({ x: rootX, y: 0 });
       }
-      if (beforePrevious) {
+      if (beforePrevious && !broken(beforePrevious, previous)) {
         if (previous.y < beforePrevious.y && previous.y < point.y)
           extrema.push({ ...previous, kind: "min" });
         if (previous.y > beforePrevious.y && previous.y > point.y)
           extrema.push({ ...previous, kind: "max" });
       }
-      if (Math.abs(point.y - previous.y) > 1e6) points.push(null);
     }
+    if (point && previous && jumped) points.push(null);
     points.push(point);
-    beforePrevious = previous;
-    previous = point;
   }
   const rootTolerance = Math.max(step * 1.5, 1e-9);
   const uniqueRoots = roots.filter(
