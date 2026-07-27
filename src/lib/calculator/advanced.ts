@@ -482,12 +482,22 @@ export function programmerOperation(
   }
   const wrapped = raw & mask;
   const signedValue = signed && wrapped & (1n << (bits - 1n)) ? wrapped - (1n << bits) : wrapped;
+
+  // Overflow means the true result did not fit the word, not that the bit pattern
+  // reads differently as signed. Comparing raw against the signed value flagged
+  // ordinary results — NOT FF (which is 0), and 80 read as -128, which fits exactly.
+  // Bitwise operations are defined on the word itself and cannot overflow.
+  const bitwiseOnly = new Set(["AND", "OR", "XOR", "NOT", "ROL", "ROR", "SHR"]);
+  const minimum = signed ? -(1n << (bits - 1n)) : 0n;
+  const maximum = signed ? (1n << (bits - 1n)) - 1n : mask;
+  const overflow = bitwiseOnly.has(operation) ? false : raw < minimum || raw > maximum;
+
   return {
     binary: wrapped.toString(2).padStart(wordSize, "0"),
     octal: wrapped.toString(8),
     decimal: signedValue.toString(10),
     hexadecimal: wrapped.toString(16).toUpperCase(),
-    overflow: raw !== signedValue,
+    overflow,
   };
 }
 

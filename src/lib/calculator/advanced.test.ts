@@ -176,6 +176,38 @@ describe("advanced calculator engines", () => {
     expect(() => programmerOperation("2", "0", "OR", 2, 8, false)).toThrow("Invalid base-2");
   });
 
+  it("flags overflow only when the result does not fit the word", () => {
+    // Previously any bit pattern that read differently as signed was called an
+    // overflow, so ordinary results were marked suspect.
+    const notFF = programmerOperation("FF", "0", "NOT", 16, 8, false);
+    expect(notFF.hexadecimal).toBe("0");
+    expect(notFF.overflow).toBe(false);
+
+    // -128 and -1 are exactly representable in signed 8-bit.
+    expect(programmerOperation("80", "0", "OR", 16, 8, true).decimal).toBe("-128");
+    expect(programmerOperation("80", "0", "OR", 16, 8, true).overflow).toBe(false);
+    expect(programmerOperation("FF", "0", "OR", 16, 8, true).overflow).toBe(false);
+    // 255 fits unsigned 8-bit.
+    expect(programmerOperation("00", "0", "NOT", 16, 8, false).overflow).toBe(false);
+
+    // Genuine overflows are still reported.
+    expect(programmerOperation("80", "1", "SHL", 16, 8, false).overflow).toBe(true);
+    expect(programmerOperation("20", "20", "×", 10, 8, false).overflow).toBe(true);
+    expect(programmerOperation("10", "20", "−", 10, 8, false).overflow).toBe(true);
+    // ...but the same subtraction fits when signed.
+    expect(programmerOperation("10", "20", "−", 10, 8, true).overflow).toBe(false);
+    expect(programmerOperation("10", "20", "−", 10, 8, true).decimal).toBe("-10");
+  });
+
+  it("rotates and shifts within the word", () => {
+    expect(programmerOperation("80", "1", "ROL", 16, 8, false).hexadecimal).toBe("1");
+    expect(programmerOperation("01", "1", "ROR", 16, 8, false).hexadecimal).toBe("80");
+    expect(programmerOperation("12", "8", "ROL", 16, 8, false).hexadecimal).toBe("12");
+    expect(programmerOperation("1", "63", "SHL", 10, 64, true).decimal).toBe(
+      "-9223372036854775808",
+    );
+  });
+
   it("samples cartesian, polar and parametric graphs", () => {
     const cartesian = sampleGraph("x^2-1", -2, 2, 200);
     expect(cartesian.roots.some((root) => Math.abs(root.x - 1) < 0.05)).toBe(true);
