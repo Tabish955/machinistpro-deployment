@@ -12,6 +12,11 @@ export interface EvaluationResult {
   error?: CalculatorError;
 }
 
+// Scientific notation without the padding zeros: 1.00000000000e+12 reads as 1e+12.
+function toTrimmedExponential(num: number, precision: number): string {
+  return num.toExponential(precision - 1).replace(/\.?0+e/, "e");
+}
+
 // Format number for display
 export function formatResult(num: number, precision: number = DISPLAY_PRECISION): string {
   if (!isFinite(num)) {
@@ -20,12 +25,12 @@ export function formatResult(num: number, precision: number = DISPLAY_PRECISION)
 
   // Handle very small numbers
   if (num !== 0 && Math.abs(num) < 1e-10) {
-    return num.toExponential(precision - 1);
+    return toTrimmedExponential(num, precision);
   }
 
   // Handle very large numbers
   if (Math.abs(num) >= 1e12) {
-    return num.toExponential(precision - 1);
+    return toTrimmedExponential(num, precision);
   }
 
   // Round to avoid floating point errors

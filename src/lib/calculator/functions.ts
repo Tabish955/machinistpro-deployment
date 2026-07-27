@@ -247,6 +247,7 @@ export const FUNCTIONS: Record<string, MathFunction> = {
     name: "pow",
     fn: ([base, exp]) => {
       const result = Math.pow(base, exp);
+      if (Number.isNaN(result)) throw new Error("Result is undefined");
       if (!isFinite(result)) throw new Error("Overflow");
       return result;
     },

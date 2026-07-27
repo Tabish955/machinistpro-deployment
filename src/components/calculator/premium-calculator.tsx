@@ -190,7 +190,9 @@ export function PremiumCalculator() {
         inputOperator("/");
         return;
       }
-      if (key === "^") {
+      // ^ and parentheses have no Standard keypad key — they belong to Scientific only.
+      // (The engine still uses them internally for x², √ and %.)
+      if (mode === "scientific" && key === "^") {
         inputOperator("^");
         return;
       }
@@ -198,11 +200,11 @@ export function PremiumCalculator() {
         percentage();
         return;
       }
-      if (key === "(") {
+      if (mode === "scientific" && key === "(") {
         inputParenthesis("(");
         return;
       }
-      if (key === ")") {
+      if (mode === "scientific" && key === ")") {
         inputParenthesis(")");
         return;
       }
@@ -230,7 +232,8 @@ export function PremiumCalculator() {
         pasteNumber();
         return;
       }
-      if (key === "p" && (e.ctrlKey || e.metaKey)) {
+      // π is a Scientific constant; in Standard this only stole the browser's Print shortcut.
+      if (mode === "scientific" && key === "p" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         inputConstant("π");
       }

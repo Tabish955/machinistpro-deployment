@@ -162,4 +162,78 @@ describe("Standard calculator store", () => {
     expect(useCalculatorStore.getState().history).toHaveLength(1);
     expect(useCalculatorStore.getState().repeatOperation).toBeNull();
   });
+
+  const applyUnary = (expression: string, fn: string) => {
+    useCalculatorStore.setState({ expression });
+    useCalculatorStore.getState().inputFunction(fn);
+    useCalculatorStore.getState().calculate();
+    return useCalculatorStore.getState().result;
+  };
+
+  it("applies unary keys to the trailing operand, not the whole expression", () => {
+    expect(applyUnary("5+9", "square")).toBe("86");
+    expect(applyUnary("5+9", "sqrtOf")).toBe("8");
+    expect(applyUnary("5+2", "cube")).toBe("13");
+  });
+
+  it("keeps unary keys working on a lone operand", () => {
+    expect(applyUnary("9", "square")).toBe("81");
+    expect(applyUnary("9", "sqrtOf")).toBe("3");
+  });
+
+  it("squares a negated operand as a whole", () => {
+    expect(applyUnary("-3", "square")).toBe("9");
+    expect(applyUnary("5+-3", "square")).toBe("14");
+  });
+
+  it("reciprocates the trailing operand with correct precedence", () => {
+    expect(applyUnary("2/9", "recip")).toBe("18");
+  });
+
+  it("applies unary keys to an already-wrapped operand", () => {
+    expect(applyUnary("5+sqrt(9)", "square")).toBe("14");
+  });
+
+  it("ignores unary keys when there is no operand to act on", () => {
+    useCalculatorStore.setState({ expression: "5+" });
+    useCalculatorStore.getState().inputFunction("square");
+    expect(useCalculatorStore.getState().expression).toBe("5+");
+  });
+
+  it("starts a fresh expression after an error instead of appending", () => {
+    useCalculatorStore.setState({ expression: "5/0" });
+    useCalculatorStore.getState().calculate(true, "standard");
+    expect(useCalculatorStore.getState().error).not.toBeNull();
+
+    useCalculatorStore.getState().inputDigit("7");
+    expect(useCalculatorStore.getState().expression).toBe("7");
+    expect(useCalculatorStore.getState().error).toBeNull();
+  });
+
+  const negateExpression = (expression: string) => {
+    useCalculatorStore.setState({ expression });
+    useCalculatorStore.getState().negate();
+    return useCalculatorStore.getState().expression;
+  };
+
+  it("negates a wrapped operand, not just a bare number", () => {
+    expect(negateExpression("sqrt(9)")).toBe("-sqrt(9)");
+    expect(negateExpression("5+sqrt(9)")).toBe("5+-sqrt(9)");
+    expect(negateExpression("-sqrt(9)")).toBe("sqrt(9)");
+  });
+
+  it("still toggles the sign of a plain trailing number", () => {
+    expect(negateExpression("3")).toBe("-3");
+    expect(negateExpression("-3")).toBe("3");
+    expect(negateExpression("5+3")).toBe("5+-3");
+  });
+
+  it("does not carry a failed expression into a new operator", () => {
+    useCalculatorStore.setState({ expression: "5/0" });
+    useCalculatorStore.getState().calculate(true, "standard");
+    useCalculatorStore.getState().inputOperator("+");
+
+    expect(useCalculatorStore.getState().expression).not.toContain("Error");
+    expect(useCalculatorStore.getState().expression).not.toContain("5/0");
+  });
 });

@@ -24,14 +24,27 @@ function isDigit(char: string): boolean {
   return /[0-9.]/.test(char);
 }
 
+// Symbol constants stand alone; folding them into words turned "πe" into the
+// unknown identifier "πe" instead of π × e.
+const SYMBOL_CONSTANTS = new Set(["π", "φ"]);
+
 // Check if character can start an identifier
 function isIdentifierStart(char: string): boolean {
-  return /[a-zA-Zπφ]/.test(char);
+  return /[a-zA-Z]/.test(char);
 }
 
 // Check if character can be part of an identifier
 function isIdentifierPart(char: string): boolean {
-  return /[a-zA-Z0-9πφ₀₁₂₃₄₅₆₇₈₉]/.test(char);
+  return /[a-zA-Z0-9₀₁₂₃₄₅₆₇₈₉]/.test(char);
+}
+
+function isKnownIdentifier(ident: string): boolean {
+  const normalized = FUNCTION_ALIASES[ident] || ident.toLowerCase();
+  return (
+    FUNCTIONS[normalized] !== undefined ||
+    CONSTANTS[normalized] !== undefined ||
+    CONSTANTS[ident] !== undefined
+  );
 }
 
 export function tokenize(expression: string): Token[] {
@@ -123,15 +136,31 @@ export function tokenize(expression: string): Token[] {
       continue;
     }
 
+    // Single-symbol constants, so π and φ never merge with a neighbour
+    if (SYMBOL_CONSTANTS.has(char)) {
+      tokens.push({ type: "constant", value: char, position: i });
+      i++;
+      continue;
+    }
+
     // Identifiers (functions and constants)
     if (isIdentifierStart(char)) {
-      let ident = "";
+      let word = "";
       const startPos = i;
 
       while (i < len && isIdentifierPart(expression[i])) {
-        ident += expression[i];
+        word += expression[i];
         i++;
       }
+
+      // Names may legitimately contain digits (log2, pow10), so read greedily and
+      // then fall back to the longest recognised prefix — that keeps "e2" as e × 2
+      // rather than an unknown identifier.
+      let ident = word;
+      while (ident.length > 1 && !isKnownIdentifier(ident)) {
+        ident = ident.slice(0, -1);
+      }
+      i = startPos + ident.length;
 
       // Check for aliases
       const normalizedIdent = FUNCTION_ALIASES[ident] || ident.toLowerCase();
@@ -142,7 +171,7 @@ export function tokenize(expression: string): Token[] {
       } else if (CONSTANTS[normalizedIdent] !== undefined || CONSTANTS[ident] !== undefined) {
         tokens.push({ type: "constant", value: ident, position: startPos });
       } else {
-        throw new Error(`Unknown identifier: ${ident} at position ${startPos}`);
+        throw new Error(`Unknown identifier: ${word} at position ${startPos}`);
       }
       continue;
     }
