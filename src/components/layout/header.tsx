@@ -1,18 +1,23 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppStore } from "@/store/app-store";
+import { useThemeStore } from "@/store/theme-store";
 import { toast } from "@/store/toast-store";
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/ui/search";
-import { Menu, LogOut, User, Bell, Settings } from "lucide-react";
+import { Menu, LogOut, User, Bell, Settings, Sun, Moon } from "lucide-react";
 import { Link } from "@/lib/next-compat";
 
 export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { toggleMobileSidebar } = useAppStore();
+  const { theme, toggleTheme, hydrate } = useThemeStore();
+
+  useEffect(() => { hydrate(); }, [hydrate]);
+
 
   const [confirmTrialSignOut, setConfirmTrialSignOut] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
