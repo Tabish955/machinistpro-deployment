@@ -199,14 +199,20 @@ export function statistics(values: number[]) {
     q1: percentile(0.25),
     q3: percentile(0.75),
     variancePopulation: variance(values, "uncorrected") as number,
-    varianceSample: values.length > 1 ? (variance(values, "unbiased") as number) : 0,
+    // Undefined for a single reading, not zero — reporting 0 reads as "no spread".
+    varianceSample: values.length > 1 ? (variance(values, "unbiased") as number) : Number.NaN,
     standardDeviationPopulation: std(values, "uncorrected") as number,
-    standardDeviationSample: values.length > 1 ? (std(values, "unbiased") as number) : 0,
+    standardDeviationSample: values.length > 1 ? (std(values, "unbiased") as number) : Number.NaN,
   };
 }
 
 export function linearRegression(pairs: Point[]) {
   if (pairs.length < 2) throw new Error("Regression needs at least two x,y pairs.");
+  // A half-written pair used to sail through as NaN and surface as "Undefined"
+  // in every output field, with nothing to say which pair was at fault.
+  if (pairs.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))) {
+    throw new Error("Each pair needs an x and a y value, written as x,y.");
+  }
   const xMean = pairs.reduce((total, point) => total + point.x, 0) / pairs.length;
   const yMean = pairs.reduce((total, point) => total + point.y, 0) / pairs.length;
   const sxx = pairs.reduce((total, point) => total + (point.x - xMean) ** 2, 0);

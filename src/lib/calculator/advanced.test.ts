@@ -88,6 +88,30 @@ describe("advanced calculator engines", () => {
     expect(() => cartesianToPolar(Number.NaN, 0)).toThrow("finite");
   });
 
+  it("rejects half-written regression pairs instead of answering Undefined", () => {
+    // A missing y previously sailed through as NaN and every field read "Undefined".
+    expect(() =>
+      linearRegression([
+        { x: 1, y: 2 },
+        { x: 2, y: undefined as unknown as number },
+      ]),
+    ).toThrow("Each pair needs an x and a y value");
+    expect(() =>
+      linearRegression([
+        { x: 1, y: 2 },
+        { x: Number.NaN, y: Number.NaN },
+      ]),
+    ).toThrow("Each pair needs an x and a y value");
+  });
+
+  it("reports sample spread as undefined for a single reading", () => {
+    const single = statistics([5]);
+    expect(Number.isNaN(single.varianceSample)).toBe(true);
+    expect(Number.isNaN(single.standardDeviationSample)).toBe(true);
+    // Population spread is still legitimately zero for one value.
+    expect(single.variancePopulation).toBe(0);
+  });
+
   it("computes descriptive statistics", () => {
     const result = statistics([1, 2, 2, 3, 4]);
     expect(result.mean).toBe(2.4);
