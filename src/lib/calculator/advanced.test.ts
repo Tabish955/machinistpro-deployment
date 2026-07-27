@@ -3,6 +3,7 @@ import {
   cartesianToPolar,
   complexDetails,
   convertSIPrefix,
+  evaluateComplex,
   evaluateEngineeringExpression,
   engineeringFormat,
   formatEngineeringNumber,
@@ -86,6 +87,21 @@ describe("advanced calculator engines", () => {
     expect(polarToCartesian(2, Math.PI, "rad").x).toBeCloseTo(-2);
     expect(() => polarToCartesian(-1, 30, "deg")).toThrow("negative");
     expect(() => cartesianToPolar(Number.NaN, 0)).toThrow("finite");
+  });
+
+  it("rounds complex results to the same precision as real ones", () => {
+    // A Complex went straight to toString(): 17 digits beside a real answer's 12.
+    expect(evaluateComplex("(1 + 1i) / 3")).toBe("0.333333333333 + 0.333333333333i");
+    expect(evaluateComplex("sin(i)")).toBe("1.17520119364i");
+    // Exact results must stay exact.
+    expect(evaluateComplex("(3 + 4i) * (2 - i)")).toBe("10 + 5i");
+    expect(evaluateComplex("e^(i * pi)")).toBe("-1");
+    expect(evaluateComplex("sqrt(-1)")).toBe("i");
+  });
+
+  it("asks for an expression instead of answering 'undefined'", () => {
+    expect(() => evaluateComplex("")).toThrow("Enter an expression");
+    expect(() => evaluateComplex("   ")).toThrow("Enter an expression");
   });
 
   it("rejects half-written regression pairs instead of answering Undefined", () => {

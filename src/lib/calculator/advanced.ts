@@ -46,6 +46,15 @@ export const formatAdvanced = (value: unknown): string => {
     return Number(value.toPrecision(12)).toString();
   }
   if (Array.isArray(value)) return JSON.stringify(value);
+  // A mathjs Complex went straight to toString(), so a complex answer showed the
+  // raw 17-digit float while a real answer alongside it showed 12. Round both
+  // parts to the same precision.
+  if (value && typeof value === "object" && "re" in value && "im" in value) {
+    const { re, im } = value as { re: number; im: number };
+    if (Number.isFinite(re) && Number.isFinite(im)) {
+      return complex(Number(re.toPrecision(12)), Number(im.toPrecision(12))).toString();
+    }
+  }
   if (value && typeof value === "object" && "toString" in value) return value.toString();
   return String(value);
 };
@@ -243,6 +252,9 @@ type Cx = {
 const cx = (re: number, im = 0): Cx => complex(re, im) as unknown as Cx;
 
 export function evaluateComplex(expression: string) {
+  // An empty box evaluated to undefined and rendered as the literal text
+  // "undefined", which reads like an answer rather than a prompt to type something.
+  if (!expression.trim()) throw new Error("Enter an expression.");
   const result = evaluate(expression.replace(/\bi\b/g, "(1i)"));
   return formatAdvanced(result);
 }
