@@ -149,4 +149,76 @@ describe("Scientific calculator store input", () => {
     useCalculatorStore.getState().calculate(false, "scientific");
     expect(useCalculatorStore.getState().result).toBe("-3.14159265359");
   });
+
+  it("rejects a wrong argument count instead of dropping the extras", () => {
+    // log(8,2) used to answer log₁₀(8) — a silently wrong 0.903.
+    expect(evaluate("log(8,2)", "deg").success).toBe(false);
+    expect(evaluate("log(8,2)", "deg").error?.message).toBe("log takes 1 number");
+    expect(evaluate("sin(30,99)", "deg").success).toBe(false);
+    expect(evaluate("ncr(5)", "deg").error?.message).toBe("ncr takes 2 numbers");
+  });
+
+  it("still evaluates genuine two-argument functions", () => {
+    expect(result("nroot(27,3)")).toBeCloseTo(3, 12);
+    expect(result("ncr(5,2)")).toBe(10);
+    expect(result("npr(5,2)")).toBe(20);
+  });
+
+  const pressFunction = (expression: string, fn: string) => {
+    useCalculatorStore.setState({ expression, result: "", error: null });
+    useCalculatorStore.getState().inputFunction(fn);
+    return useCalculatorStore.getState().expression;
+  };
+
+  it("wraps an entered number in a one-argument function", () => {
+    // Pressing 9 then √ used to leave the dead-end "9sqrt(".
+    expect(pressFunction("9", "sqrt")).toBe("sqrt(9)");
+    expect(pressFunction("2+3", "sin")).toBe("2+sin(3)");
+    expect(pressFunction("sin(30)", "cos")).toBe("cos(sin(30))");
+  });
+
+  it("still opens a bracket when there is nothing to wrap", () => {
+    expect(pressFunction("", "sin")).toBe("sin(");
+    expect(pressFunction("5+", "ln")).toBe("5+ln(");
+  });
+
+  it("carries an entered number into a multi-argument function", () => {
+    expect(pressFunction("32", "nroot")).toBe("nroot(32,");
+    expect(pressFunction("10", "ncr")).toBe("ncr(10,");
+    expect(pressFunction("", "ncr")).toBe("ncr(");
+  });
+
+  it("multiplies adjacent constants instead of reading them as one name", () => {
+    // "πe" used to tokenize as a single unknown identifier and fail outright.
+    expect(result("πe")).toBeCloseTo(Math.PI * Math.E, 10);
+    expect(result("eπ")).toBeCloseTo(Math.E * Math.PI, 10);
+    expect(result("ππ")).toBeCloseTo(Math.PI * Math.PI, 10);
+    expect(result("πsin(30)")).toBeCloseTo(Math.PI * 0.5, 10);
+    expect(result("π(2)")).toBeCloseTo(Math.PI * 2, 10);
+    expect(result("πe2")).toBeCloseTo(Math.PI * Math.E * 2, 10);
+  });
+
+  it("still resolves function names that contain digits", () => {
+    expect(result("log2(1024)")).toBe(10);
+    expect(result("pow10(3)")).toBe(1000);
+    expect(result("2e3")).toBe(2000);
+  });
+
+  it("separates 'no real answer' from 'too large'", () => {
+    // Math.pow returns NaN here; it was previously reported as an overflow.
+    expect(evaluate("(-8)^(1/3)", "deg").error?.message).toBe("This calculation has no answer");
+    expect(evaluate("exp(1000)", "deg").error?.message).toBe("The number is too large");
+    expect(result("(-8)^2")).toBe(64);
+  });
+
+  it("evaluates the nth root exposed by the 2nd shift key", () => {
+    expect(result("nroot(32,5)")).toBeCloseTo(2, 12);
+    expect(result("nroot(-8,3)")).toBeCloseTo(-2, 12);
+    expect(evaluate("nroot(-4,2)", "deg").success).toBe(false);
+  });
+
+  it("prints large and small magnitudes without padding zeros", () => {
+    expect(evaluate("1000000*1000000", "deg").displayResult).toBe("1e+12");
+    expect(evaluate("0-0.0000000001", "deg").displayResult).toBe("-1e-10");
+  });
 });

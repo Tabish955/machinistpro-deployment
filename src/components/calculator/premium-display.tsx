@@ -1,16 +1,30 @@
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { useCalculatorStore } from "@/store/calculator-store";
+import { evaluate, autoCloseParens } from "@/lib/calculator/engine";
 import { Copy, Check } from "lucide-react";
 
 export function PremiumDisplay() {
   const {
+    expression,
     displayExpression,
     previousResult,
     result,
     error,
+    angleMode,
     copyResult,
   } = useCalculatorStore();
+
+  // Running value of the expression being typed. Without this a half-entered
+  // expression reads as a solid "0", which looks like an answer of zero.
+  const preview = useMemo(() => {
+    if (result || error || !expression.trim()) return "";
+    const evaluated = evaluate(autoCloseParens(expression), angleMode);
+    return evaluated.success && evaluated.displayResult ? evaluated.displayResult : "";
+  }, [expression, angleMode, result, error]);
+
+  const isPreview = !result && preview !== "";
+  const shownValue = result || preview || "0";
 
   const [copied, setCopied] = useState(false);
   const expressionRef = useRef<HTMLDivElement>(null);
@@ -31,7 +45,7 @@ export function PremiumDisplay() {
 
   // Calculate font size based on result length
   const getResultFontSize = () => {
-    const len = result?.length || 1;
+    const len = shownValue.length || 1;
     if (len <= 8) return "text-5xl sm:text-6xl";
     if (len <= 12) return "text-4xl sm:text-5xl";
     if (len <= 16) return "text-3xl sm:text-4xl";
@@ -78,12 +92,13 @@ export function PremiumDisplay() {
               {error.message}
             </p>
           ) : (
-            <p 
+            <p
+              aria-live="polite"
               className={`font-bold font-mono text-right whitespace-nowrap transition-all duration-200 ${getResultFontSize()} ${
-                result === "0" ? "text-gray-500" : "text-white"
+                isPreview || shownValue === "0" ? "text-gray-500" : "text-white"
               }`}
             >
-              {result || "0"}
+              {isPreview ? `= ${shownValue}` : shownValue}
             </p>
           )}
         </div>

@@ -62,6 +62,9 @@ const OPERATORS: Record<string, Operator> = {
     associativity: "right",
     fn: (a, b) => {
       const result = Math.pow(a, b);
+      // A negative base with a fractional power has no real answer — that is not
+      // an overflow, and calling it "too large" sent people looking for the wrong thing.
+      if (Number.isNaN(result)) throw new Error("Result is undefined");
       if (!isFinite(result)) throw new Error("Overflow");
       return result;
     },
@@ -240,7 +243,15 @@ export function evaluateRPN(rpn: RPNToken[], angleMode: AngleMode): number {
         if (!func) {
           throw new Error(`Unknown function: ${token.value}`);
         }
-        const argCount = token.argCount || func.argCount;
+        // Reject a wrong argument count outright. Previously a surplus argument was
+        // silently dropped, so log(8,2) answered log₁₀(8) instead of flagging the base.
+        const argCount = func.argCount;
+        const provided = token.argCount ?? argCount;
+        if (provided !== argCount) {
+          throw new Error(
+            `${token.value} takes ${argCount} number${argCount === 1 ? "" : "s"}`,
+          );
+        }
         if (stack.length < argCount) {
           throw new Error(`Not enough arguments for ${token.value}`);
         }

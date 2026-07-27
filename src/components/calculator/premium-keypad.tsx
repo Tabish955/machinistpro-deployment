@@ -208,19 +208,20 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
           >
             {isSecondFunction ? "tan⁻¹" : "tan"}
           </CalcButton>
+          {/* ln and log pair with their own inverses, as on a physical calculator. */}
           <CalcButton
-            onClick={() => inputFunction(isSecondFunction ? "sinh" : "ln")}
+            onClick={() => inputFunction(isSecondFunction ? "exp" : "ln")}
             variant="function"
-            label={isSecondFunction ? "Hyperbolic sine" : "Natural log"}
+            label={isSecondFunction ? "e to power" : "Natural log"}
           >
-            {isSecondFunction ? "sinh" : "ln"}
+            {isSecondFunction ? "eˣ" : "ln"}
           </CalcButton>
           <CalcButton
-            onClick={() => inputFunction(isSecondFunction ? "cosh" : "log")}
+            onClick={() => inputFunction(isSecondFunction ? "pow10" : "log")}
             variant="function"
-            label={isSecondFunction ? "Hyperbolic cosine" : "Log base 10"}
+            label={isSecondFunction ? "10 to power" : "Log base 10"}
           >
-            {isSecondFunction ? "cosh" : "log"}
+            {isSecondFunction ? "10ˣ" : "log"}
           </CalcButton>
         </div>
       )}
@@ -229,18 +230,14 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
       {scientific && (
         <div className="grid h-10 shrink-0 grid-cols-5 gap-1 sm:gap-1.5">
           <CalcButton
-            onClick={() => inputFunction(isSecondFunction ? "exp" : "sqrt")}
+            onClick={() => inputFunction("sqrt")}
             variant="function"
-            label={isSecondFunction ? "e to power" : "Square root"}
+            label="Square root"
           >
-            {isSecondFunction ? "eˣ" : "√"}
+            √
           </CalcButton>
-          <CalcButton
-            onClick={() => inputFunction(isSecondFunction ? "pow10" : "square")}
-            variant="function"
-            label={isSecondFunction ? "10 to power" : "Square"}
-          >
-            {isSecondFunction ? "10ˣ" : "x²"}
+          <CalcButton onClick={() => inputFunction("square")} variant="function" label="Square">
+            x²
           </CalcButton>
           <CalcButton
             onClick={() => inputFunction(isSecondFunction ? "cbrt" : "cube")}
@@ -249,8 +246,12 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
           >
             {isSecondFunction ? "∛" : "x³"}
           </CalcButton>
-          <CalcButton onClick={() => inputOperator("^")} variant="function" label="Power">
-            xʸ
+          <CalcButton
+            onClick={() => (isSecondFunction ? inputFunction("nroot") : inputOperator("^"))}
+            variant="function"
+            label={isSecondFunction ? "Nth root" : "Power"}
+          >
+            {isSecondFunction ? "ʸ√x" : "xʸ"}
           </CalcButton>
           <CalcButton
             onClick={() => inputFunction(isSecondFunction ? "abs" : "fact")}
@@ -322,6 +323,8 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
             ,
           </CalcButton>
           {[
+            ["sinh", "Hyperbolic sine", "sinh"],
+            ["cosh", "Hyperbolic cosine", "cosh"],
             ["tanh", "Hyperbolic tangent", "tanh"],
             ["asinh", "Inverse hyperbolic sine", "asinh"],
             ["acosh", "Inverse hyperbolic cosine", "acosh"],
@@ -332,6 +335,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
             ["round", "Round", "round"],
             ["ncr", "Combinations", "nCr"],
             ["npr", "Permutations", "nPr"],
+            ["mod", "Modulo (remainder)", "mod"],
           ].map(([fn, label, text]) => (
             <CalcButton
               key={fn}

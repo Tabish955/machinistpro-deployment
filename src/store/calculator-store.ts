@@ -10,6 +10,7 @@ import {
   endsWithOperator,
   autoCloseParens,
 } from "@/lib/calculator/engine";
+import { FUNCTIONS } from "@/lib/calculator/functions";
 
 const MAX_HISTORY_SIZE = 100;
 const MAX_EXPRESSION_LENGTH = 500;
@@ -55,6 +56,67 @@ function getRepeatOperation(expression: string, angleMode: AngleMode): RepeatOpe
   if (!operandResult.success || operandResult.result === undefined) return null;
   return { operator, operand: operandResult.result };
 }
+
+// Isolate the right-most operand so the unary keys (x², √, ¹⁄ₓ, x!) apply to it alone:
+// "5+9" splits to "5+" / "9", making x² produce 5+(9)^2 rather than (5+9)^2.
+function splitTrailingOperand(expression: string): { prefix: string; operand: string } | null {
+  if (!expression) return null;
+
+  let start: number;
+
+  if (expression.endsWith(")")) {
+    let depth = 0;
+    let open = -1;
+    for (let index = expression.length - 1; index >= 0; index -= 1) {
+      const character = expression[index];
+      if (character === ")") {
+        depth += 1;
+      } else if (character === "(") {
+        depth -= 1;
+        if (depth === 0) {
+          open = index;
+          break;
+        }
+      }
+    }
+    if (open < 0) return null;
+    // Keep any function name attached to its parentheses: sqrt(9) travels as one operand.
+    const name = expression.slice(0, open).match(/[a-z][a-z0-9]*$/i);
+    start = name ? open - name[0].length : open;
+  } else {
+    const trailing = expression.match(/(?:\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|π|e)$/);
+    if (!trailing) return null;
+    start = expression.length - trailing[0].length;
+  }
+
+  // Absorb a unary minus so -3 squares to 9 rather than -9.
+  if (
+    start > 0 &&
+    expression[start - 1] === "-" &&
+    (start === 1 || "+-*/^(,".includes(expression[start - 2]))
+  ) {
+    start -= 1;
+  }
+
+  return { prefix: expression.slice(0, start), operand: expression.slice(start) };
+}
+
+// Wrappers for keys that transform a single operand in place.
+const UNARY_WRAPPERS: Record<string, (operand: string) => string> = {
+  square: (operand) => `(${operand})^2`,
+  cube: (operand) => `(${operand})^3`,
+  sqrtOf: (operand) => `sqrt(${operand})`,
+  // Fully parenthesised so 2/9 ¹⁄ₓ becomes 2/(1/(9)) — not (2/1)/9.
+  recip: (operand) => `(1/(${operand}))`,
+  fact: (operand) => `fact(${operand})`,
+};
+
+// What these keys leave behind when there is nothing at all to act on.
+const UNARY_EMPTY_FALLBACK: Record<string, string> = {
+  sqrtOf: "sqrt(",
+  fact: "fact(",
+  recip: "1/",
+};
 
 interface CalculatorStore {
   // Display state
@@ -176,11 +238,15 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Input digit
       inputDigit: (digit) => {
-        const { expression, error } = get();
+        const { error } = get();
         set({ repeatOperation: null });
 
+        // A failed expression is meaningless — typing starts a fresh one instead of
+        // appending, so 5÷0 → Error → 7 gives "7", not "5÷07".
+        const expression = error ? "" : get().expression;
+
         if (error) {
-          set({ error: null });
+          set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
         }
 
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
@@ -196,10 +262,12 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Input decimal point
       inputDecimal: () => {
-        const { expression, error } = get();
+        const { error } = get();
         set({ repeatOperation: null });
 
-        if (error) set({ error: null });
+        const expression = error ? "" : get().expression;
+
+        if (error) set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
 
         if (currentNumberHasDecimal(expression)) return;
@@ -217,10 +285,14 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Input operator
       inputOperator: (operator) => {
-        const { expression, result, previousResult, error } = get();
+        const state = get();
+        const { previousResult, error } = state;
+        // Never carry a failed expression, or the literal "Error", into a new one.
+        const expression = error ? "" : state.expression;
+        const result = error ? "0" : state.result;
         set({ repeatOperation: null });
 
-        if (error) set({ error: null });
+        if (error) set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
 
         let newExpression = expression;
 
@@ -250,17 +322,34 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Input function
       inputFunction: (fn) => {
-        const { expression, error, result } = get();
+        const state = get();
+        const { error } = state;
+        const expression = error ? "" : state.expression;
+        const result = error ? "0" : state.result;
         const base =
           expression ||
           (result && result !== "0" && result !== "Error" ? result.replace(/,/g, "") : "");
         set({ repeatOperation: null });
 
-        if (error) set({ error: null });
+        if (error) set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
 
-        if (fn === "square") {
-          const newExpr = base ? `(${base})^2` : "";
+        const wrap = UNARY_WRAPPERS[fn];
+        if (wrap) {
+          const split = splitTrailingOperand(expression);
+          let newExpr: string | null = null;
+
+          if (split) {
+            // Transform only the operand the user just entered.
+            newExpr = split.prefix + wrap(split.operand);
+          } else if (!expression) {
+            // Nothing typed — act on the result still on screen, as calculators do.
+            newExpr = base ? wrap(base) : (UNARY_EMPTY_FALLBACK[fn] ?? null);
+          }
+          // Anything else (an expression ending in an operator) has no operand to act on.
+
+          if (newExpr === null) return;
+
           set({
             ...pushUndo(get()),
             expression: newExpr,
@@ -270,55 +359,30 @@ export const useCalculatorStore = create<CalculatorStore>()(
           return;
         }
 
-        if (fn === "cube") {
-          const newExpr = base ? `(${base})^3` : "";
-          set({
-            ...pushUndo(get()),
-            expression: newExpr,
-            displayExpression: formatExpression(newExpr),
-            result: "",
-          });
-          return;
+        // One-argument functions wrap whatever is already entered, so 9 then √ reads
+        // √(9) as it does in Standard. Multi-argument functions still open a bracket,
+        // because they need a second number typed after the comma.
+        const definition = FUNCTIONS[fn];
+        const takesOneArgument = !definition || definition.argCount === 1;
+        const split = splitTrailingOperand(expression);
+
+        let newExpression: string;
+        if (split) {
+          newExpression = takesOneArgument
+            ? `${split.prefix}${fn}(${split.operand})`
+            : // Carry the entered number in as the first argument, ready for the second.
+              `${split.prefix}${fn}(${split.operand},`;
+        } else if (!expression && base) {
+          newExpression = takesOneArgument ? `${fn}(${base})` : `${fn}(${base},`;
+        } else {
+          newExpression = expression + fn + "(";
         }
 
-        if (fn === "fact") {
-          const newExpr = base ? `fact(${base})` : "fact(";
-          set({
-            ...pushUndo(get()),
-            expression: newExpr,
-            displayExpression: formatExpression(newExpr),
-            result: "",
-          });
-          return;
-        }
-
-        if (fn === "sqrtOf") {
-          const newExpr = base ? `sqrt(${base})` : "sqrt(";
-          set({
-            ...pushUndo(get()),
-            expression: newExpr,
-            displayExpression: formatExpression(newExpr),
-            result: "",
-          });
-          return;
-        }
-
-        if (fn === "recip") {
-          const newExpr = base ? `1/(${base})` : "1/";
-          set({
-            ...pushUndo(get()),
-            expression: newExpr,
-            displayExpression: formatExpression(newExpr),
-            result: "",
-          });
-          return;
-        }
-
-        const newExpression = expression + fn + "(";
         set({
           ...pushUndo(get()),
           expression: newExpression,
           displayExpression: formatExpression(newExpression),
+          result: "",
         });
       },
 
@@ -541,19 +605,21 @@ export const useCalculatorStore = create<CalculatorStore>()(
           return;
         }
 
-        const match = expression.match(/(^|[+\-*/×÷^%(])(-?)([0-9.]+)$/);
-        if (match) {
-          const prefix = match[1];
-          const sign = match[2];
-          const num = match[3];
-          const newSign = sign === "-" ? "" : "-";
-          const newExpr = expression.slice(0, -match[0].length + prefix.length) + newSign + num;
-          set({
-            ...pushUndo(get()),
-            expression: newExpr,
-            displayExpression: formatExpression(newExpr),
-          });
-        }
+        // Flip the trailing operand, whether it is a plain number or a wrapped
+        // group like sqrt(9) — the old number-only match left +/− dead after √ and x².
+        const split = splitTrailingOperand(expression);
+        if (!split) return;
+
+        const negated = split.operand.startsWith("-")
+          ? split.operand.slice(1)
+          : `-${split.operand}`;
+        const newExpr = split.prefix + negated;
+
+        set({
+          ...pushUndo(get()),
+          expression: newExpr,
+          displayExpression: formatExpression(newExpr),
+        });
       },
 
       // Percentage
