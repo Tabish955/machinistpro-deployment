@@ -10,6 +10,15 @@ import type { CalculatorMode } from "@/lib/calculator/advanced";
 import { ModeSelector } from "./mode-selector";
 import { AdvancedWorkspace } from "./advanced-workspaces";
 
+function formatMemoryValue(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const magnitude = Math.abs(value);
+  if (magnitude !== 0 && (magnitude >= 1e9 || magnitude < 1e-4)) {
+    return value.toExponential(2);
+  }
+  return value.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
 export function PremiumCalculator() {
   const [mode, setModeState] = useState<CalculatorMode>("scientific");
   const [advancedHistoryItem, setAdvancedHistoryItem] = useState<CalculationResult | null>(null);
@@ -87,6 +96,7 @@ export function PremiumCalculator() {
     toggleHistory,
     showHistory,
     hasMemory,
+    memory,
     undoStack,
     redoStack,
     undo,
@@ -373,8 +383,11 @@ export function PremiumCalculator() {
             )}
 
             {hasMemory && (
-              <span className="px-2 py-0.5 rounded bg-accent-amber/15 text-accent-amber text-[10px] font-bold tracking-wider">
-                M
+              <span
+                className="px-2 py-0.5 rounded bg-accent-amber/15 text-accent-amber text-[10px] font-bold tracking-wider whitespace-nowrap"
+                title={`Memory: ${memory}`}
+              >
+                M {formatMemoryValue(memory)}
               </span>
             )}
 
