@@ -247,6 +247,18 @@ export function PremiumCalculator() {
     mode,
   ]);
 
+  const MODE_TITLES: Record<CalculatorMode, string> = {
+    standard: "Standard Calculator",
+    scientific: "Scientific Calculator",
+    engineering: "Engineering Calculator",
+    statistics: "Statistics Calculator",
+    complex: "Complex Calculator",
+    programmer: "Programmer Calculator",
+    matrix: "Matrix Calculator",
+    equation: "Equation Solver",
+    graphing: "Graphing Calculator",
+  };
+
   const angleModes: AngleMode[] = ["deg", "rad", "grad"];
 
   const cycleAngleMode = () => {
@@ -280,7 +292,7 @@ export function PremiumCalculator() {
             </Link>
 
             <span className="hidden sm:inline text-sm font-semibold text-white pl-1">
-              Scientific Calculator
+              {MODE_TITLES[mode]}
             </span>
           </div>
 
@@ -375,14 +387,14 @@ export function PremiumCalculator() {
         {(mode === "standard" || mode === "scientific") && (
           <>
             {/* ─── Display ─── */}
-            <div className="shrink-0 px-3 pt-1 pb-2 sm:px-4">
+            <div className={`shrink-0 px-3 pt-1 pb-2 sm:px-4 ${mode === "standard" ? "mx-auto w-full max-w-2xl" : ""}`}>
               <PremiumDisplay />
             </div>
 
             {/* ─── Keypad (fills all remaining space) ─── */}
             <div
               className={`flex-1 px-2 pb-2 sm:px-3 sm:pb-3 lg:pb-2 ${
-                mode === "standard" ? "min-h-[19rem]" : "min-h-0 overflow-y-auto"
+                mode === "standard" ? "mx-auto w-full max-w-2xl min-h-[19rem]" : "min-h-0 overflow-y-auto"
               }`}
             >
               <PremiumKeypad scientific={mode === "scientific"} />
