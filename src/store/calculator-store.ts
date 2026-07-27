@@ -286,6 +286,16 @@ export const useCalculatorStore = create<CalculatorStore>()(
           return;
         }
 
+        if (fn === "sqrtOf") {
+          const newExpr = expression ? `sqrt(${expression})` : "sqrt(";
+          set({
+            ...pushUndo(get()),
+            expression: newExpr,
+            displayExpression: formatExpression(newExpr),
+          });
+          return;
+        }
+
         if (fn === "recip") {
           const newExpr = expression ? `1/(${expression})` : "1/";
           set({
