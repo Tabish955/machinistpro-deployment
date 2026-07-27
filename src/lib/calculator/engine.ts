@@ -57,6 +57,43 @@ export function formatExpression(expr: string): string {
     .replace(/phi/gi, "φ");
 }
 
+// Turn internal error text into something a person can act on
+const OPERATOR_LABELS: Record<string, string> = {
+  "+": "+",
+  "-": "−",
+  "*": "×",
+  "/": "÷",
+  "^": "^",
+  "%": "%",
+};
+
+export function toFriendlyMessage(message: string, expression: string): string {
+  if (message.includes("Division by zero")) return "Cannot divide by zero";
+  if (message.includes("Mismatched parentheses")) return "Check the brackets";
+  if (message.includes("Overflow") || message.includes("infinite")) {
+    return "The number is too large";
+  }
+  if (message.includes("Result is undefined")) return "This calculation has no answer";
+  if (message.includes("Empty expression")) return "Enter a calculation first";
+
+  const missingArgs = message.match(/^Not enough arguments for (.+)$/);
+  if (missingArgs) return `Add a number inside ${missingArgs[1]}( )`;
+
+  if (message.includes("Invalid expression")) {
+    const trimmed = expression.trim().replace(/\)+$/, "");
+    const trailingOperator = trimmed.match(/([+\-*/^%])$/);
+    if (trailingOperator) {
+      const label = OPERATOR_LABELS[trailingOperator[1]] ?? trailingOperator[1];
+      return `Add a number after ${label}`;
+    }
+    if (trimmed.endsWith(".")) return "Add digits after the decimal point";
+    if (trimmed.endsWith("(")) return "Add a number inside the brackets";
+    return "Check the expression and try again";
+  }
+
+  return message;
+}
+
 // Evaluate an expression
 export function evaluate(expression: string, angleMode: AngleMode = "deg"): EvaluationResult {
   try {
@@ -64,7 +101,7 @@ export function evaluate(expression: string, angleMode: AngleMode = "deg"): Eval
     if (!expression.trim()) {
       return {
         success: false,
-        error: { type: "syntax", message: "Empty expression" },
+        error: { type: "syntax", message: "Enter a calculation first" },
       };
     }
 
@@ -74,7 +111,7 @@ export function evaluate(expression: string, angleMode: AngleMode = "deg"): Eval
     if (tokens.length === 0) {
       return {
         success: false,
-        error: { type: "syntax", message: "Empty expression" },
+        error: { type: "syntax", message: "Enter a calculation first" },
       };
     }
 
@@ -109,7 +146,7 @@ export function evaluate(expression: string, angleMode: AngleMode = "deg"): Eval
 
     return {
       success: false,
-      error: { type: errorType, message },
+      error: { type: errorType, message: toFriendlyMessage(message, expression) },
     };
   }
 }
