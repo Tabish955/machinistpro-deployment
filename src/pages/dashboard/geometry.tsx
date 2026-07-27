@@ -396,12 +396,13 @@ function GraphCalc() {
       .map((s) => {
         try {
           const ascii = s.expression.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
-          return { ...sampleGraph(ascii, range.xMin, range.xMax), i, error: "" };
+          return { ...sampleGraph(ascii, range.xMin, range.xMax), i: s.i, error: "" };
         } catch (cause) {
           return {
             expression: s.expression,
             points: [] as Array<{ x: number; y: number } | null>,
-            i,
+            i: s.i,
+
             error: cause instanceof Error ? cause.message : "Invalid expression",
           };
         }
