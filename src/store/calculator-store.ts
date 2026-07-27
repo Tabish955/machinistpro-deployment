@@ -457,11 +457,12 @@ export const useCalculatorStore = create<CalculatorStore>()(
       clearEntry: () => {
         const { expression } = get();
         set({ repeatOperation: null });
-        const newExpr = expression.replace(/[0-9.]+$|[+\-*/×÷^%]$/, "");
+        const newExpr = expression.replace(/\d*\.?\d+(?:[eE][+-]?\d+)?$/, "");
         set({
           ...pushUndo(get()),
           expression: newExpr,
           displayExpression: formatExpression(newExpr),
+          result: newExpr ? "" : "0",
           error: null,
         });
       },
@@ -471,7 +472,8 @@ export const useCalculatorStore = create<CalculatorStore>()(
         allowRepeat = false,
         calculatorMode = allowRepeat ? "standard" : "scientific",
       ) => {
-        const { expression, angleMode, history, lastAnswer, repeatOperation } = get();
+        const { expression, angleMode, history, lastAnswer, repeatOperation, undoStack } =
+          get();
         const isRepeatedCalculation = !expression.trim();
         if (isRepeatedCalculation && (!allowRepeat || !repeatOperation || lastAnswer === null)) {
           return;
@@ -508,7 +510,9 @@ export const useCalculatorStore = create<CalculatorStore>()(
                 : allowRepeat
                   ? repeatOperation
                   : null,
-            undoStack: [],
+            undoStack: expression
+              ? [expression, ...undoStack].slice(0, MAX_UNDO_STACK)
+              : undoStack,
             redoStack: [],
           });
         } else {
@@ -657,6 +661,9 @@ export const useCalculatorStore = create<CalculatorStore>()(
         set({
           expression: prevExpr,
           displayExpression: formatExpression(prevExpr),
+          result: prevExpr ? "" : "0",
+          error: null,
+          repeatOperation: null,
           undoStack: restUndo,
           redoStack: [expression, ...redoStack].slice(0, MAX_UNDO_STACK),
         });
@@ -671,6 +678,9 @@ export const useCalculatorStore = create<CalculatorStore>()(
         set({
           expression: nextExpr,
           displayExpression: formatExpression(nextExpr),
+          result: nextExpr ? "" : "0",
+          error: null,
+          repeatOperation: null,
           redoStack: restRedo,
           undoStack: [expression, ...undoStack].slice(0, MAX_UNDO_STACK),
         });
