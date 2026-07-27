@@ -299,9 +299,49 @@ const matrixData = (value: unknown): unknown => {
   return value;
 };
 
+// Gauss-Jordan elimination, shared by rref and rank.
+function reducedRowEchelon(source: number[][]): number[][] {
+  const rows = source.map((row) => [...row]);
+  let lead = 0;
+  for (let r = 0; r < rows.length && lead < rows[0].length; r++) {
+    let i = r;
+    while (Math.abs(rows[i][lead]) < 1e-12) {
+      i++;
+      if (i === rows.length) {
+        i = r;
+        lead++;
+        if (lead === rows[0].length) return rows;
+      }
+    }
+    [rows[i], rows[r]] = [rows[r], rows[i]];
+    const divisor = rows[r][lead];
+    rows[r] = rows[r].map((v) => v / divisor);
+    rows.forEach((row, index) => {
+      if (index !== r) {
+        const factor = row[lead];
+        rows[index] = row.map((v, col) => v - factor * rows[r][col]);
+      }
+    });
+    lead++;
+  }
+  return rows;
+}
+
+const OPERATIONS_NEEDING_B: Record<string, string> = {
+  add: "Enter Matrix B to add.",
+  subtract: "Enter Matrix B to subtract.",
+  multiply: "Enter Matrix B to multiply.",
+  solve: "Enter the solution vector in the second box.",
+};
+
 export function matrixOperation(aText: string, operation: string, bText = "") {
   const a = matrix(parseMatrix(aText));
   const b = bText.trim() ? matrix(parseMatrix(bText)) : null;
+  // Without this the missing operand surfaced as mathjs internals, e.g.
+  // "Unexpected type of argument in function addScalar ... actual: identifier | null".
+  if (!b && OPERATIONS_NEEDING_B[operation]) {
+    throw new Error(OPERATIONS_NEEDING_B[operation]);
+  }
   switch (operation) {
     case "add":
       return matrixData(evaluate("a + b", { a, b }));
@@ -318,33 +358,13 @@ export function matrixOperation(aText: string, operation: string, bText = "") {
     case "trace":
       return evaluate("trace(a)", { a });
     case "rank":
-      return evaluate("rank(a)", { a });
-    case "rref": {
-      const rows = parseMatrix(aText).map((row) => [...row]);
-      let lead = 0;
-      for (let r = 0; r < rows.length && lead < rows[0].length; r++) {
-        let i = r;
-        while (Math.abs(rows[i][lead]) < 1e-12) {
-          i++;
-          if (i === rows.length) {
-            i = r;
-            lead++;
-            if (lead === rows[0].length) return rows;
-          }
-        }
-        [rows[i], rows[r]] = [rows[r], rows[i]];
-        const divisor = rows[r][lead];
-        rows[r] = rows[r].map((v) => v / divisor);
-        rows.forEach((row, index) => {
-          if (index !== r) {
-            const factor = row[lead];
-            rows[index] = row.map((v, col) => v - factor * rows[r][col]);
-          }
-        });
-        lead++;
-      }
-      return rows;
-    }
+      // mathjs has no rank(), so this button always failed with "Undefined
+      // function rank". Count the non-zero rows of the reduced form instead.
+      return reducedRowEchelon(parseMatrix(aText)).filter((row) =>
+        row.some((value) => Math.abs(value) > 1e-12),
+      ).length;
+    case "rref":
+      return reducedRowEchelon(parseMatrix(aText));
     case "solve":
       return matrixData(lusolve(a, b!));
     case "qr":

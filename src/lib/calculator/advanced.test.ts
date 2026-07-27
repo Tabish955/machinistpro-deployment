@@ -176,6 +176,22 @@ describe("advanced calculator engines", () => {
     expect(() => programmerOperation("2", "0", "OR", 2, 8, false)).toThrow("Invalid base-2");
   });
 
+  it("computes matrix rank, which mathjs does not provide", () => {
+    // The rank button previously failed every time with "Undefined function rank".
+    expect(matrixOperation("1 2; 3 4", "rank")).toBe(2);
+    expect(matrixOperation("1 2; 2 4", "rank")).toBe(1);
+    expect(matrixOperation("0 0; 0 0", "rank")).toBe(0);
+    expect(matrixOperation("1 2 3; 4 5 6; 7 8 9", "rank")).toBe(2);
+  });
+
+  it("names the missing second matrix instead of leaking mathjs internals", () => {
+    expect(() => matrixOperation("1 2; 3 4", "add")).toThrow("Enter Matrix B to add.");
+    expect(() => matrixOperation("1 2; 3 4", "multiply")).toThrow("Enter Matrix B to multiply.");
+    expect(() => matrixOperation("2 1; 1 -1", "solve")).toThrow("solution vector");
+    // Operations that need only A are unaffected.
+    expect(matrixOperation("1 2; 3 4", "determinant")).toBe(-2);
+  });
+
   it("flags overflow only when the result does not fit the word", () => {
     // Previously any bit pattern that read differently as signed was called an
     // overflow, so ordinary results were marked suspect.
