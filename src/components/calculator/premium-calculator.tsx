@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCalculatorStore } from "@/store/calculator-store";
+import { useCalculatorStore, type CalculatorSnapshot } from "@/store/calculator-store";
 import { PremiumDisplay } from "./premium-display";
 import { PremiumKeypad } from "./premium-keypad";
 import { HistoryPanel } from "./history-panel";
@@ -30,8 +30,8 @@ export function PremiumCalculator() {
     previousResult: string;
     error: CalculatorError | null;
     lastAnswer: number | null;
-    undoStack: string[];
-    redoStack: string[];
+    undoStack: CalculatorSnapshot[];
+    redoStack: CalculatorSnapshot[];
   }
   const emptyDraft = (): ScalarDraft => ({
     expression: "",
@@ -72,6 +72,13 @@ export function PremiumCalculator() {
     setModeState(nextMode);
     window.localStorage.setItem("machinist-pro-calculator-mode", nextMode);
   };
+  // The route sets a fixed "Scientific" title, so every mode looked identical in the
+  // browser tab. Name the mode actually in use.
+  useEffect(() => {
+    const label = mode.charAt(0).toUpperCase() + mode.slice(1);
+    document.title = `${label} Calculator | MachinistPro`;
+  }, [mode]);
+
   const loadHistoryItem = (item: CalculationResult) => {
     if (item.calculatorMode === "engineering" && item.engineeringState) {
       setMode("engineering");

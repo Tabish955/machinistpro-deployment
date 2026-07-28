@@ -6,6 +6,9 @@ import {
   evaluateComplex,
   evaluateEngineeringExpression,
   engineeringFormat,
+  formatDMS,
+  parseDMS,
+  parsePointList,
   formatEngineeringNumber,
   linearRegression,
   matrixOperation,
@@ -235,6 +238,62 @@ describe("advanced calculator engines", () => {
         }
       }
     }
+  });
+
+  it("plots a list of coordinates instead of failing to parse it", () => {
+    // "(2,3)" used to reach mathjs and fail with "expected (char 3)".
+    const plotted = sampleGraph("(2,3) (-2,3) (-2,-3) (2,-3)", -10, 10);
+    expect(plotted.kind).toBe("points");
+    expect(plotted.points).toEqual([
+      { x: 2, y: 3 },
+      { x: -2, y: 3 },
+      { x: -2, y: -3 },
+      { x: 2, y: -3 },
+    ]);
+    // Accepts the separators a student is likely to type.
+    expect(parsePointList("2,3; -2,3")).toEqual([
+      { x: 2, y: 3 },
+      { x: -2, y: 3 },
+    ]);
+    expect(parsePointList("(1.5,-2.5)")).toEqual([{ x: 1.5, y: -2.5 }]);
+  });
+
+  it("keeps expressions as curves rather than reading them as points", () => {
+    expect(parsePointList("sin(x)")).toBeNull();
+    expect(parsePointList("0.2*x^2-2")).toBeNull();
+    expect(parsePointList("-5")).toBeNull();
+    expect(parsePointList("(2+3)")).toBeNull();
+    expect(sampleGraph("sin(x)", -10, 10).kind).toBeUndefined();
+    expect(() => parsePointList("(2,3) (5")).toThrow("Each point needs an x and a y value");
+  });
+
+  it("converts decimal degrees to degrees, minutes and seconds", () => {
+    expect(formatDMS(12.5)).toBe("12°30'0\"");
+    expect(formatDMS(53.130102)).toBe("53°7'48.37\"");
+    expect(formatDMS(0)).toBe("0°0'0\"");
+    expect(formatDMS(-12.5)).toBe("-12°30'0\"");
+    // Rounding must carry rather than print 59.999 seconds or 60.
+    expect(formatDMS(12.9999999)).toBe("13°0'0\"");
+    expect(formatDMS(0.99999999)).toBe("1°0'0\"");
+    expect(() => formatDMS(12.5, 9)).toThrow("0 to 6");
+  });
+
+  it("reads angles written the way a drawing dimensions them", () => {
+    expect(parseDMS("12°34'56\"")).toBeCloseTo(12.5822222222, 9);
+    expect(parseDMS("12 34 56")).toBeCloseTo(12.5822222222, 9);
+    expect(parseDMS("12:34:56")).toBeCloseTo(12.5822222222, 9);
+    expect(parseDMS("12°30'")).toBe(12.5);
+    expect(parseDMS("-12°30'")).toBe(-12.5);
+    expect(parseDMS("45")).toBe(45);
+    expect(() => parseDMS("  ")).toThrow("Enter an angle");
+    expect(() => parseDMS("12°75'")).toThrow("below 60");
+    expect(() => parseDMS("abc")).toThrow("degrees, minutes and seconds");
+    expect(() => parseDMS("1 2 3 4")).toThrow("degrees, minutes and seconds");
+  });
+
+  it("round trips an angle through DMS without drift", () => {
+    expect(parseDMS(formatDMS(53.130102, 4))).toBeCloseTo(53.130102, 9);
+    expect(parseDMS(formatDMS(-7.25))).toBe(-7.25);
   });
 
   it("computes matrix rank, which mathjs does not provide", () => {

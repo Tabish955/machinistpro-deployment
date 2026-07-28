@@ -8,13 +8,16 @@ import {
   engineeringFormat,
   evaluateComplex,
   formatAdvanced,
+  formatDMS,
   formatEngineeringNumber,
+  parseDMS,
   linearRegression,
   matrixOperation,
   normalizeEngineeringExpression,
   parseRequiredNumber,
   polarToCartesian,
   programmerOperation,
+  parsePointList,
   sampleGraph,
   solvePolynomial,
   statistics,
@@ -84,7 +87,13 @@ function EngineeringWorkspace({
   const [coordinateB, setCoordinateB] = useState("4");
   const [coordinateResult, setCoordinateResult] = useState("");
   const [coordinateError, setCoordinateError] = useState("");
-  const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | null>(null);
+  const [decimalAngle, setDecimalAngle] = useState("53.130102");
+  const [dmsAngle, setDmsAngle] = useState("53°7'48.37\"");
+  const [angleResult, setAngleResult] = useState("");
+  const [angleError, setAngleError] = useState("");
+  const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | "angle" | null>(
+    null,
+  );
 
   useEffect(() => {
     const restored = historyItem?.engineeringState;
@@ -225,6 +234,39 @@ function EngineeringWorkspace({
       setCoordinateResult("");
       setCoordinateError(cause instanceof Error ? cause.message : "Invalid coordinates.");
     }
+  };
+
+  const toDMS = () => {
+    try {
+      const decimal = parseRequiredNumber(decimalAngle, "Angle");
+      const formatted = formatDMS(decimal);
+      setDmsAngle(formatted);
+      setAngleResult(`${formatEngineeringNumber(decimal, 10)}° = ${formatted}`);
+      setAngleError("");
+    } catch (cause) {
+      setAngleResult("");
+      setAngleError(cause instanceof Error ? cause.message : "Invalid angle.");
+    }
+  };
+
+  const toDecimal = () => {
+    try {
+      const decimal = parseDMS(dmsAngle);
+      const formatted = formatEngineeringNumber(decimal, 10);
+      setDecimalAngle(formatted);
+      setAngleResult(`${dmsAngle.trim()} = ${formatted}°`);
+      setAngleError("");
+    } catch (cause) {
+      setAngleResult("");
+      setAngleError(cause instanceof Error ? cause.message : "Invalid angle.");
+    }
+  };
+
+  const resetAngle = () => {
+    setDecimalAngle("53.130102");
+    setDmsAngle("53°7'48.37\"");
+    setAngleResult("");
+    setAngleError("");
   };
 
   const changeCoordinateType = (type: "cartesian" | "polar") => {
@@ -565,6 +607,63 @@ function EngineeringWorkspace({
                     onClick={() => void copy(coordinateResult, "coordinate")}
                   >
                     {copied === "coordinate" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              )}
+            </Result>
+          </div>
+        </section>
+
+        <section className={panel}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-gray-300">
+              Degrees, minutes and seconds
+            </h3>
+            <button className={button} onClick={resetAngle}>
+              Reset
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] text-gray-600">
+            Drawings dimension angles as 12°34&apos;56&quot;. Convert either way.
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[10px] text-gray-500">Decimal degrees</span>
+              <input
+                className={`${field} mt-1`}
+                value={decimalAngle}
+                onChange={(event) => setDecimalAngle(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && toDMS()}
+                aria-label="Decimal degrees"
+                inputMode="decimal"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] text-gray-500">Degrees minutes seconds</span>
+              <input
+                className={`${field} mt-1`}
+                value={dmsAngle}
+                onChange={(event) => setDmsAngle(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && toDecimal()}
+                aria-label="Degrees minutes seconds"
+              />
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className={primary} onClick={toDMS}>
+              Decimal → DMS
+            </button>
+            <button className={primary} onClick={toDecimal}>
+              DMS → Decimal
+            </button>
+          </div>
+          <div className="mt-3">
+            <Result error={angleError}>
+              {angleResult && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-mono text-base text-white">{angleResult}</p>
+                  <button className={button} onClick={() => void copy(angleResult, "angle")}>
+                    {copied === "angle" ? "Copied" : "Copy"}
                   </button>
                 </div>
               )}
@@ -982,7 +1081,16 @@ function GraphingWorkspace() {
   const [expressions, setExpressions] = useState(["sin(x)", "0.2×x^2−2"]);
   const [enabled, setEnabled] = useState([true, true]);
   const [seriesColors, setSeriesColors] = useState(colors);
+  const [joined, setJoined] = useState<boolean[]>([]);
   const [range, setRange] = useState({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
+  // A half-typed list still counts, so the Join toggle does not flicker while typing.
+  const isPointList = (expression: string) => {
+    try {
+      return parsePointList(expression) !== null;
+    } catch {
+      return true;
+    }
+  };
   const [trace, setTrace] = useState({ x: 0, y: 0 });
   const graphResult = useMemo(() => {
     try {
@@ -1039,23 +1147,31 @@ function GraphingWorkspace() {
     }
     return found.slice(0, 12);
   }, [series]);
+  // Binary fractions leave dust like -9.799999999999999 in the range boxes.
+  const tidy = (value: number) => Number(value.toPrecision(12));
+  const ZOOM_STEP = 0.7;
   const zoom = (factor: number) =>
     setRange((r) => {
       const cx = (r.xMin + r.xMax) / 2,
         cy = (r.yMin + r.yMax) / 2;
       const hx = ((r.xMax - r.xMin) * factor) / 2,
         hy = ((r.yMax - r.yMin) * factor) / 2;
-      return { xMin: cx - hx, xMax: cx + hx, yMin: cy - hy, yMax: cy + hy };
+      return {
+        xMin: tidy(cx - hx),
+        xMax: tidy(cx + hx),
+        yMin: tidy(cy - hy),
+        yMax: tidy(cy + hy),
+      };
     });
   const pan = (xFactor: number, yFactor: number) =>
     setRange((current) => {
       const dx = (current.xMax - current.xMin) * xFactor;
       const dy = (current.yMax - current.yMin) * yFactor;
       return {
-        xMin: current.xMin + dx,
-        xMax: current.xMax + dx,
-        yMin: current.yMin + dy,
-        yMax: current.yMax + dy,
+        xMin: tidy(current.xMin + dx),
+        xMax: tidy(current.xMax + dx),
+        yMin: tidy(current.yMin + dy),
+        yMax: tidy(current.yMax + dy),
       };
     });
   return (
@@ -1102,6 +1218,25 @@ function GraphingWorkspace() {
                   })
                 }
               />
+              {/* Only meaningful for a plotted set of coordinates, so it stays out of
+                  the way when the row holds an ordinary function. */}
+              {isPointList(expressions[index] ?? "") && (
+                <label className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
+                  <input
+                    aria-label={`Join points of series ${index + 1}`}
+                    type="checkbox"
+                    checked={joined[index] !== false}
+                    onChange={(e) =>
+                      setJoined((current) => {
+                        const next = [...current];
+                        next[index] = e.target.checked;
+                        return next;
+                      })
+                    }
+                  />
+                  Join
+                </label>
+              )}
               {expressions.length > 1 && (
                 <button
                   className={button}
@@ -1111,6 +1246,7 @@ function GraphingWorkspace() {
                       current.filter((_, itemIndex) => itemIndex !== index),
                     );
                     setEnabled((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                    setJoined((current) => current.filter((_, itemIndex) => itemIndex !== index));
                   }}
                 >
                   Remove
@@ -1148,10 +1284,12 @@ function GraphingWorkspace() {
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className={button} onClick={() => zoom(0.7)}>
+            {/* Reciprocal factors, so zooming in then out lands back where it started.
+                0.7 and 1.4 shrank the view by 2% on every round trip. */}
+            <button className={button} onClick={() => zoom(ZOOM_STEP)}>
               Zoom in
             </button>
-            <button className={button} onClick={() => zoom(1.4)}>
+            <button className={button} onClick={() => zoom(1 / ZOOM_STEP)}>
               Zoom out
             </button>
             <button
@@ -1249,16 +1387,60 @@ function GraphingWorkspace() {
             {range.yMin <= 0 && range.yMax >= 0 && (
               <line x1={0} x2={width} y1={sy(0)} y2={sy(0)} stroke="#ffffff55" />
             )}
-            {series.map((item) => (
-              <path
-                key={item.expression}
-                d={pathFor(item)}
-                fill="none"
-                stroke={seriesColors[item.sourceIndex]}
-                strokeWidth="2.5"
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
+            {series.map((item) =>
+              item.kind === "points" ? (
+                // A plotted set of coordinates: mark each one and label it, rather
+                // than joining them into a curve.
+                <g key={item.expression}>
+                  {joined[item.sourceIndex] !== false && item.points.length > 1 && (
+                    // Closed for three or more, so a triangle or square reads as a shape.
+                    <polygon
+                      points={item.points
+                        .filter((point): point is { x: number; y: number } => !!point)
+                        .map((point) => `${sx(point.x)},${sy(point.y)}`)
+                        .join(" ")}
+                      fill={item.points.length > 2 ? `${seriesColors[item.sourceIndex]}18` : "none"}
+                      stroke={seriesColors[item.sourceIndex]}
+                      strokeWidth="2"
+                      strokeDasharray={item.points.length > 2 ? undefined : "6 4"}
+                    />
+                  )}
+                  {item.points.map(
+                    (point, index) =>
+                      point && (
+                        <g key={`${item.expression}-${index}`}>
+                          <circle
+                            cx={sx(point.x)}
+                            cy={sy(point.y)}
+                            r="5"
+                            fill={seriesColors[item.sourceIndex]}
+                            stroke="#0b0f19"
+                            strokeWidth="1.5"
+                          />
+                          <text
+                            x={sx(point.x) + 9}
+                            y={sy(point.y) - 8}
+                            fill={seriesColors[item.sourceIndex]}
+                            fontSize="12"
+                            fontFamily="ui-monospace, monospace"
+                          >
+                            ({point.x}, {point.y})
+                          </text>
+                        </g>
+                      ),
+                  )}
+                </g>
+              ) : (
+                <path
+                  key={item.expression}
+                  d={pathFor(item)}
+                  fill="none"
+                  stroke={seriesColors[item.sourceIndex]}
+                  strokeWidth="2.5"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ),
+            )}
             <line
               x1={sx(trace.x)}
               x2={sx(trace.x)}

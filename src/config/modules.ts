@@ -37,15 +37,26 @@ export interface ModuleConfig {
 export const calculatorModules: ModuleConfig[] = [
   {
     id: "scientific",
-    name: "Scientific Calculator",
-    shortName: "Scientific",
-    description: "Advanced scientific & engineering calculations with full function support",
+    // The href stays /dashboard/scientific: the Formulas database deep-links to it
+    // from a dozen entries, and renaming the route would break those for no gain.
+    name: "Calculator",
+    shortName: "Calculator",
+    description:
+      "Nine modes: standard, scientific, engineering, statistics, complex, programmer, matrix, equation and graphing",
     icon: Calculator,
     href: "/dashboard/scientific",
     color: "cyan",
     status: "available",
     category: "calculators",
-    keywords: ["scientific", "calculator", "math", "trigonometry", "logarithm", "exponential", "sin", "cos", "tan"],
+    keywords: [
+      "calculator", "scientific", "math", "trigonometry", "logarithm", "exponential",
+      "sin", "cos", "tan", "standard", "engineering", "si prefix", "notation",
+      "statistics", "regression", "mean", "median", "standard deviation",
+      "complex", "imaginary", "programmer", "binary", "hex", "octal", "bitwise",
+      "matrix", "determinant", "inverse", "linear algebra",
+      "equation", "quadratic", "cubic", "roots", "solve",
+      "graph", "graphing", "plot", "polar", "parametric",
+    ],
     version: "1.0",
   },
   {

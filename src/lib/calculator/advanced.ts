@@ -38,6 +38,29 @@ export interface GraphSeries {
   points: Array<Point | null>;
   roots: Point[];
   extrema: Array<Point & { kind: "min" | "max" }>;
+  // "points" is a plotted set of coordinates rather than a sampled curve.
+  kind?: "curve" | "points";
+}
+
+// Plotting coordinate pairs is the class 9-10 exercise, and typing "(2,3)" used to
+// fail with a raw parser error. Detected by shape so no special prefix is needed.
+export function parsePointList(expression: string): Point[] | null {
+  const text = expression.trim();
+  if (!text.includes(",")) return null;
+  // Only coordinate punctuation: anything algebraic is an expression, not a point set.
+  if (!/^[\d\s.,;()-]+$/.test(text)) return null;
+
+  const numbers = (text.match(/-?\d*\.?\d+/g) ?? []).map(Number);
+  if (!numbers.length || numbers.some((value) => !Number.isFinite(value))) return null;
+  if (numbers.length % 2 !== 0) {
+    throw new Error("Each point needs an x and a y value, for example (2,3) (-2,3).");
+  }
+
+  const points: Point[] = [];
+  for (let index = 0; index < numbers.length; index += 2) {
+    points.push({ x: numbers[index], y: numbers[index + 1] });
+  }
+  return points;
 }
 
 export const formatAdvanced = (value: unknown): string => {
@@ -166,6 +189,67 @@ export function cartesianToPolar(
     angle += mode === "deg" ? 360 : mode === "grad" ? 400 : 2 * Math.PI;
   }
   return { radius: Math.hypot(x, y), angle };
+}
+
+export interface DegreesMinutesSeconds {
+  negative: boolean;
+  degrees: number;
+  minutes: number;
+  seconds: number;
+}
+
+// Drawings dimension angles as 12°34'56", so decimal degrees alone are not enough
+// to set a sine bar or a rotary table from a print.
+export function decimalToDMS(decimalDegrees: number, secondPlaces = 2): DegreesMinutesSeconds {
+  assertFinite(decimalDegrees, "Angle");
+  if (!Number.isInteger(secondPlaces) || secondPlaces < 0 || secondPlaces > 6) {
+    throw new Error("Second decimals must be a whole number from 0 to 6.");
+  }
+  const negative = decimalDegrees < 0;
+  const total = Math.abs(decimalDegrees);
+
+  let degrees = Math.floor(total);
+  let minutes = Math.floor((total - degrees) * 60);
+  let seconds = Number((((total - degrees) * 60 - minutes) * 60).toFixed(secondPlaces));
+
+  // Rounding can push seconds to a full minute, and minutes to a full degree.
+  if (seconds >= 60) {
+    seconds = 0;
+    minutes += 1;
+  }
+  if (minutes >= 60) {
+    minutes = 0;
+    degrees += 1;
+  }
+  return { negative, degrees, minutes, seconds };
+}
+
+export function formatDMS(decimalDegrees: number, secondPlaces = 2): string {
+  const { negative, degrees, minutes, seconds } = decimalToDMS(decimalDegrees, secondPlaces);
+  return `${negative ? "-" : ""}${degrees}°${minutes}'${seconds}"`;
+}
+
+// Accepts 12°34'56.5", 12 34 56.5, 12:34:56.5 and partial forms such as 12°30'.
+export function parseDMS(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error("Enter an angle.");
+
+  const negative = /^[-−]/.test(trimmed);
+  const parts = trimmed
+    .replace(/^[-−+]/, "")
+    .split(/[^\d.]+/)
+    .filter(Boolean)
+    .map(Number);
+
+  if (!parts.length || parts.length > 3 || parts.some((part) => !Number.isFinite(part))) {
+    throw new Error("Use degrees, minutes and seconds, for example 12°34'56\".");
+  }
+  const [degrees, minutes = 0, seconds = 0] = parts;
+  if (minutes >= 60 || seconds >= 60) {
+    throw new Error("Minutes and seconds must each be below 60.");
+  }
+  const decimal = degrees + minutes / 60 + seconds / 3600;
+  return negative ? -decimal : decimal;
 }
 
 export function polarToCartesian(
@@ -536,6 +620,12 @@ export function sampleGraph(
   samples = 600,
 ): GraphSeries {
   if (!(xMin < xMax)) throw new Error("Graph minimum must be smaller than maximum.");
+
+  const plotted = parsePointList(expression);
+  if (plotted) {
+    return { expression, points: plotted, roots: [], extrema: [], kind: "points" };
+  }
+
   const polarMatch = expression.match(/^polar:\s*(.+)$/i);
   const parametricMatch = expression.match(/^param:\s*(.+?)\s*;\s*(.+)$/i);
   const fn = !polarMatch && !parametricMatch ? compiledExpression(expression, "x") : null;

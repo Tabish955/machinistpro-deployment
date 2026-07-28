@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useCalculatorStore } from "./calculator-store";
+import { useHistoryStore } from "./history-store";
 
 describe("Standard calculator store", () => {
   beforeEach(() => {
@@ -235,5 +236,57 @@ describe("Standard calculator store", () => {
 
     expect(useCalculatorStore.getState().expression).not.toContain("Error");
     expect(useCalculatorStore.getState().expression).not.toContain("5/0");
+  });
+
+  it("brings the answer back when redoing past equals", () => {
+    // Redo restored the expression only, so it landed on a blank calculator.
+    useCalculatorStore.setState({ expression: "7+5" });
+    useCalculatorStore.getState().calculate(true, "standard");
+    expect(useCalculatorStore.getState().result).toBe("12");
+
+    useCalculatorStore.getState().undo();
+    expect(useCalculatorStore.getState().expression).toBe("7+5");
+
+    useCalculatorStore.getState().redo();
+    expect(useCalculatorStore.getState().result).toBe("12");
+  });
+
+  it("allows an accidental All Clear to be undone", () => {
+    // AC emptied the undo stack, so the most destructive key could not be taken back.
+    useCalculatorStore.getState().inputDigit("4");
+    useCalculatorStore.getState().inputDigit("2");
+    useCalculatorStore.getState().clear();
+    expect(useCalculatorStore.getState().expression).toBe("");
+
+    useCalculatorStore.getState().undo();
+    expect(useCalculatorStore.getState().expression).toBe("42");
+  });
+
+  it("records calculations in the shared store the dashboard pages read", () => {
+    // Nothing wrote to that store, so History and Favourites were always empty.
+    useHistoryStore.setState({ entries: [] });
+    useCalculatorStore.setState({ expression: "7+5" });
+    useCalculatorStore.getState().calculate(true, "standard");
+
+    const entries = useHistoryStore.getState().entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].title).toBe("7+5 = 12");
+    expect(entries[0].module).toBe("standard");
+    expect(entries[0].moduleLabel).toBe("Standard");
+  });
+
+  it("restores the angle mode an entry was calculated in", () => {
+    // Reopening a GRAD calculation while in DEG re-evaluated it in DEG.
+    useCalculatorStore.setState({ expression: "sin(100)", angleMode: "grad" });
+    useCalculatorStore.getState().calculate(false, "scientific");
+    const recorded = useCalculatorStore.getState().history[0];
+    expect(recorded.result).toBe(1);
+
+    useCalculatorStore.setState({ angleMode: "deg" });
+    useCalculatorStore.getState().loadFromHistory(recorded);
+    expect(useCalculatorStore.getState().angleMode).toBe("grad");
+
+    useCalculatorStore.getState().calculate(false, "scientific");
+    expect(useCalculatorStore.getState().result).toBe("1");
   });
 });
