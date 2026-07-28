@@ -1352,16 +1352,47 @@ function GraphingWorkspace() {
             {range.yMin <= 0 && range.yMax >= 0 && (
               <line x1={0} x2={width} y1={sy(0)} y2={sy(0)} stroke="#ffffff55" />
             )}
-            {series.map((item) => (
-              <path
-                key={item.expression}
-                d={pathFor(item)}
-                fill="none"
-                stroke={seriesColors[item.sourceIndex]}
-                strokeWidth="2.5"
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
+            {series.map((item) =>
+              item.kind === "points" ? (
+                // A plotted set of coordinates: mark each one and label it, rather
+                // than joining them into a curve.
+                <g key={item.expression}>
+                  {item.points.map(
+                    (point, index) =>
+                      point && (
+                        <g key={`${item.expression}-${index}`}>
+                          <circle
+                            cx={sx(point.x)}
+                            cy={sy(point.y)}
+                            r="5"
+                            fill={seriesColors[item.sourceIndex]}
+                            stroke="#0b0f19"
+                            strokeWidth="1.5"
+                          />
+                          <text
+                            x={sx(point.x) + 9}
+                            y={sy(point.y) - 8}
+                            fill={seriesColors[item.sourceIndex]}
+                            fontSize="12"
+                            fontFamily="ui-monospace, monospace"
+                          >
+                            ({point.x}, {point.y})
+                          </text>
+                        </g>
+                      ),
+                  )}
+                </g>
+              ) : (
+                <path
+                  key={item.expression}
+                  d={pathFor(item)}
+                  fill="none"
+                  stroke={seriesColors[item.sourceIndex]}
+                  strokeWidth="2.5"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ),
+            )}
             <line
               x1={sx(trace.x)}
               x2={sx(trace.x)}

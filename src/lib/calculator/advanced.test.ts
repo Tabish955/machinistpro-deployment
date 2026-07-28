@@ -8,6 +8,7 @@ import {
   engineeringFormat,
   formatDMS,
   parseDMS,
+  parsePointList,
   formatEngineeringNumber,
   linearRegression,
   matrixOperation,
@@ -237,6 +238,33 @@ describe("advanced calculator engines", () => {
         }
       }
     }
+  });
+
+  it("plots a list of coordinates instead of failing to parse it", () => {
+    // "(2,3)" used to reach mathjs and fail with "expected (char 3)".
+    const plotted = sampleGraph("(2,3) (-2,3) (-2,-3) (2,-3)", -10, 10);
+    expect(plotted.kind).toBe("points");
+    expect(plotted.points).toEqual([
+      { x: 2, y: 3 },
+      { x: -2, y: 3 },
+      { x: -2, y: -3 },
+      { x: 2, y: -3 },
+    ]);
+    // Accepts the separators a student is likely to type.
+    expect(parsePointList("2,3; -2,3")).toEqual([
+      { x: 2, y: 3 },
+      { x: -2, y: 3 },
+    ]);
+    expect(parsePointList("(1.5,-2.5)")).toEqual([{ x: 1.5, y: -2.5 }]);
+  });
+
+  it("keeps expressions as curves rather than reading them as points", () => {
+    expect(parsePointList("sin(x)")).toBeNull();
+    expect(parsePointList("0.2*x^2-2")).toBeNull();
+    expect(parsePointList("-5")).toBeNull();
+    expect(parsePointList("(2+3)")).toBeNull();
+    expect(sampleGraph("sin(x)", -10, 10).kind).toBeUndefined();
+    expect(() => parsePointList("(2,3) (5")).toThrow("Each point needs an x and a y value");
   });
 
   it("converts decimal degrees to degrees, minutes and seconds", () => {

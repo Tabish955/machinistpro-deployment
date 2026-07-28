@@ -38,6 +38,29 @@ export interface GraphSeries {
   points: Array<Point | null>;
   roots: Point[];
   extrema: Array<Point & { kind: "min" | "max" }>;
+  // "points" is a plotted set of coordinates rather than a sampled curve.
+  kind?: "curve" | "points";
+}
+
+// Plotting coordinate pairs is the class 9-10 exercise, and typing "(2,3)" used to
+// fail with a raw parser error. Detected by shape so no special prefix is needed.
+export function parsePointList(expression: string): Point[] | null {
+  const text = expression.trim();
+  if (!text.includes(",")) return null;
+  // Only coordinate punctuation: anything algebraic is an expression, not a point set.
+  if (!/^[\d\s.,;()-]+$/.test(text)) return null;
+
+  const numbers = (text.match(/-?\d*\.?\d+/g) ?? []).map(Number);
+  if (!numbers.length || numbers.some((value) => !Number.isFinite(value))) return null;
+  if (numbers.length % 2 !== 0) {
+    throw new Error("Each point needs an x and a y value, for example (2,3) (-2,3).");
+  }
+
+  const points: Point[] = [];
+  for (let index = 0; index < numbers.length; index += 2) {
+    points.push({ x: numbers[index], y: numbers[index + 1] });
+  }
+  return points;
 }
 
 export const formatAdvanced = (value: unknown): string => {
@@ -597,6 +620,12 @@ export function sampleGraph(
   samples = 600,
 ): GraphSeries {
   if (!(xMin < xMax)) throw new Error("Graph minimum must be smaller than maximum.");
+
+  const plotted = parsePointList(expression);
+  if (plotted) {
+    return { expression, points: plotted, roots: [], extrema: [], kind: "points" };
+  }
+
   const polarMatch = expression.match(/^polar:\s*(.+)$/i);
   const parametricMatch = expression.match(/^param:\s*(.+?)\s*;\s*(.+)$/i);
   const fn = !polarMatch && !parametricMatch ? compiledExpression(expression, "x") : null;
