@@ -17,6 +17,7 @@ import {
   parseRequiredNumber,
   polarToCartesian,
   programmerOperation,
+  parsePointList,
   sampleGraph,
   solvePolynomial,
   statistics,
@@ -1076,7 +1077,16 @@ function GraphingWorkspace() {
   const [expressions, setExpressions] = useState(["sin(x)", "0.2*x^2-2"]);
   const [enabled, setEnabled] = useState([true, true]);
   const [seriesColors, setSeriesColors] = useState(colors);
+  const [joined, setJoined] = useState<boolean[]>([]);
   const [range, setRange] = useState({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
+  // A half-typed list still counts, so the Join toggle does not flicker while typing.
+  const isPointList = (expression: string) => {
+    try {
+      return parsePointList(expression) !== null;
+    } catch {
+      return true;
+    }
+  };
   const [trace, setTrace] = useState({ x: 0, y: 0 });
   const graphResult = useMemo(() => {
     try {
@@ -1203,6 +1213,25 @@ function GraphingWorkspace() {
                   })
                 }
               />
+              {/* Only meaningful for a plotted set of coordinates, so it stays out of
+                  the way when the row holds an ordinary function. */}
+              {isPointList(expressions[index] ?? "") && (
+                <label className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
+                  <input
+                    aria-label={`Join points of series ${index + 1}`}
+                    type="checkbox"
+                    checked={joined[index] !== false}
+                    onChange={(e) =>
+                      setJoined((current) => {
+                        const next = [...current];
+                        next[index] = e.target.checked;
+                        return next;
+                      })
+                    }
+                  />
+                  Join
+                </label>
+              )}
               {expressions.length > 1 && (
                 <button
                   className={button}
@@ -1212,6 +1241,7 @@ function GraphingWorkspace() {
                       current.filter((_, itemIndex) => itemIndex !== index),
                     );
                     setEnabled((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                    setJoined((current) => current.filter((_, itemIndex) => itemIndex !== index));
                   }}
                 >
                   Remove
@@ -1357,6 +1387,19 @@ function GraphingWorkspace() {
                 // A plotted set of coordinates: mark each one and label it, rather
                 // than joining them into a curve.
                 <g key={item.expression}>
+                  {joined[item.sourceIndex] !== false && item.points.length > 1 && (
+                    // Closed for three or more, so a triangle or square reads as a shape.
+                    <polygon
+                      points={item.points
+                        .filter((point): point is { x: number; y: number } => !!point)
+                        .map((point) => `${sx(point.x)},${sy(point.y)}`)
+                        .join(" ")}
+                      fill={item.points.length > 2 ? `${seriesColors[item.sourceIndex]}18` : "none"}
+                      stroke={seriesColors[item.sourceIndex]}
+                      strokeWidth="2"
+                      strokeDasharray={item.points.length > 2 ? undefined : "6 4"}
+                    />
+                  )}
                   {item.points.map(
                     (point, index) =>
                       point && (
