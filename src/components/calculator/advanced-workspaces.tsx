@@ -1035,23 +1035,31 @@ function GraphingWorkspace() {
     }
     return found.slice(0, 12);
   }, [series]);
+  // Binary fractions leave dust like -9.799999999999999 in the range boxes.
+  const tidy = (value: number) => Number(value.toPrecision(12));
+  const ZOOM_STEP = 0.7;
   const zoom = (factor: number) =>
     setRange((r) => {
       const cx = (r.xMin + r.xMax) / 2,
         cy = (r.yMin + r.yMax) / 2;
       const hx = ((r.xMax - r.xMin) * factor) / 2,
         hy = ((r.yMax - r.yMin) * factor) / 2;
-      return { xMin: cx - hx, xMax: cx + hx, yMin: cy - hy, yMax: cy + hy };
+      return {
+        xMin: tidy(cx - hx),
+        xMax: tidy(cx + hx),
+        yMin: tidy(cy - hy),
+        yMax: tidy(cy + hy),
+      };
     });
   const pan = (xFactor: number, yFactor: number) =>
     setRange((current) => {
       const dx = (current.xMax - current.xMin) * xFactor;
       const dy = (current.yMax - current.yMin) * yFactor;
       return {
-        xMin: current.xMin + dx,
-        xMax: current.xMax + dx,
-        yMin: current.yMin + dy,
-        yMax: current.yMax + dy,
+        xMin: tidy(current.xMin + dx),
+        xMax: tidy(current.xMax + dx),
+        yMin: tidy(current.yMin + dy),
+        yMax: tidy(current.yMax + dy),
       };
     });
   return (
@@ -1143,10 +1151,12 @@ function GraphingWorkspace() {
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className={button} onClick={() => zoom(0.7)}>
+            {/* Reciprocal factors, so zooming in then out lands back where it started.
+                0.7 and 1.4 shrank the view by 2% on every round trip. */}
+            <button className={button} onClick={() => zoom(ZOOM_STEP)}>
               Zoom in
             </button>
-            <button className={button} onClick={() => zoom(1.4)}>
+            <button className={button} onClick={() => zoom(1 / ZOOM_STEP)}>
               Zoom out
             </button>
             <button
