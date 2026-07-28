@@ -8,7 +8,9 @@ import {
   engineeringFormat,
   evaluateComplex,
   formatAdvanced,
+  formatDMS,
   formatEngineeringNumber,
+  parseDMS,
   linearRegression,
   matrixOperation,
   normalizeEngineeringExpression,
@@ -80,7 +82,13 @@ function EngineeringWorkspace({
   const [coordinateB, setCoordinateB] = useState("4");
   const [coordinateResult, setCoordinateResult] = useState("");
   const [coordinateError, setCoordinateError] = useState("");
-  const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | null>(null);
+  const [decimalAngle, setDecimalAngle] = useState("53.130102");
+  const [dmsAngle, setDmsAngle] = useState("53°7'48.37\"");
+  const [angleResult, setAngleResult] = useState("");
+  const [angleError, setAngleError] = useState("");
+  const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | "angle" | null>(
+    null,
+  );
 
   useEffect(() => {
     const restored = historyItem?.engineeringState;
@@ -221,6 +229,39 @@ function EngineeringWorkspace({
       setCoordinateResult("");
       setCoordinateError(cause instanceof Error ? cause.message : "Invalid coordinates.");
     }
+  };
+
+  const toDMS = () => {
+    try {
+      const decimal = parseRequiredNumber(decimalAngle, "Angle");
+      const formatted = formatDMS(decimal);
+      setDmsAngle(formatted);
+      setAngleResult(`${formatEngineeringNumber(decimal, 10)}° = ${formatted}`);
+      setAngleError("");
+    } catch (cause) {
+      setAngleResult("");
+      setAngleError(cause instanceof Error ? cause.message : "Invalid angle.");
+    }
+  };
+
+  const toDecimal = () => {
+    try {
+      const decimal = parseDMS(dmsAngle);
+      const formatted = formatEngineeringNumber(decimal, 10);
+      setDecimalAngle(formatted);
+      setAngleResult(`${dmsAngle.trim()} = ${formatted}°`);
+      setAngleError("");
+    } catch (cause) {
+      setAngleResult("");
+      setAngleError(cause instanceof Error ? cause.message : "Invalid angle.");
+    }
+  };
+
+  const resetAngle = () => {
+    setDecimalAngle("53.130102");
+    setDmsAngle("53°7'48.37\"");
+    setAngleResult("");
+    setAngleError("");
   };
 
   const changeCoordinateType = (type: "cartesian" | "polar") => {
@@ -561,6 +602,63 @@ function EngineeringWorkspace({
                     onClick={() => void copy(coordinateResult, "coordinate")}
                   >
                     {copied === "coordinate" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              )}
+            </Result>
+          </div>
+        </section>
+
+        <section className={panel}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-gray-300">
+              Degrees, minutes and seconds
+            </h3>
+            <button className={button} onClick={resetAngle}>
+              Reset
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] text-gray-600">
+            Drawings dimension angles as 12°34&apos;56&quot;. Convert either way.
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[10px] text-gray-500">Decimal degrees</span>
+              <input
+                className={`${field} mt-1`}
+                value={decimalAngle}
+                onChange={(event) => setDecimalAngle(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && toDMS()}
+                aria-label="Decimal degrees"
+                inputMode="decimal"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] text-gray-500">Degrees minutes seconds</span>
+              <input
+                className={`${field} mt-1`}
+                value={dmsAngle}
+                onChange={(event) => setDmsAngle(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && toDecimal()}
+                aria-label="Degrees minutes seconds"
+              />
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className={primary} onClick={toDMS}>
+              Decimal → DMS
+            </button>
+            <button className={primary} onClick={toDecimal}>
+              DMS → Decimal
+            </button>
+          </div>
+          <div className="mt-3">
+            <Result error={angleError}>
+              {angleResult && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-mono text-base text-white">{angleResult}</p>
+                  <button className={button} onClick={() => void copy(angleResult, "angle")}>
+                    {copied === "angle" ? "Copied" : "Copy"}
                   </button>
                 </div>
               )}

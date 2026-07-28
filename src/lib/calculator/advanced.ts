@@ -168,6 +168,67 @@ export function cartesianToPolar(
   return { radius: Math.hypot(x, y), angle };
 }
 
+export interface DegreesMinutesSeconds {
+  negative: boolean;
+  degrees: number;
+  minutes: number;
+  seconds: number;
+}
+
+// Drawings dimension angles as 12°34'56", so decimal degrees alone are not enough
+// to set a sine bar or a rotary table from a print.
+export function decimalToDMS(decimalDegrees: number, secondPlaces = 2): DegreesMinutesSeconds {
+  assertFinite(decimalDegrees, "Angle");
+  if (!Number.isInteger(secondPlaces) || secondPlaces < 0 || secondPlaces > 6) {
+    throw new Error("Second decimals must be a whole number from 0 to 6.");
+  }
+  const negative = decimalDegrees < 0;
+  const total = Math.abs(decimalDegrees);
+
+  let degrees = Math.floor(total);
+  let minutes = Math.floor((total - degrees) * 60);
+  let seconds = Number((((total - degrees) * 60 - minutes) * 60).toFixed(secondPlaces));
+
+  // Rounding can push seconds to a full minute, and minutes to a full degree.
+  if (seconds >= 60) {
+    seconds = 0;
+    minutes += 1;
+  }
+  if (minutes >= 60) {
+    minutes = 0;
+    degrees += 1;
+  }
+  return { negative, degrees, minutes, seconds };
+}
+
+export function formatDMS(decimalDegrees: number, secondPlaces = 2): string {
+  const { negative, degrees, minutes, seconds } = decimalToDMS(decimalDegrees, secondPlaces);
+  return `${negative ? "-" : ""}${degrees}°${minutes}'${seconds}"`;
+}
+
+// Accepts 12°34'56.5", 12 34 56.5, 12:34:56.5 and partial forms such as 12°30'.
+export function parseDMS(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error("Enter an angle.");
+
+  const negative = /^[-−]/.test(trimmed);
+  const parts = trimmed
+    .replace(/^[-−+]/, "")
+    .split(/[^\d.]+/)
+    .filter(Boolean)
+    .map(Number);
+
+  if (!parts.length || parts.length > 3 || parts.some((part) => !Number.isFinite(part))) {
+    throw new Error("Use degrees, minutes and seconds, for example 12°34'56\".");
+  }
+  const [degrees, minutes = 0, seconds = 0] = parts;
+  if (minutes >= 60 || seconds >= 60) {
+    throw new Error("Minutes and seconds must each be below 60.");
+  }
+  const decimal = degrees + minutes / 60 + seconds / 3600;
+  return negative ? -decimal : decimal;
+}
+
 export function polarToCartesian(
   radius: number,
   angle: number,
