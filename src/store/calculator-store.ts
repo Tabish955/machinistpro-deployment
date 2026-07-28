@@ -11,10 +11,40 @@ import {
   autoCloseParens,
 } from "@/lib/calculator/engine";
 import { FUNCTIONS } from "@/lib/calculator/functions";
+import { useHistoryStore } from "./history-store";
 
 const MAX_HISTORY_SIZE = 100;
 const MAX_EXPRESSION_LENGTH = 500;
 const MAX_UNDO_STACK = 50;
+
+const MODE_LABELS: Record<string, string> = {
+  standard: "Standard",
+  scientific: "Scientific",
+  engineering: "Engineering",
+  statistics: "Statistics",
+  complex: "Complex",
+  programmer: "Programmer",
+  matrix: "Matrix",
+  equation: "Equation",
+  graphing: "Graphing",
+};
+
+// The dashboard History and Favourites pages read the shared history store, but
+// nothing ever wrote to it, so both stayed empty however much was calculated.
+// Every recorded calculation now reaches it as well as the calculator's own panel.
+function recordSharedHistory(item: CalculationResult) {
+  const mode = item.calculatorMode ?? "standard";
+  useHistoryStore
+    .getState()
+    .add(
+      mode,
+      MODE_LABELS[mode] ?? "Calculator",
+      `${item.expression} = ${item.displayResult}`,
+      item.angleMode ? `Angle mode ${item.angleMode.toUpperCase()}` : "",
+      { expression: item.expression },
+      { result: item.displayResult },
+    );
+}
 
 interface RepeatOperation {
   operator: "+" | "-" | "*" | "/";
@@ -559,6 +589,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           );
 
           const newHistory = [calcResult, ...history].slice(0, MAX_HISTORY_SIZE);
+          recordSharedHistory(calcResult);
 
           set({
             expression: "",
@@ -768,6 +799,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
           entry.angleMode,
         );
         item.engineeringState = entry.engineeringState;
+        recordSharedHistory(item);
         set((state) => ({ history: [item, ...state.history].slice(0, MAX_HISTORY_SIZE) }));
       },
 
@@ -809,6 +841,9 @@ export const useCalculatorStore = create<CalculatorStore>()(
           result: "",
           error: null,
           showHistory: false,
+          // Restore the angle mode the entry was calculated in, otherwise
+          // reopening sin(100) recorded in GRAD and pressing = answers in DEG.
+          ...(item.angleMode ? { angleMode: item.angleMode } : {}),
         });
       },
 
