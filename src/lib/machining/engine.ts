@@ -43,6 +43,20 @@ export function calcMRR(depthOfCut_mm: number, widthOfCut_mm: number, feedRate_m
   return (depthOfCut_mm * widthOfCut_mm * feedRate_mmMin) / 1000;
 }
 
+/**
+ * Turning removal rate, cm³/min.  MRR = ap × f × Vc
+ * ap mm, f mm/rev, Vc m/min. The milling form does not apply: a turning tool
+ * sweeps an annular ring, so the cutting speed carries the length of cut.
+ */
+export function calcTurningMRR(
+  depthOfCut_mm: number,
+  feedPerRev_mm: number,
+  cuttingSpeed_mMin: number,
+): number {
+  if (depthOfCut_mm <= 0 || feedPerRev_mm <= 0 || cuttingSpeed_mMin <= 0) return 0;
+  return depthOfCut_mm * feedPerRev_mm * cuttingSpeed_mMin;
+}
+
 // ─── Tap drill ──────────────────────────────────────────────────────────────
 /** Tap drill = Major diameter − Pitch   (basic 75% thread formula) */
 export function calcTapDrill(majorDia_mm: number, pitch_mm: number, threadPct = 75): number {

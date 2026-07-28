@@ -7,6 +7,7 @@ import {
   calcMachiningTime,
   calcMRR,
   calcMinorDia,
+  calcTurningMRR,
   calcDrillFeedPerRev,
   calcDrillPointDepth,
   calcDrillThroughDepth,
@@ -34,6 +35,15 @@ describe("machining engine", () => {
     // 2 mm deep, 10 mm wide, 400 mm/min = 8000 mm³/min = 8 cm³/min
     expect(calcMRR(2, 10, 400)).toBeCloseTo(8, 12);
     expect(calcMinorDia(10, 1.5)).toBeCloseTo(8.3763, 4);
+  });
+
+  it("uses the turning form of removal rate, not the milling one", () => {
+    // 2 mm deep, 0.25 mm/rev at 30 m/min removes 15 cm³/min.
+    expect(calcTurningMRR(2, 0.25, 30)).toBeCloseTo(15, 12);
+    // The milling formula applied to the same cut understates it by the
+    // circumference factor, which is what made spindle power read zero.
+    expect(calcTurningMRR(2, 0.25, 30)).toBeGreaterThan(calcMRR(2, 0.25, 191));
+    expect(calcTurningMRR(0, 0.25, 30)).toBe(0);
   });
 
   it("scales drill feed with diameter", () => {

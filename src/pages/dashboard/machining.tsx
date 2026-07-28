@@ -17,6 +17,10 @@ import {
   calcSpindlePower,
   calcSpindleTorque,
   calcChipThinningFactor,
+  calcSurfaceFinishRa,
+  calcTurningMRR,
+  calcBoltCircle,
+  calcTaper,
   kwToHp,
   inToMm,
   mmToIn,
@@ -299,6 +303,8 @@ function TurningCalc() {
   const [length, setLength] = useState("");
   const [csOverride, setCsOverride] = useState("");
   const [feedOverride, setFeedOverride] = useState("");
+  const [noseRadius, setNoseRadius] = useState("0.8");
+  const [depthOfCut, setDepthOfCut] = useState("");
 
   const defaultCs = isM ? mat.smm : mat.sfm;
   const defaultFeed = isM ? mat.chipTurnMm : mat.chipTurn;
@@ -317,6 +323,15 @@ function TurningCalc() {
   const time = feedRate > 0 && lenMm > 0 ? calcMachiningTime(lenMm, feedRate, 1) : 0;
   const surfSpeed = rpm > 0 && dMm > 0 ? calcSurfaceSpeed(rpm, dMm) : 0;
 
+  // Finish is set by feed against nose radius, so it can be predicted before cutting
+  // rather than measured after.
+  const noseMm = isM ? parseFloat(noseRadius) || 0 : inToMm(parseFloat(noseRadius) || 0);
+  const ra = calcSurfaceFinishRa(fprMm, noseMm);
+  const apMm = isM ? parseFloat(depthOfCut) || 0 : inToMm(parseFloat(depthOfCut) || 0);
+  const turnMrr = calcTurningMRR(apMm, fprMm, surfSpeed);
+  const turnPower = calcSpindlePower(calcCuttingPower(turnMrr, mat.kc), 0.8);
+  const turnTorque = calcSpindleTorque(turnPower, rpm);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
@@ -327,6 +342,8 @@ function TurningCalc() {
           <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
           <Num label="Cutting Speed" value={csOverride} onChange={setCsOverride} suffix={isM ? "m/min" : "SFM"} placeholder={`${defaultCs}`} />
           <Num label="Feed / Rev" value={feedOverride} onChange={setFeedOverride} suffix={isM ? "mm/rev" : "in/rev"} placeholder={`${defaultFeed}`} />
+          <Num label="Depth of Cut" value={depthOfCut} onChange={setDepthOfCut} suffix={isM ? "mm" : "in"} placeholder="for power" />
+          <Num label="Nose Radius" value={noseRadius} onChange={setNoseRadius} suffix={isM ? "mm" : "in"} placeholder="0.8" />
         </div>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
@@ -335,8 +352,16 @@ function TurningCalc() {
         <ResultRow label="Feed Rate" value={isM ? fmt(feedRate) : fmt(mmToIn(feedRate), 3)} unit={isM ? "mm/min" : "IPM"} />
         <ResultRow label="Surface Speed" value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))} unit={isM ? "m/min" : "SFM"} />
         <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
-        <CopyBtn text={`RPM: ${fmt(rpm, 0)}`} />
-        <FormulaBox formula="RPM = (Vc×1000)/(π×D) · Vf = N×f · T = L/Vf" />
+        <ResultRow label="Surface Finish Ra" value={ra > 0 ? fmt(ra, 2) : "—"} unit="µm" accent />
+        <ResultRow label="Finish (Rz approx.)" value={ra > 0 ? fmt(ra * 4, 2) : "—"} unit="µm" />
+        {turnPower > 0 && (
+          <>
+            <ResultRow label="Spindle Power (80% eff.)" value={`${fmt(turnPower, 2)} kW · ${fmt(kwToHp(turnPower), 2)}`} unit="hp" />
+            <ResultRow label="Spindle Torque" value={fmt(turnTorque, 1)} unit="Nm" />
+          </>
+        )}
+        <CopyBtn text={`RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feedRate)} mm/min, Ra: ${fmt(ra, 2)} µm`} />
+        <FormulaBox formula="RPM = (Vc×1000)/(π×D) · Vf = N×f · Ra ≈ f²/(32×r)" />
       </Card>
     </div>
   );
@@ -506,6 +531,131 @@ function TimeCalc() {
   );
 }
 
+// 8) Bolt circle / hole pattern
+function BoltCircleCalc() {
+  const [units, setUnits] = useState<UnitSystem>("metric");
+  const isM = units === "metric";
+  const [count, setCount] = useState("6");
+  const [pcd, setPcd] = useState("100");
+  const [start, setStart] = useState("0");
+  const [centreX, setCentreX] = useState("0");
+  const [centreY, setCentreY] = useState("0");
+
+  const holes = useMemo(() => {
+    try {
+      const pcdMm = isM ? parseFloat(pcd) || 0 : inToMm(parseFloat(pcd) || 0);
+      const list = calcBoltCircle(
+        parseInt(count, 10) || 0,
+        pcdMm,
+        parseFloat(start) || 0,
+      );
+      const ox = isM ? parseFloat(centreX) || 0 : inToMm(parseFloat(centreX) || 0);
+      const oy = isM ? parseFloat(centreY) || 0 : inToMm(parseFloat(centreY) || 0);
+      return { list: list.map((h) => ({ ...h, x: h.x + ox, y: h.y + oy })), error: "" };
+    } catch (cause) {
+      return { list: [], error: cause instanceof Error ? cause.message : "Invalid bolt circle." };
+    }
+  }, [count, pcd, start, centreX, centreY, isM]);
+
+  const show = (value: number) => (isM ? fmt(value, 3) : fmt(mmToIn(value), 4));
+  const table = holes.list
+    .map((h) => `${h.index}\t${fmt(h.angle, 3)}\t${show(h.x)}\t${show(h.y)}`)
+    .join("\n");
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
+        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <Num label="Number of Holes" value={count} onChange={setCount} suffix="holes" />
+          <Num label="Bolt Circle Dia" value={pcd} onChange={setPcd} suffix={isM ? "mm" : "in"} />
+          <Num label="Start Angle" value={start} onChange={setStart} suffix="°" />
+          <Num label="Centre X" value={centreX} onChange={setCentreX} suffix={isM ? "mm" : "in"} />
+          <Num label="Centre Y" value={centreY} onChange={setCentreY} suffix={isM ? "mm" : "in"} />
+        </div>
+        <p className="text-[10px] text-gray-600">
+          Angles run anticlockwise from the start angle, as dimensioned on a drawing.
+        </p>
+      </Card>
+      <Card variant="solid" padding="md" className="border-dark-600">
+        <SectionHeader title="Hole Positions" />
+        {holes.error ? (
+          <p className="text-xs text-accent-red">{holes.error}</p>
+        ) : (
+          <>
+            <div className="max-h-72 overflow-auto">
+              <table className="w-full font-mono text-xs">
+                <thead className="text-gray-500">
+                  <tr>
+                    <th className="text-left font-normal">#</th>
+                    <th className="text-right font-normal">Angle</th>
+                    <th className="text-right font-normal">X</th>
+                    <th className="text-right font-normal">Y</th>
+                  </tr>
+                </thead>
+                <tbody className="text-white">
+                  {holes.list.map((h) => (
+                    <tr key={h.index} className="border-t border-dark-700">
+                      <td className="py-1">{h.index}</td>
+                      <td className="py-1 text-right">{fmt(h.angle, 3)}°</td>
+                      <td className="py-1 text-right">{show(h.x)}</td>
+                      <td className="py-1 text-right">{show(h.y)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <CopyBtn text={table} />
+          </>
+        )}
+        <FormulaBox formula="X = R×cos(θ) + Cx · Y = R×sin(θ) + Cy · θ = start + n×360/holes" />
+      </Card>
+    </div>
+  );
+}
+
+// 9) Taper
+function TaperCalc() {
+  const [units, setUnits] = useState<UnitSystem>("metric");
+  const isM = units === "metric";
+  const [large, setLarge] = useState("");
+  const [small, setSmall] = useState("");
+  const [length, setLength] = useState("");
+
+  const toMm = (v: string) => (isM ? parseFloat(v) || 0 : inToMm(parseFloat(v) || 0));
+  const result = useMemo(() => {
+    try {
+      const len = toMm(length);
+      if (len <= 0) return null;
+      return calcTaper(toMm(large), toMm(small), len);
+    } catch {
+      return null;
+    }
+  }, [large, small, length, isM]);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
+        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <Num label="Large Diameter" value={large} onChange={setLarge} suffix={isM ? "mm" : "in"} placeholder="e.g. 20" />
+        <Num label="Small Diameter" value={small} onChange={setSmall} suffix={isM ? "mm" : "in"} placeholder="e.g. 10" />
+        <Num label="Length Between" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} placeholder="e.g. 50" />
+      </Card>
+      <Card variant="solid" padding="md" className="border-dark-600">
+        <SectionHeader title="Results" />
+        <ResultRow label="Included Angle" value={result ? fmt(result.includedAngle_deg, 4) : "—"} unit="°" accent />
+        <ResultRow label="Compound Set-over" value={result ? fmt(result.compoundAngle_deg, 4) : "—"} unit="°" accent />
+        <ResultRow label="Taper per mm" value={result ? fmt(result.taperPerMm, 5) : "—"} unit={isM ? "mm/mm" : "in/in"} />
+        <ResultRow label="Taper per Foot" value={result ? fmt(mmToIn(result.taperPerFoot_mm), 4) : "—"} unit="in/ft" />
+        <p className="mt-2 text-[10px] text-gray-600">
+          Set the compound rest to the set-over angle: half the included angle.
+        </p>
+        <FormulaBox formula="Included = 2×atan((D−d)/(2L)) · Compound = Included/2" />
+      </Card>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Tab definitions
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -517,6 +667,8 @@ const TABS = [
   { id: "turning",  name: "Turning",    comp: TurningCalc },
   { id: "drilling", name: "Drilling",   comp: DrillCalc },
   { id: "thread",   name: "Threads",    comp: ThreadCalc },
+  { id: "bolt",     name: "Bolt Circle", comp: BoltCircleCalc },
+  { id: "taper",    name: "Taper",      comp: TaperCalc },
   { id: "time",     name: "Time",       comp: TimeCalc },
 ];
 
