@@ -11,6 +11,13 @@ import {
   calcMachiningTime,
   calcMRR,
   calcMinorDia,
+  calcDrillFeedPerRev,
+  calcDrillPointDepth,
+  calcCuttingPower,
+  calcSpindlePower,
+  calcSpindleTorque,
+  calcChipThinningFactor,
+  kwToHp,
   inToMm,
   mmToIn,
   sfmToSmm,
@@ -228,6 +235,11 @@ function MillingCalc() {
   const feed = rpm > 0 && z > 0 ? calcFeedRate(rpm, z, clMm) : 0;
   const time = feed > 0 && lenMm > 0 ? calcMachiningTime(lenMm, feed, 1) : 0;
   const mrr = apMm > 0 && aeMm > 0 && feed > 0 ? calcMRR(apMm, aeMm, feed) : 0;
+  // Whether the machine can take the cut at all, which nothing here answered before.
+  const cuttingPower = calcCuttingPower(mrr, mat.kc);
+  const spindlePower = calcSpindlePower(cuttingPower, 0.8);
+  const torque = calcSpindleTorque(spindlePower, rpm);
+  const thinning = calcChipThinningFactor(aeMm, dMm);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -249,9 +261,28 @@ function MillingCalc() {
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
         <ResultRow label="Feed Rate" value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)} unit={isM ? "mm/min" : "IPM"} accent />
         <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
-        <ResultRow label="Material Removal Rate" value={mrr > 0 ? fmt(mrr) : "—"} unit="cm³/min" />
-        <CopyBtn text={`RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feed)} mm/min`} />
-        <FormulaBox formula="RPM = (Vc×1000)/(π×D) · Vf = N×z×fz · T = L/Vf" />
+        <ResultRow
+          label="Material Removal Rate"
+          value={mrr > 0 ? (isM ? fmt(mrr) : fmt(mrr / 16.387, 3)) : "—"}
+          unit={isM ? "cm³/min" : "in³/min"}
+        />
+        <ResultRow label="Cutting Power" value={cuttingPower > 0 ? fmt(cuttingPower, 2) : "—"} unit="kW" />
+        <ResultRow
+          label="Spindle Power (80% eff.)"
+          value={spindlePower > 0 ? `${fmt(spindlePower, 2)} kW · ${fmt(kwToHp(spindlePower), 2)}` : "—"}
+          unit={spindlePower > 0 ? "hp" : ""}
+          accent
+        />
+        <ResultRow label="Spindle Torque" value={torque > 0 ? fmt(torque, 1) : "—"} unit="Nm" />
+        {thinning > 1.001 && (
+          <ResultRow
+            label="Chip Thinning Factor"
+            value={`×${fmt(thinning, 3)}`}
+            unit={`feed ${isM ? fmt(feed * thinning) : fmt(mmToIn(feed * thinning), 3)} ${isM ? "mm/min" : "IPM"}`}
+          />
+        )}
+        <CopyBtn text={`RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feed)} mm/min, Power: ${fmt(spindlePower, 2)} kW`} />
+        <FormulaBox formula="RPM = (Vc×1000)/(π×D) · Vf = N×z×fz · Pc = MRR×kc/60000 · M = 9550P/n" />
       </Card>
     </div>
   );
@@ -320,34 +351,75 @@ function DrillCalc() {
 
   const [dia, setDia] = useState("");
   const [depth, setDepth] = useState("");
+  const [pointAngle, setPointAngle] = useState("118");
+  const [feedOverride, setFeedOverride] = useState("");
+  const [throughHole, setThroughHole] = useState(true);
 
   const d = parseFloat(dia) || 0;
   const dep = parseFloat(depth) || 0;
   const dMm = isM ? d : inToMm(d);
   const depMm = isM ? dep : inToMm(dep);
+  const angle = parseFloat(pointAngle) || 118;
 
   const drillCs = isM ? mat.drillSmm : mat.drillSfm;
   const drillCsMm = isM ? drillCs : sfmToSmm(drillCs);
   const rpm = dMm > 0 ? calcRPM(drillCsMm, dMm) : 0;
-  const feed = rpm * (isM ? mat.chipTurnMm : inToMm(mat.chipTurn));
-  const time = feed > 0 && depMm > 0 ? calcMachiningTime(depMm, feed, 1) : 0;
+
+  // Feed per rev scales with diameter. This used to reuse the turning feed, a flat
+  // 0.25 mm/rev for mild steel, which is far too much for a small drill.
+  const suggestedFprMm = calcDrillFeedPerRev(dMm, mat.drillFeedFactor);
+  const overrideFpr = parseFloat(feedOverride);
+  const fprMm =
+    Number.isFinite(overrideFpr) && overrideFpr > 0
+      ? isM
+        ? overrideFpr
+        : inToMm(overrideFpr)
+      : suggestedFprMm;
+  const feed = rpm * fprMm;
+
+  // A twist drill must travel past the hole depth by its point length to break out.
+  const pointDepthMm = calcDrillPointDepth(dMm, angle);
+  const travelMm = throughHole ? depMm + pointDepthMm : depMm;
+  const time = feed > 0 && travelMm > 0 ? calcMachiningTime(travelMm, feed, 1) : 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
         <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
         <MaterialSelect value={matId} onChange={setMatId} />
-        <Num label="Drill Diameter" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} placeholder="e.g. 8" />
-        <Num label="Hole Depth" value={depth} onChange={setDepth} suffix={isM ? "mm" : "in"} placeholder="e.g. 25" />
+        <div className="grid grid-cols-2 gap-3">
+          <Num label="Drill Diameter" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} placeholder="e.g. 8" />
+          <Num label="Hole Depth" value={depth} onChange={setDepth} suffix={isM ? "mm" : "in"} placeholder="e.g. 25" />
+          <Num label="Point Angle" value={pointAngle} onChange={setPointAngle} suffix="°" placeholder="118" />
+          <Num
+            label="Feed / Rev (override)"
+            value={feedOverride}
+            onChange={setFeedOverride}
+            suffix={isM ? "mm/rev" : "in/rev"}
+            placeholder={isM ? fmt(suggestedFprMm, 3) : fmt(mmToIn(suggestedFprMm), 4)}
+          />
+        </div>
+        <label className="flex items-center gap-2 text-xs text-gray-400">
+          <input
+            type="checkbox"
+            checked={throughHole}
+            onChange={(e) => setThroughHole(e.target.checked)}
+            aria-label="Through hole"
+          />
+          Through hole — add drill point to the travel
+        </label>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
         <ResultRow label="Drill Cutting Speed" value={isM ? fmt(drillCs) : fmt(mat.drillSfm)} unit={isM ? "m/min" : "SFM"} />
-        <ResultRow label="Feed Rate" value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)} unit={isM ? "mm/min" : "IPM"} />
+        <ResultRow label="Feed / Rev" value={isM ? fmt(fprMm, 3) : fmt(mmToIn(fprMm), 4)} unit={isM ? "mm/rev" : "in/rev"} />
+        <ResultRow label="Feed Rate" value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)} unit={isM ? "mm/min" : "IPM"} accent />
+        <ResultRow label="Drill Point Depth" value={pointDepthMm > 0 ? (isM ? fmt(pointDepthMm) : fmt(mmToIn(pointDepthMm), 3)) : "—"} unit={isM ? "mm" : "in"} />
+        <ResultRow label="Total Travel" value={travelMm > 0 ? (isM ? fmt(travelMm) : fmt(mmToIn(travelMm), 3)) : "—"} unit={isM ? "mm" : "in"} />
         <ResultRow label="Drilling Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
-        <CopyBtn text={`Drill RPM: ${fmt(rpm, 0)}`} />
-        <FormulaBox formula="RPM = (Vc×1000)/(π×D)" />
+        <CopyBtn text={`Drill RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feed)} mm/min`} />
+        <FormulaBox formula="RPM = (Vc×1000)/(π×D) · fn = f×D · Point = (D/2)/tan(θ/2)" />
       </Card>
     </div>
   );

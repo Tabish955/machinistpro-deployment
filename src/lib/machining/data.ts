@@ -4,14 +4,14 @@ import type { MachiningMaterial, ThreadEntry } from "./types";
 // SFM / SMM values are mid-range recommendations for HSS tooling.
 
 export const MATERIALS: MachiningMaterial[] = [
-  { id: "mild_steel",   name: "Mild Steel",       sfm: 100, smm: 30,  chipMill: 0.004, chipMillMm: 0.10, chipTurn: 0.010, chipTurnMm: 0.25, drillSfm: 80,  drillSmm: 25 },
-  { id: "stainless",    name: "Stainless Steel",   sfm: 65,  smm: 20,  chipMill: 0.003, chipMillMm: 0.08, chipTurn: 0.006, chipTurnMm: 0.15, drillSfm: 50,  drillSmm: 15 },
-  { id: "aluminum",     name: "Aluminum",          sfm: 600, smm: 180, chipMill: 0.006, chipMillMm: 0.15, chipTurn: 0.012, chipTurnMm: 0.30, drillSfm: 300, drillSmm: 90 },
-  { id: "brass",        name: "Brass",             sfm: 300, smm: 90,  chipMill: 0.005, chipMillMm: 0.13, chipTurn: 0.010, chipTurnMm: 0.25, drillSfm: 200, drillSmm: 60 },
-  { id: "copper",       name: "Copper",            sfm: 200, smm: 60,  chipMill: 0.004, chipMillMm: 0.10, chipTurn: 0.008, chipTurnMm: 0.20, drillSfm: 150, drillSmm: 45 },
-  { id: "cast_iron",    name: "Cast Iron",         sfm: 80,  smm: 25,  chipMill: 0.005, chipMillMm: 0.13, chipTurn: 0.010, chipTurnMm: 0.25, drillSfm: 70,  drillSmm: 20 },
-  { id: "titanium",     name: "Titanium",          sfm: 50,  smm: 15,  chipMill: 0.002, chipMillMm: 0.05, chipTurn: 0.004, chipTurnMm: 0.10, drillSfm: 35,  drillSmm: 10 },
-  { id: "plastic",      name: "Plastic / Delrin",  sfm: 500, smm: 150, chipMill: 0.008, chipMillMm: 0.20, chipTurn: 0.015, chipTurnMm: 0.40, drillSfm: 300, drillSmm: 90 },
+  { id: "mild_steel",   name: "Mild Steel",       sfm: 100, smm: 30,  chipMill: 0.004, chipMillMm: 0.10, chipTurn: 0.010, chipTurnMm: 0.25, drillSfm: 80,  drillSmm: 25, drillFeedFactor: 0.020, kc: 1700 },
+  { id: "stainless",    name: "Stainless Steel",   sfm: 65,  smm: 20,  chipMill: 0.003, chipMillMm: 0.08, chipTurn: 0.006, chipTurnMm: 0.15, drillSfm: 50,  drillSmm: 15, drillFeedFactor: 0.015, kc: 2100 },
+  { id: "aluminum",     name: "Aluminum",          sfm: 600, smm: 180, chipMill: 0.006, chipMillMm: 0.15, chipTurn: 0.012, chipTurnMm: 0.30, drillSfm: 300, drillSmm: 90, drillFeedFactor: 0.025, kc: 750 },
+  { id: "brass",        name: "Brass",             sfm: 300, smm: 90,  chipMill: 0.005, chipMillMm: 0.13, chipTurn: 0.010, chipTurnMm: 0.25, drillSfm: 200, drillSmm: 60, drillFeedFactor: 0.025, kc: 650 },
+  { id: "copper",       name: "Copper",            sfm: 200, smm: 60,  chipMill: 0.004, chipMillMm: 0.10, chipTurn: 0.008, chipTurnMm: 0.20, drillSfm: 150, drillSmm: 45, drillFeedFactor: 0.020, kc: 1000 },
+  { id: "cast_iron",    name: "Cast Iron",         sfm: 80,  smm: 25,  chipMill: 0.005, chipMillMm: 0.13, chipTurn: 0.010, chipTurnMm: 0.25, drillSfm: 70,  drillSmm: 20, drillFeedFactor: 0.020, kc: 1150 },
+  { id: "titanium",     name: "Titanium",          sfm: 50,  smm: 15,  chipMill: 0.002, chipMillMm: 0.05, chipTurn: 0.004, chipTurnMm: 0.10, drillSfm: 35,  drillSmm: 10, drillFeedFactor: 0.010, kc: 1400 },
+  { id: "plastic",      name: "Plastic / Delrin",  sfm: 500, smm: 150, chipMill: 0.008, chipMillMm: 0.20, chipTurn: 0.015, chipTurnMm: 0.40, drillSfm: 300, drillSmm: 90, drillFeedFactor: 0.030, kc: 200 },
 ];
 
 export const MATERIAL_MAP = new Map(MATERIALS.map((m) => [m.id, m]));
