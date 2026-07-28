@@ -51,6 +51,14 @@ interface RepeatOperation {
   operand: number;
 }
 
+// Undo used to remember the expression alone, so redoing past an equals landed on
+// a blank calculator instead of the answer. The result travels with it now.
+export interface CalculatorSnapshot {
+  expression: string;
+  result: string;
+  previousResult: string;
+}
+
 function getRepeatOperation(expression: string, angleMode: AngleMode): RepeatOperation | null {
   let depth = 0;
   let operatorIndex = -1;
@@ -178,8 +186,8 @@ interface CalculatorStore {
   showHistory: boolean;
 
   // Undo/Redo
-  undoStack: string[];
-  redoStack: string[];
+  undoStack: CalculatorSnapshot[];
+  redoStack: CalculatorSnapshot[];
 
   // Actions
   inputDigit: (digit: string) => void;
@@ -240,8 +248,19 @@ interface CalculatorStore {
 }
 
 // Helper to push to undo stack
-function pushUndo(state: { expression: string; undoStack: string[]; redoStack: string[] }) {
-  const newStack = [state.expression, ...state.undoStack].slice(0, MAX_UNDO_STACK);
+function pushUndo(state: {
+  expression: string;
+  result: string;
+  previousResult: string;
+  undoStack: CalculatorSnapshot[];
+  redoStack: CalculatorSnapshot[];
+}) {
+  const snapshot: CalculatorSnapshot = {
+    expression: state.expression,
+    result: state.result,
+    previousResult: state.previousResult,
+  };
+  const newStack = [snapshot, ...state.undoStack].slice(0, MAX_UNDO_STACK);
   return { undoStack: newStack, redoStack: [] };
 }
 
@@ -535,15 +554,16 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Clear all
       clear: () => {
+        // AC is the most destructive single key, so it is the one most worth being
+        // able to take back. It used to empty the undo stack, making that impossible.
         set({
+          ...pushUndo(get()),
           expression: "",
           displayExpression: "",
           result: "0",
           previousResult: "",
           error: null,
           repeatOperation: null,
-          undoStack: [],
-          redoStack: [],
         });
       },
 
@@ -606,7 +626,10 @@ export const useCalculatorStore = create<CalculatorStore>()(
                   ? repeatOperation
                   : null,
             undoStack: expression
-              ? [expression, ...undoStack].slice(0, MAX_UNDO_STACK)
+              ? [
+                  { expression, result: get().result, previousResult: get().previousResult },
+                  ...undoStack,
+                ].slice(0, MAX_UNDO_STACK)
               : undoStack,
             redoStack: [],
           });
@@ -751,35 +774,43 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
       // Undo
       undo: () => {
-        const { undoStack, expression, redoStack } = get();
+        const { undoStack, expression, result, previousResult, redoStack } = get();
         if (undoStack.length === 0) return;
 
-        const [prevExpr, ...restUndo] = undoStack;
+        const [previous, ...restUndo] = undoStack;
         set({
-          expression: prevExpr,
-          displayExpression: formatExpression(prevExpr),
-          result: prevExpr ? "" : "0",
+          expression: previous.expression,
+          displayExpression: formatExpression(previous.expression),
+          result: previous.result,
+          previousResult: previous.previousResult,
           error: null,
           repeatOperation: null,
           undoStack: restUndo,
-          redoStack: [expression, ...redoStack].slice(0, MAX_UNDO_STACK),
+          redoStack: [{ expression, result, previousResult }, ...redoStack].slice(
+            0,
+            MAX_UNDO_STACK,
+          ),
         });
       },
 
       // Redo
       redo: () => {
-        const { redoStack, expression, undoStack } = get();
+        const { redoStack, expression, result, previousResult, undoStack } = get();
         if (redoStack.length === 0) return;
 
-        const [nextExpr, ...restRedo] = redoStack;
+        const [next, ...restRedo] = redoStack;
         set({
-          expression: nextExpr,
-          displayExpression: formatExpression(nextExpr),
-          result: nextExpr ? "" : "0",
+          expression: next.expression,
+          displayExpression: formatExpression(next.expression),
+          result: next.result,
+          previousResult: next.previousResult,
           error: null,
           repeatOperation: null,
           redoStack: restRedo,
-          undoStack: [expression, ...undoStack].slice(0, MAX_UNDO_STACK),
+          undoStack: [{ expression, result, previousResult }, ...undoStack].slice(
+            0,
+            MAX_UNDO_STACK,
+          ),
         });
       },
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCalculatorStore } from "@/store/calculator-store";
+import { useCalculatorStore, type CalculatorSnapshot } from "@/store/calculator-store";
 import { PremiumDisplay } from "./premium-display";
 import { PremiumKeypad } from "./premium-keypad";
 import { HistoryPanel } from "./history-panel";
@@ -30,8 +30,8 @@ export function PremiumCalculator() {
     previousResult: string;
     error: CalculatorError | null;
     lastAnswer: number | null;
-    undoStack: string[];
-    redoStack: string[];
+    undoStack: CalculatorSnapshot[];
+    redoStack: CalculatorSnapshot[];
   }
   const emptyDraft = (): ScalarDraft => ({
     expression: "",

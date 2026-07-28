@@ -238,6 +238,30 @@ describe("Standard calculator store", () => {
     expect(useCalculatorStore.getState().expression).not.toContain("5/0");
   });
 
+  it("brings the answer back when redoing past equals", () => {
+    // Redo restored the expression only, so it landed on a blank calculator.
+    useCalculatorStore.setState({ expression: "7+5" });
+    useCalculatorStore.getState().calculate(true, "standard");
+    expect(useCalculatorStore.getState().result).toBe("12");
+
+    useCalculatorStore.getState().undo();
+    expect(useCalculatorStore.getState().expression).toBe("7+5");
+
+    useCalculatorStore.getState().redo();
+    expect(useCalculatorStore.getState().result).toBe("12");
+  });
+
+  it("allows an accidental All Clear to be undone", () => {
+    // AC emptied the undo stack, so the most destructive key could not be taken back.
+    useCalculatorStore.getState().inputDigit("4");
+    useCalculatorStore.getState().inputDigit("2");
+    useCalculatorStore.getState().clear();
+    expect(useCalculatorStore.getState().expression).toBe("");
+
+    useCalculatorStore.getState().undo();
+    expect(useCalculatorStore.getState().expression).toBe("42");
+  });
+
   it("records calculations in the shared store the dashboard pages read", () => {
     // Nothing wrote to that store, so History and Favourites were always empty.
     useHistoryStore.setState({ entries: [] });
