@@ -72,6 +72,13 @@ export function PremiumCalculator() {
     setModeState(nextMode);
     window.localStorage.setItem("machinist-pro-calculator-mode", nextMode);
   };
+  // The route sets a fixed "Scientific" title, so every mode looked identical in the
+  // browser tab. Name the mode actually in use.
+  useEffect(() => {
+    const label = mode.charAt(0).toUpperCase() + mode.slice(1);
+    document.title = `${label} Calculator | MachinistPro`;
+  }, [mode]);
+
   const loadHistoryItem = (item: CalculationResult) => {
     if (item.calculatorMode === "engineering" && item.engineeringState) {
       setMode("engineering");
