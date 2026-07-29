@@ -41,12 +41,22 @@ const SHAFT_UPPER_DEV: Record<string, number[]> = {
   s: [14, 19, 23, 28, 35, 43, 53, 59, 68, 79, 88, 98],
 };
 
+/**
+ * ISO 286 steps are "over X up to AND INCLUDING Y", so a diameter sitting exactly
+ * on a boundary belongs to the lower step. Treating the top as exclusive pushed
+ * every common size — 3, 6, 10, 18, 30, 50 — into the next step up, widening the
+ * band: 30 H7 read 0/+25 µm where the standard gives 0/+21 µm.
+ */
 function getRangeIndex(diameter: number): number {
   for (let i = 0; i < RANGES.length; i++) {
-    if (diameter >= RANGES[i][0] && diameter < RANGES[i][1]) return i;
+    if (diameter >= RANGES[i][0] && diameter <= RANGES[i][1]) return i;
   }
   return RANGES.length - 1;
 }
+
+// Shafts a-h are tabulated by their upper deviation (es); j-z by their lower (ei).
+// Deciding by the sign of the table value misread k at sizes where it is exactly 0.
+const UPPER_DEVIATION_LETTERS = new Set(["a", "b", "c", "d", "e", "f", "g", "h"]);
 
 export type FitType = "clearance" | "transition" | "interference";
 
@@ -101,15 +111,15 @@ export function calcFit(
     shaftUpper = Math.round(shaftTol / 2);
     shaftLower = -shaftUpper;
   } else {
-    const es = devTable[idx]; // upper deviation
-    if (es <= 0) {
-      // Clearance/sliding: es is the upper dev (negative or zero)
-      shaftUpper = es;
-      shaftLower = es - shaftTol;
+    const deviation = devTable[idx];
+    if (UPPER_DEVIATION_LETTERS.has(shaftLetter.toLowerCase())) {
+      // a-h: the table holds the upper deviation, so the lower is IT below it.
+      shaftUpper = deviation;
+      shaftLower = deviation - shaftTol;
     } else {
-      // Transition/interference: es is the lower dev (positive)
-      shaftLower = es;
-      shaftUpper = es + shaftTol;
+      // j-z: the table holds the lower deviation, so the upper is IT above it.
+      shaftLower = deviation;
+      shaftUpper = deviation + shaftTol;
     }
   }
 

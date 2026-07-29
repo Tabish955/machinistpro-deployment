@@ -11,6 +11,13 @@ export interface MachiningMaterial {
   chipTurnMm: number;   // feed per rev turning (mm/rev)
   drillSfm: number;     // drilling SFM
   drillSmm: number;     // drilling m/min
+  /**
+   * Drill feed per revolution as a fraction of drill diameter. Drilling feed
+   * scales with diameter; a flat figure snaps small drills.
+   */
+  drillFeedFactor: number;
+  /** Specific cutting force Kc, N/mm². Used for cutting power and torque. */
+  kc: number;
 }
 
 // Thread standard

@@ -43,6 +43,20 @@ export function calcMRR(depthOfCut_mm: number, widthOfCut_mm: number, feedRate_m
   return (depthOfCut_mm * widthOfCut_mm * feedRate_mmMin) / 1000;
 }
 
+/**
+ * Turning removal rate, cm³/min.  MRR = ap × f × Vc
+ * ap mm, f mm/rev, Vc m/min. The milling form does not apply: a turning tool
+ * sweeps an annular ring, so the cutting speed carries the length of cut.
+ */
+export function calcTurningMRR(
+  depthOfCut_mm: number,
+  feedPerRev_mm: number,
+  cuttingSpeed_mMin: number,
+): number {
+  if (depthOfCut_mm <= 0 || feedPerRev_mm <= 0 || cuttingSpeed_mMin <= 0) return 0;
+  return depthOfCut_mm * feedPerRev_mm * cuttingSpeed_mMin;
+}
+
 // ─── Tap drill ──────────────────────────────────────────────────────────────
 /** Tap drill = Major diameter − Pitch   (basic 75% thread formula) */
 export function calcTapDrill(majorDia_mm: number, pitch_mm: number, threadPct = 75): number {
@@ -53,6 +67,137 @@ export function calcTapDrill(majorDia_mm: number, pitch_mm: number, threadPct = 
 export function calcMinorDia(majorDia_mm: number, pitch_mm: number): number {
   // ISO metric: d_minor = d_major - 1.0825 × pitch
   return majorDia_mm - 1.0825 * pitch_mm;
+}
+
+// ─── Drilling ───────────────────────────────────────────────────────────────
+/**
+ * Feed per revolution for a twist drill, mm/rev. Feed scales with diameter:
+ * a fixed value that suits a 12 mm drill will snap a 3 mm one.
+ */
+export function calcDrillFeedPerRev(diameter_mm: number, feedFactor: number): number {
+  if (diameter_mm <= 0 || feedFactor <= 0) return 0;
+  return diameter_mm * feedFactor;
+}
+
+/**
+ * Axial length of the drill point, mm. A 118° twist drill adds ≈0.3 × D, which
+ * the tool must travel beyond the hole depth to break through.
+ */
+export function calcDrillPointDepth(diameter_mm: number, pointAngle_deg = 118): number {
+  if (diameter_mm <= 0 || pointAngle_deg <= 0 || pointAngle_deg >= 180) return 0;
+  return diameter_mm / 2 / Math.tan((pointAngle_deg / 2) * (PI / 180));
+}
+
+/** Travel to clear a through hole: depth plus the drill point. */
+export function calcDrillThroughDepth(
+  holeDepth_mm: number,
+  diameter_mm: number,
+  pointAngle_deg = 118,
+): number {
+  return holeDepth_mm + calcDrillPointDepth(diameter_mm, pointAngle_deg);
+}
+
+// ─── Power and torque ───────────────────────────────────────────────────────
+/**
+ * Net cutting power, kW.  Pc = MRR × kc / 60000   (MRR cm³/min, kc N/mm²)
+ * Answers the question that decides whether a cut is possible at all.
+ */
+export function calcCuttingPower(mrr_cm3min: number, kc_Nmm2: number): number {
+  if (mrr_cm3min <= 0 || kc_Nmm2 <= 0) return 0;
+  return (mrr_cm3min * kc_Nmm2) / 60_000;
+}
+
+/** Spindle power required allowing for machine efficiency (0-1). */
+export function calcSpindlePower(cuttingPower_kW: number, efficiency = 0.8): number {
+  if (cuttingPower_kW <= 0 || efficiency <= 0) return 0;
+  return cuttingPower_kW / efficiency;
+}
+
+/** Spindle torque, Nm.  T = 9550 × P(kW) / N(rpm) */
+export function calcSpindleTorque(power_kW: number, rpm: number): number {
+  if (rpm <= 0 || power_kW <= 0) return 0;
+  return (9550 * power_kW) / rpm;
+}
+
+export function kwToHp(kw: number): number { return kw / 0.7457; }
+
+// ─── Surface finish ─────────────────────────────────────────────────────────
+/**
+ * Theoretical turned finish, Ra in µm.  Ra ≈ f² / (32 × r)
+ * f = feed per rev (mm), r = insert nose radius (mm).
+ */
+export function calcSurfaceFinishRa(feedPerRev_mm: number, noseRadius_mm: number): number {
+  if (feedPerRev_mm <= 0 || noseRadius_mm <= 0) return 0;
+  return ((feedPerRev_mm * feedPerRev_mm) / (32 * noseRadius_mm)) * 1000;
+}
+
+/** Feed per rev that achieves a target Ra, the inverse of the above. */
+export function calcFeedForRa(targetRa_um: number, noseRadius_mm: number): number {
+  if (targetRa_um <= 0 || noseRadius_mm <= 0) return 0;
+  return Math.sqrt((targetRa_um / 1000) * 32 * noseRadius_mm);
+}
+
+// ─── Radial chip thinning ───────────────────────────────────────────────────
+/**
+ * Below half-diameter engagement each tooth cuts a thinner chip than the
+ * programmed feed, so feed must be multiplied by this factor to keep the same
+ * chip thickness. Returns 1 at or above 50% radial engagement.
+ */
+export function calcChipThinningFactor(widthOfCut_mm: number, toolDiameter_mm: number): number {
+  if (widthOfCut_mm <= 0 || toolDiameter_mm <= 0) return 1;
+  if (widthOfCut_mm >= toolDiameter_mm / 2) return 1;
+  const denominator = 2 * Math.sqrt(toolDiameter_mm * widthOfCut_mm - widthOfCut_mm * widthOfCut_mm);
+  if (denominator <= 0) return 1;
+  return toolDiameter_mm / denominator;
+}
+
+// ─── Bolt circle ────────────────────────────────────────────────────────────
+export interface BoltHole { index: number; angle: number; x: number; y: number; }
+
+/**
+ * Hole centres on a pitch circle, measured from the circle centre.
+ * Angles run anticlockwise from the start angle, as on a drawing.
+ */
+export function calcBoltCircle(
+  holeCount: number,
+  pitchDiameter_mm: number,
+  startAngle_deg = 0,
+): BoltHole[] {
+  if (!Number.isInteger(holeCount) || holeCount < 1) {
+    throw new Error("Enter a whole number of holes, at least 1.");
+  }
+  if (holeCount > 200) throw new Error("Limited to 200 holes.");
+  if (pitchDiameter_mm <= 0) throw new Error("Pitch circle diameter must be greater than zero.");
+
+  const radius = pitchDiameter_mm / 2;
+  const step = 360 / holeCount;
+  return Array.from({ length: holeCount }, (_, index) => {
+    const angle = startAngle_deg + index * step;
+    const radians = angle * (PI / 180);
+    // Snap the axis crossings: cos(90°) lands on 6.1e-17 rather than 0.
+    const clean = (value: number) => (Math.abs(value) < radius * 1e-12 ? 0 : value);
+    return {
+      index: index + 1,
+      angle: Number((angle % 360).toFixed(6)),
+      x: clean(radius * Math.cos(radians)),
+      y: clean(radius * Math.sin(radians)),
+    };
+  });
+}
+
+// ─── Taper ──────────────────────────────────────────────────────────────────
+/** Lathe taper from the two diameters and the length between them. */
+export function calcTaper(largeDia_mm: number, smallDia_mm: number, length_mm: number) {
+  if (length_mm <= 0) throw new Error("Taper length must be greater than zero.");
+  const difference = largeDia_mm - smallDia_mm;
+  // Half the diameter difference is the rise on one side, which sets the angle.
+  const includedAngle = 2 * Math.atan(difference / 2 / length_mm) * (180 / PI);
+  return {
+    taperPerMm: difference / length_mm,
+    taperPerFoot_mm: (difference / length_mm) * 304.8,
+    includedAngle_deg: includedAngle,
+    compoundAngle_deg: includedAngle / 2,
+  };
 }
 
 // ─── Unit helpers ───────────────────────────────────────────────────────────

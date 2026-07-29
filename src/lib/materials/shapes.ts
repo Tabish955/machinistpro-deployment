@@ -23,8 +23,12 @@ export const SHAPES: ShapeDef[] = [
   {
     id: "hex_bar", name: "Hex Bar", group: "solid",
     fields: [f("af", "Across Flats", "e.g. 30"), f("l", "Length", "e.g. 1000")],
-    volume: ({ af, l }) => (3 * Math.sqrt(3) / 2) * (af / 2) * (af / 2) * l,
-    formula: "V = (3√3/2) × (AF/2)² × L",
+    // (3√3/2)·R² is the area from the across-CORNERS radius. Measured across
+    // flats, AF/2 is the inradius, giving 2√3·(AF/2)² = (√3/2)·AF². Using the
+    // wrong one made every hex bar 25% light: 30 mm steel read 4.59 kg/m
+    // against the 6.12 kg/m in the stock tables.
+    volume: ({ af, l }) => (Math.sqrt(3) / 2) * af * af * l,
+    formula: "V = (√3/2) × AF² × L",
   },
   {
     id: "flat_bar", name: "Flat Bar / Plate", group: "solid",
