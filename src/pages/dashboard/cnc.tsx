@@ -8,6 +8,7 @@ import {
   type G71Input,
   type ProfileStep,
 } from "@/lib/cnc/g71";
+import { G71Simulation } from "@/components/cnc/simulation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -343,6 +344,10 @@ export default function CNCPage() {
             add up, shows here before it reaches the machine.
           </p>
         </Card>
+      )}
+
+      {!error && !profile.error && steps.length > 0 && (
+        <G71Simulation input={input} steps={steps} includeFinish />
       )}
 
       {!error && code.length > 0 && (
