@@ -1,18 +1,23 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppStore } from "@/store/app-store";
+import { useThemeStore } from "@/store/theme-store";
 import { toast } from "@/store/toast-store";
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/ui/search";
-import { Menu, LogOut, User, Bell, Settings } from "lucide-react";
+import { Menu, LogOut, User, Bell, Settings, Sun, Moon } from "lucide-react";
 import { Link } from "@/lib/next-compat";
 
 export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { toggleMobileSidebar } = useAppStore();
+  const { theme, toggleTheme, hydrate } = useThemeStore();
+
+  useEffect(() => { hydrate(); }, [hydrate]);
+
 
   const [confirmTrialSignOut, setConfirmTrialSignOut] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -63,7 +68,18 @@ export function Header() {
 
         {/* Right: actions */}
         <div className="flex items-center gap-2">
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center justify-center w-9 h-9 rounded-lg text-gray-500 hover:text-white hover:bg-dark-700 transition-colors cursor-pointer"
+            title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           {/* Notifications */}
+
           <button 
             className="relative flex items-center justify-center w-9 h-9 rounded-lg text-gray-500 hover:text-white hover:bg-dark-700 transition-colors cursor-pointer"
             title="Notifications"

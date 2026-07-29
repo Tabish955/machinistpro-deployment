@@ -41,6 +41,10 @@ const button =
   "rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/[0.08] hover:text-white";
 const primary =
   "rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-4 py-2 text-xs font-semibold text-accent-cyan transition hover:bg-accent-cyan/20";
+const toDisplayOps = (value: string) => value.replace(/\*/g, "×").replace(/\//g, "÷");
+const toAsciiOps = (value: string) =>
+  value.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
+
 const panel = "rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 sm:p-4";
 
 function Result({ error, children }: { error?: string; children?: React.ReactNode }) {
@@ -751,14 +755,14 @@ function StatisticsWorkspace() {
 }
 
 function ComplexWorkspace() {
-  const [expression, setExpression] = useState("(3 + 4i) * (2 - i)");
+  const [expression, setExpression] = useState("(3 + 4i) × (2 − i)");
   const [real, setReal] = useState(3);
   const [imaginary, setImaginary] = useState(4);
   const [result, setResult] = useState<Record<string, unknown> | string>("");
   const [error, setError] = useState("");
   const run = () => {
     try {
-      setResult(evaluateComplex(expression));
+      setResult(evaluateComplex(toAsciiOps(expression)));
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Invalid complex expression.");
@@ -780,7 +784,7 @@ function ComplexWorkspace() {
           <input
             className={`${field} mt-2`}
             value={expression}
-            onChange={(e) => setExpression(e.target.value)}
+            onChange={(e) => setExpression(toDisplayOps(e.target.value))}
           />
           <button className={`${primary} mt-2`} onClick={run}>
             Evaluate
@@ -1074,7 +1078,7 @@ function EquationWorkspace() {
 const colors = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#fb7185", "#60a5fa"];
 
 function GraphingWorkspace() {
-  const [expressions, setExpressions] = useState(["sin(x)", "0.2*x^2-2"]);
+  const [expressions, setExpressions] = useState(["sin(x)", "0.2×x^2−2"]);
   const [enabled, setEnabled] = useState([true, true]);
   const [seriesColors, setSeriesColors] = useState(colors);
   const [joined, setJoined] = useState<boolean[]>([]);
@@ -1098,7 +1102,7 @@ function GraphingWorkspace() {
           )
           .slice(0, 6)
           .map(({ expression, sourceIndex }) => ({
-            ...sampleGraph(expression, range.xMin, range.xMax),
+            ...sampleGraph(toAsciiOps(expression), range.xMin, range.xMax),
             sourceIndex,
           })),
         error: "",
@@ -1208,7 +1212,8 @@ function GraphingWorkspace() {
                 onChange={(e) =>
                   setExpressions((current) => {
                     const next = [...current];
-                    next[index] = e.target.value;
+                    next[index] = toDisplayOps(e.target.value);
+
                     return next;
                   })
                 }
@@ -1261,7 +1266,7 @@ function GraphingWorkspace() {
             </button>
           )}
           <p className="text-[10px] text-gray-600">
-            Polar: <code>polar:2*sin(3*t)</code>
+            Polar: <code>polar:2×sin(3×t)</code>
             <br />
             Parametric: <code>param:cos(t);sin(t)</code>
           </p>
