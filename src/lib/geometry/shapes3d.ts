@@ -120,14 +120,27 @@ export const SHAPES_3D: Shape3D[] = [
   },
   {
     id: "torus", name: "Torus",
-    fields: [f("R", "Major Radius"), f("r", "Minor Radius (tube)")],
-    calc: ({ R, r: tr }) => [r("Volume", 2 * PI * PI * R * tr * tr), r("Surface Area", 4 * PI * PI * R * tr, "u²")],
+    // "Major Radius" alone does not say whether it reaches the tube centre or the
+    // outside edge. The formula needs the tube centre, and the difference is a
+    // whole tube radius — enough to give a confidently wrong volume.
+    fields: [f("R", "Major Radius (centre → tube centre)"), f("r", "Minor Radius (tube)")],
+    calc: ({ R, r: tr }) => [
+      r("Volume", 2 * PI * PI * R * tr * tr),
+      r("Surface Area", 4 * PI * PI * R * tr, "u²"),
+      r("Outside Diameter", 2 * (R + tr), "u"),
+      r("Bore Diameter", 2 * (R - tr), "u"),
+    ],
     formula: "V = 2π²Rr² · SA = 4π²Rr",
   },
   {
     id: "capsule", name: "Capsule",
     fields: [f("r", "Radius"), f("h", "Cylinder Height")],
-    calc: ({ r: rad, h }) => [r("Volume", PI * rad * rad * h + (4 / 3) * PI * rad ** 3), r("Surface Area", 2 * PI * rad * h + 4 * PI * rad * rad, "u²")],
+    calc: ({ r: rad, h }) => [
+      r("Volume", PI * rad * rad * h + (4 / 3) * PI * rad ** 3),
+      r("Surface Area", 2 * PI * rad * h + 4 * PI * rad * rad, "u²"),
+      // What you measure with calipers is the overall length, not the barrel.
+      r("Total Length", h + 2 * rad, "u"),
+    ],
     formula: "V = πr²h + (4/3)πr³",
   },
 ];

@@ -41,3 +41,17 @@ describe("3D shapes", () => {
     );
   });
 });
+
+describe("3D shape labelling", () => {
+  it("derives the dimensions a torus and capsule are actually measured by", () => {
+    // "Major Radius" alone left it unclear whether R reaches the tube centre or
+    // the outer edge; the outputs now state both diameters explicitly.
+    const t = calc("torus", { R: 5, r: 2 });
+    expect(t["Outside Diameter"]).toBe(14);
+    expect(t["Bore Diameter"]).toBe(6);
+    expect(t["Volume"]).toBeCloseTo(2 * Math.PI ** 2 * 5 * 4, 9);
+    // A capsule is measured overall, not by its barrel.
+    const c = calc("capsule", { r: 2, h: 6 });
+    expect(c["Total Length"]).toBe(10);
+  });
+});
