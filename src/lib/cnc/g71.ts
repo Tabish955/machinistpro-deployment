@@ -110,27 +110,103 @@ export function calculateG71(input: G71Input): G71Result {
   };
 }
 
+/* ── Profile coordinates ──────────────────────────────────────────────────── */
+
+/** One step of the finished part, as it would be dimensioned on a drawing. */
+export interface ProfileStep {
+  /** Diameter of this step, mm. */
+  diameter: number;
+  /** Length of this step along Z, mm, entered positive. */
+  length: number;
+}
+
+export interface ProfilePoint {
+  /** X as the control wants it: a diameter. */
+  x: number;
+  /** Z from the face, negative into the part. */
+  z: number;
+  /** What this move does, for reading the table against the drawing. */
+  move: "face" | "shoulder" | "turn";
+}
+
 /**
- * The two G71 blocks, plus the profile between P and Q.
+ * Turns a list of steps into the X/Z coordinates the profile blocks need.
  *
- * Block numbers are written as given; the profile is a straight turn, which is
- * the Type I case. Anything with a groove or a re-entrant face needs Type II and
- * is not produced here.
+ * Z is cumulative from the face, which is the part people get wrong: the second
+ * step does not run to its own length, it runs to the sum of everything before
+ * it. Each step contributes a move out to its diameter, then a cut along to the
+ * running total.
+ */
+export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
+  if (!steps.length) throw new Error("Add at least one step to the profile.");
+  steps.forEach((s, i) => {
+    if (!(s.diameter > 0)) throw new Error(`Step ${i + 1}: diameter must be greater than zero.`);
+    if (!(s.length > 0)) throw new Error(`Step ${i + 1}: length must be greater than zero.`);
+  });
+
+  const points: ProfilePoint[] = [];
+  let z = 0;
+  steps.forEach((step, index) => {
+    points.push({
+      x: Number(step.diameter.toFixed(4)),
+      z: Number(z.toFixed(4)),
+      move: index === 0 ? "face" : "shoulder",
+    });
+    z -= step.length;
+    points.push({
+      x: Number(step.diameter.toFixed(4)),
+      z: Number(z.toFixed(4)),
+      move: "turn",
+    });
+  });
+  return points;
+}
+
+/** Total length of the profile along Z, mm. */
+export function profileLength(steps: ProfileStep[]): number {
+  return Number(steps.reduce((sum, s) => sum + s.length, 0).toFixed(4));
+}
+
+/**
+ * The two G71 blocks and the profile between P and Q.
+ *
+ * Type I only: the diameters must step outward from the face. A profile that
+ * doubles back needs Type II, which this does not write.
  */
 export function generateG71Code(
   input: G71Input,
-  options: { startBlock?: number; endBlock?: number; feed?: number; toolRef?: string } = {},
+  options: {
+    startBlock?: number;
+    endBlock?: number;
+    feed?: number;
+    steps?: ProfileStep[];
+  } = {},
 ): string[] {
   const result = calculateG71(input);
   const ns = options.startBlock ?? 100;
   const nf = options.endBlock ?? 110;
   const feed = options.feed ?? 0.2;
 
-  return [
+  const header = [
     `G71 U${input.depthOfCut} R${input.retract}`,
     `G71 P${ns} Q${nf} U${input.finishAllowanceX} W${input.finishAllowanceZ} F${feed}`,
-    `N${ns} G00 X${input.finishDiameter}`,
-    `      G01 Z${result.roughedZ} F${feed}`,
-    `N${nf} X${input.stockDiameter}`,
   ];
+
+  if (!options.steps?.length) {
+    return [
+      ...header,
+      `N${ns} G00 X${input.finishDiameter}`,
+      `      G01 Z${result.roughedZ} F${feed}`,
+      `N${nf} X${input.stockDiameter}`,
+    ];
+  }
+
+  const points = profileCoordinates(options.steps);
+  const body = points.map((p, i) => {
+    if (i === 0) return `N${ns} G00 X${p.x}`;
+    // A move along Z is a cut; a move out in X is a shoulder.
+    const previous = points[i - 1];
+    return p.z !== previous.z ? `      G01 Z${p.z}` : `      X${p.x}`;
+  });
+  return [...header, ...body, `N${nf} X${input.stockDiameter}`];
 }

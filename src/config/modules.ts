@@ -12,6 +12,7 @@ import {
   Star,
   Clock,
   Factory,
+  Cpu,
   type LucideIcon,
 } from "lucide-react";
 
@@ -118,6 +119,20 @@ export const calculatorModules: ModuleConfig[] = [
     keywords: ["machining", "cnc", "speeds", "feeds", "rpm", "cutting", "lathe", "mill", "drill", "thread", "tap"],
     version: "1.0",
   },
+
+  {
+    id: "cnc",
+    name: "CNC Cycles",
+    shortName: "CNC",
+    description: "Fanuc canned cycles - G71 profile coordinates and program blocks",
+    icon: Cpu,
+    href: "/dashboard/cnc",
+    color: "purple",
+    status: "available",
+    category: "calculators",
+    keywords: ["cnc","canned cycle","g71","fanuc","lathe","roughing","turning","g-code","coordinates","profile"],
+    version: "1.0",
+  },
   {
     id: "engineering",
     name: "Engineering Calculator",
@@ -162,6 +177,20 @@ export const referenceModules: ModuleConfig[] = [
     version: "1.0",
   },
   {
+    id: "tolerances",
+    name: "Tolerances & GD&T",
+    shortName: "Tolerances",
+    description: "ISO fits, GD&T reference, surface finish, and drawing standards",
+    icon: Settings,
+    href: "/dashboard/tolerances",
+    color: "blue",
+    status: "available",
+    category: "reference",
+    keywords: ["tolerance", "fit", "gdt", "surface", "finish", "drawing", "ISO", "H7", "clearance", "interference"],
+    version: "1.0",
+  },
+
+  {
     id: "materials",
     name: "Engineering Database",
     shortName: "Database",
@@ -178,19 +207,6 @@ export const referenceModules: ModuleConfig[] = [
 
 // Workspace & Tools
 export const workspaceModules: ModuleConfig[] = [
-  {
-    id: "tolerances",
-    name: "Tolerances & GD&T",
-    shortName: "Tolerances",
-    description: "ISO fits, GD&T reference, surface finish, and drawing standards",
-    icon: Settings,
-    href: "/dashboard/tolerances",
-    color: "blue",
-    status: "available",
-    category: "tools",
-    keywords: ["tolerance", "fit", "gdt", "surface", "finish", "drawing", "ISO", "H7", "clearance", "interference"],
-    version: "1.0",
-  },
   {
     id: "workspace",
     name: "Workspace",

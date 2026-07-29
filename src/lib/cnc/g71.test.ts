@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateG71, generateG71Code } from "./g71";
+import { calculateG71, generateG71Code, profileCoordinates, profileLength } from "./g71";
 
 const base = {
   stockDiameter: 50,
@@ -68,5 +68,45 @@ describe("Fanuc G71 roughing", () => {
     expect(code[1]).toBe("G71 P100 Q110 U0.5 W0.1 F0.25");
     expect(code[2]).toContain("N100");
     expect(code.at(-1)).toContain("N110");
+  });
+});
+
+describe("profile coordinates", () => {
+  // A three-step shaft: Ø20 for 15, Ø30 for 20, Ø40 for 25.
+  const steps = [
+    { diameter: 20, length: 15 },
+    { diameter: 30, length: 20 },
+    { diameter: 40, length: 25 },
+  ];
+
+  it("accumulates Z from the face, not per step", () => {
+    // The trap: the second step runs to -35, not -20, because Z is measured
+    // from the face and the first 15 mm is already used.
+    const pts = profileCoordinates(steps);
+    expect(pts.map((p) => [p.x, p.z])).toEqual([
+      [20, 0], [20, -15],
+      [30, -15], [30, -35],
+      [40, -35], [40, -60],
+    ]);
+    expect(profileLength(steps)).toBe(60);
+  });
+
+  it("writes the profile blocks between P and Q", () => {
+    const code = generateG71Code(
+      { ...base, finishDiameter: 20, length: 60 },
+      { startBlock: 100, endBlock: 110, feed: 0.25, steps },
+    );
+    expect(code[2]).toBe("N100 G00 X20");
+    expect(code).toContain("      G01 Z-15");
+    expect(code).toContain("      X30");
+    expect(code).toContain("      G01 Z-35");
+    expect(code).toContain("      G01 Z-60");
+    expect(code.at(-1)).toBe("N110 X50");
+  });
+
+  it("refuses an empty or malformed profile", () => {
+    expect(() => profileCoordinates([])).toThrow("at least one step");
+    expect(() => profileCoordinates([{ diameter: 0, length: 10 }])).toThrow("Step 1");
+    expect(() => profileCoordinates([{ diameter: 20, length: -5 }])).toThrow("Step 1");
   });
 });
