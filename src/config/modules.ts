@@ -73,29 +73,23 @@ export const calculatorModules: ModuleConfig[] = [
     version: "1.0",
   },
   {
+    // One page, one entry. "Cost" pointed at /dashboard/pricing, which only
+    // redirected here, so the sidebar offered two routes to the same screen.
     id: "weight",
-    name: "Material Weight Calculator",
-    shortName: "Weight",
-    description: "Calculate material weight by shape, dimensions, and alloy type",
+    name: "Material Weight & Cost",
+    shortName: "Weight & Cost",
+    description:
+      "Weight, volume and cost for any stock shape and alloy, with waste, discount and tax",
     icon: Weight,
     href: "/dashboard/weight",
     color: "purple",
     status: "available",
     category: "calculators",
-    keywords: ["weight", "material", "mass", "density", "steel", "aluminum", "copper", "metal", "alloy"],
-    version: "1.0",
-  },
-  {
-    id: "pricing",
-    name: "Material Cost Estimator",
-    shortName: "Cost",
-    description: "Estimate material costs, fabrication pricing, and project budgets",
-    icon: DollarSign,
-    href: "/dashboard/pricing",
-    color: "green",
-    status: "available",
-    category: "calculators",
-    keywords: ["price", "cost", "estimate", "budget", "material", "fabrication", "quote", "pricing"],
+    keywords: [
+      "weight", "material", "mass", "density", "steel", "aluminum", "copper", "metal", "alloy",
+      "cost", "price", "estimate", "budget", "quote", "pricing", "fabrication",
+      "bar", "tube", "pipe", "plate", "sheet", "beam", "angle", "channel", "hex",
+    ],
     version: "1.0",
   },
   {

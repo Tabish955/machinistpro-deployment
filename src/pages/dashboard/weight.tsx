@@ -3,6 +3,8 @@ import { useState, useMemo } from "react";
 import {
   MATERIALS,
   SHAPES,
+  SHAPE_DIAGRAMS,
+  DIAGRAM_DEFS,
   SHAPE_GROUPS,
   MATERIAL_CATEGORY_LABELS,
   calculateWeight,
@@ -80,6 +82,27 @@ function PillSelect<T extends string>({
 }
 
 // ─── Number input ───────────────────────────────────────────────────────────
+
+/**
+ * Cross-section of the selected stock shape. It shows which measurement each
+ * field is asking for — "AF" on a hex bar, OD against wall on a tube — which the
+ * labels alone leave to guesswork.
+ */
+function ShapeDiagram({ shapeId }: { shapeId: string }) {
+  const markup = SHAPE_DIAGRAMS[shapeId];
+  if (!markup) return null;
+  return (
+    <div className="mb-4 flex justify-center">
+      <svg
+        viewBox="0 0 200 200"
+        role="img"
+        aria-label={`Cross-section of the selected shape`}
+        className="h-40 w-40 sm:h-44 sm:w-44"
+        dangerouslySetInnerHTML={{ __html: DIAGRAM_DEFS + markup }}
+      />
+    </div>
+  );
+}
 
 function NumInput({
   label,
@@ -292,6 +315,7 @@ export default function WeightPage() {
               <SectionHeader title="Dimensions" className="!mb-0" />
               <PillSelect options={DIM_UNITS} value={dimUnit} onChange={setDimUnit} />
             </div>
+            <ShapeDiagram shapeId={shape.id} />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {shape.fields.map((field) => (
                 <NumInput
