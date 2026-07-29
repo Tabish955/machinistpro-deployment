@@ -17,8 +17,10 @@ export function lineEquation(x1: number, y1: number, x2: number, y2: number): st
   const m = slope(x1, y1, x2, y2);
   if (m === null) return `x = ${fmt(x1)}`;
   const b = y1 - m * x1;
+  // A level line is y = 3, not "y = 0x + 3", which is what a student would copy down.
+  if (m === 0) return `y = ${fmt(b)}`;
   const bStr = b >= 0 ? `+ ${fmt(b)}` : `− ${fmt(Math.abs(b))}`;
-  return `y = ${fmt(m)}x ${bStr}`;
+  return b === 0 ? `y = ${fmt(m)}x` : `y = ${fmt(m)}x ${bStr}`;
 }
 
 function fmt(n: number): string {
@@ -42,7 +44,13 @@ export function cartesianToPolar(x: number, y: number): Polar {
 }
 
 export function polarToCartesian(r: number, thetaDeg: number): Cartesian2D {
-  return { x: r * Math.cos(thetaDeg * RAD), y: r * Math.sin(thetaDeg * RAD) };
+  // cos(90°) lands on 6.1e-17 rather than 0, so a right angle read as a ragged
+  // number. Snap what is negligible against the radius, at any scale.
+  const clean = (v: number) => (Math.abs(v) < Math.abs(r) * 1e-12 ? 0 : v);
+  return {
+    x: clean(r * Math.cos(thetaDeg * RAD)),
+    y: clean(r * Math.sin(thetaDeg * RAD)),
+  };
 }
 
 export function cartesianToCylindrical(x: number, y: number, z: number): Cylindrical {
@@ -90,16 +98,28 @@ export interface PolygonStats {
 }
 
 /** Parse "x,y" lines / "x,y; x,y" text into points. */
+/**
+ * Reads every coordinate in the text, however it is separated.
+ *
+ * Rows were split only on newlines and semicolons, then the first two numbers of
+ * each row were taken and the rest thrown away. "0,0 4,0 4,3" on one line
+ * therefore became the single point (0,0), and the polygon silently lost two
+ * vertices with nothing to say so.
+ */
 export function parsePoints(text: string): Cartesian2D[] {
-  return text
-    .split(/[\n;]+/)
-    .map((row) => row.trim())
-    .filter(Boolean)
-    .map((row) => {
-      const [x, y] = row.split(/[,\s]+/).map(Number);
-      return { x, y };
-    })
-    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  const numbers = (text.match(/-?\d*\.?\d+(?:[eE][+-]?\d+)?/g) ?? []).map(Number);
+  const points: Cartesian2D[] = [];
+  for (let i = 0; i + 1 < numbers.length; i += 2) {
+    const x = numbers[i];
+    const y = numbers[i + 1];
+    if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y });
+  }
+  return points;
+}
+
+/** True when the text holds an odd number of values, so a coordinate is unpaired. */
+export function hasDanglingCoordinate(text: string): boolean {
+  return ((text.match(/-?\d*\.?\d+(?:[eE][+-]?\d+)?/g) ?? []).length % 2) === 1;
 }
 
 function segmentsIntersect(
