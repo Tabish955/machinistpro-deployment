@@ -118,7 +118,18 @@ export const SHAPES_2D: Shape2D[] = [
         r("Area", 0.5 * d1 * d2),
         r("Perimeter", 4 * side, "u"),
         r("Side", side, "u"),
-        r("Acute Angle", 2 * (Math.atan2(d2 / 2, d1 / 2) * 180) / PI, "°"),
+        // Measured from the longer diagonal, otherwise swapping the two inputs
+        // reported the obtuse angle under an "Acute Angle" label.
+        r(
+          "Acute Angle",
+          (2 * Math.atan2(Math.min(d1, d2) / 2, Math.max(d1, d2) / 2) * 180) / PI,
+          "°",
+        ),
+        r(
+          "Obtuse Angle",
+          180 - (2 * Math.atan2(Math.min(d1, d2) / 2, Math.max(d1, d2) / 2) * 180) / PI,
+          "°",
+        ),
       ];
     },
     formula: "A = ½×d₁×d₂",
@@ -191,6 +202,14 @@ export const SHAPES_2D: Shape2D[] = [
     id: "scalene", name: "Triangle (3 sides – Heron)", group: "triangle",
     fields: [f("a", "Side a"), f("b", "Side b"), f("c", "Side c")],
     calc: ({ a, b, c }) => {
+      // Any side longer than the other two combined cannot close. Heron then takes
+      // the root of a negative and every figure came out as NaN with no explanation.
+      const longest = Math.max(a, b, c);
+      if (longest > a + b + c - longest) {
+        throw new Error(
+          `Sides ${a}, ${b} and ${c} cannot form a triangle: the longest must be shorter than the other two added together.`,
+        );
+      }
       const s = (a + b + c) / 2;
       const area = Math.sqrt(s * (s - a) * (s - b) * (s - c));
       const angA = (Math.acos((b * b + c * c - a * a) / (2 * b * c)) * 180) / PI;
