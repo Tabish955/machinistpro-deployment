@@ -13,6 +13,7 @@ import {
   Clock,
   Factory,
   Cpu,
+  Compass,
   type LucideIcon,
 } from "lucide-react";
 
@@ -131,6 +132,20 @@ export const calculatorModules: ModuleConfig[] = [
     status: "available",
     category: "calculators",
     keywords: ["cnc","canned cycle","g71","fanuc","lathe","roughing","turning","g-code","coordinates","profile"],
+    version: "1.0",
+  },
+
+  {
+    id: "level",
+    name: "Spirit Level",
+    shortName: "Level",
+    description: "Check a machine bed, vice or setup using the phone tilt sensor",
+    icon: Compass,
+    href: "/dashboard/level",
+    color: "green",
+    status: "available",
+    category: "calculators",
+    keywords: ["level","spirit level","inclinometer","tilt","angle","plumb","bubble","machine bed","vice","tram","slope"],
     version: "1.0",
   },
   {
