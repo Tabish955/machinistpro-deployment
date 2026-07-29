@@ -62,7 +62,22 @@ export const SHAPES_3D: Shape3D[] = [
   {
     id: "hollow_cyl", name: "Hollow Cylinder",
     fields: [f("R", "Outer Radius"), f("r", "Inner Radius"), f("h", "Height")],
-    calc: ({ R, r: ir, h }) => [r("Volume", PI * h * (R * R - ir * ir)), r("Outer LSA", 2 * PI * R * h, "u²"), r("Inner LSA", 2 * PI * ir * h, "u²"), r("Total SA", 2 * PI * (R + ir) * h + 2 * PI * (R * R - ir * ir), "u²")],
+    calc: ({ R, r: ir, h }) => {
+      // Swapping the radii produced a negative volume, which reads as an answer
+      // and would carry a negative weight downstream.
+      if (ir >= R) {
+        throw new Error(
+          `Inner radius (${ir}) must be smaller than the outer radius (${R}).`,
+        );
+      }
+      return [
+        r("Volume", PI * h * (R * R - ir * ir)),
+        r("Wall Thickness", R - ir, "u"),
+        r("Outer LSA", 2 * PI * R * h, "u²"),
+        r("Inner LSA", 2 * PI * ir * h, "u²"),
+        r("Total SA", 2 * PI * (R + ir) * h + 2 * PI * (R * R - ir * ir), "u²"),
+      ];
+    },
     formula: "V = πh(R²−r²)",
   },
   {
