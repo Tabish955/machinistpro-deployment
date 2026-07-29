@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateG71, generateG71Code, profileCoordinates, profileLength } from "./g71";
+import { calculateG71, generateG71Code, profileCoordinates, profileLength, profileDrawing } from "./g71";
 
 const base = {
   stockDiameter: 50,
@@ -108,5 +108,70 @@ describe("profile coordinates", () => {
     expect(() => profileCoordinates([])).toThrow("at least one step");
     expect(() => profileCoordinates([{ diameter: 0, length: 10 }])).toThrow("Step 1");
     expect(() => profileCoordinates([{ diameter: 20, length: -5 }])).toThrow("Step 1");
+  });
+});
+
+describe("taper turning", () => {
+  it("changes both words in one move", () => {
+    // Ø20 opening out to Ø30 over 25 mm is a taper, not a step.
+    const pts = profileCoordinates([{ diameter: 20, length: 25, endDiameter: 30 }]);
+    expect(pts.map((p) => [p.x, p.z, p.move])).toEqual([
+      [20, 0, "face"],
+      [30, -25, "taper"],
+    ]);
+  });
+
+  it("writes X and Z together for a taper block", () => {
+    const code = generateG71Code(
+      { ...base, finishDiameter: 20, length: 25 },
+      { steps: [{ diameter: 20, length: 25, endDiameter: 30 }] },
+    );
+    expect(code).toContain("      G01 X30 Z-25");
+  });
+
+  it("treats an equal end diameter as a parallel step", () => {
+    const pts = profileCoordinates([{ diameter: 20, length: 15, endDiameter: 20 }]);
+    expect(pts.at(-1)!.move).toBe("turn");
+  });
+
+  it("mixes tapers and parallel steps in one profile", () => {
+    // Parallel Ø20, then a taper out to Ø30, then parallel Ø30.
+    const pts = profileCoordinates([
+      { diameter: 20, length: 15 },
+      { diameter: 20, length: 10, endDiameter: 30 },
+      { diameter: 30, length: 20 },
+    ]);
+    expect(pts.map((p) => p.move)).toEqual([
+      "face", "turn", "shoulder", "taper", "shoulder", "turn",
+    ]);
+    // Z still accumulates across all three: 15, then 25, then 45.
+    expect(pts.map((p) => p.z)).toEqual([0, -15, -15, -25, -25, -45]);
+  });
+
+  it("refuses a bad end diameter", () => {
+    expect(() => profileCoordinates([{ diameter: 20, length: 10, endDiameter: 0 }])).toThrow(
+      "end diameter",
+    );
+  });
+});
+
+describe("profile drawing", () => {
+  it("draws a closed half-section within the box", () => {
+    const d = profileDrawing(
+      [{ diameter: 20, length: 15 }, { diameter: 40, length: 25 }],
+      50,
+    );
+    expect(d.partPath.startsWith("M")).toBe(true);
+    expect(d.partPath.endsWith("Z")).toBe(true); // closed back to the centre line
+    expect(d.stockPath).toContain("M");
+    expect(d.centreY).toBeLessThanOrEqual(d.height);
+    // Every drawn coordinate stays inside the viewport.
+    const nums = d.partPath.match(/-?\d+\.?\d*/g)!.map(Number);
+    expect(Math.min(...nums)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...nums)).toBeLessThanOrEqual(Math.max(d.width, d.height));
+  });
+
+  it("needs something to draw", () => {
+    expect(() => profileDrawing([], 50)).toThrow("at least one step");
   });
 });

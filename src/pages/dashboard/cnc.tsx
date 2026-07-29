@@ -4,6 +4,7 @@ import {
   generateG71Code,
   profileCoordinates,
   profileLength,
+  profileDrawing,
   type G71Input,
   type ProfileStep,
 } from "@/lib/cnc/g71";
@@ -63,14 +64,19 @@ export default function CNCPage() {
   const [nf, setNf] = useState("110");
   const [copied, setCopied] = useState(false);
   // The part as it is dimensioned on the drawing: a diameter and a length per step.
-  const [rows, setRows] = useState<Array<{ d: string; l: string }>>([
-    { d: "20", l: "15" },
-    { d: "30", l: "20" },
-    { d: "40", l: "25" },
+  const [rows, setRows] = useState<Array<{ d: string; l: string; e: string }>>([
+    { d: "20", l: "15", e: "" },
+    { d: "30", l: "20", e: "" },
+    { d: "40", l: "25", e: "" },
   ]);
 
   const steps: ProfileStep[] = rows
-    .map((r) => ({ diameter: pf(r.d), length: pf(r.l) }))
+    .map((r) => ({
+      diameter: pf(r.d),
+      length: pf(r.l),
+      // Blank means a parallel step; a value makes it a taper.
+      endDiameter: r.e.trim() === "" ? undefined : pf(r.e),
+    }))
     .filter((s) => Number.isFinite(s.diameter) && Number.isFinite(s.length));
 
   const profile = useMemo(() => {
@@ -86,7 +92,16 @@ export default function CNCPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(rows)]);
 
-  const setRow = (i: number, key: "d" | "l", v: string) =>
+  const drawing = useMemo(() => {
+    try {
+      return profileDrawing(steps, pf(stock) || 0);
+    } catch {
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(rows), stock]);
+
+  const setRow = (i: number, key: "d" | "l" | "e", v: string) =>
     setRows((cur) => cur.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
 
   const input: G71Input = {
@@ -227,11 +242,11 @@ export default function CNCPage() {
             <span className="text-[10px] text-gray-600">as dimensioned on the drawing</span>
           </div>
           <div className="space-y-2">
-            <div className="grid grid-cols-[1.6rem_1fr_1fr_1.8rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
-              <span>#</span><span>Diameter</span><span>Length</span><span />
+            <div className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
+              <span>#</span><span>Diameter</span><span>Length</span><span>End Ø</span><span />
             </div>
             {rows.map((r, i) => (
-              <div key={i} className="grid grid-cols-[1.6rem_1fr_1fr_1.8rem] gap-2 items-center">
+              <div key={i} className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 items-center">
                 <span className="font-mono text-xs text-gray-500">{i + 1}</span>
                 <input
                   className={field} value={r.d} inputMode="decimal"
@@ -242,6 +257,11 @@ export default function CNCPage() {
                   className={field} value={r.l} inputMode="decimal"
                   aria-label={`Step ${i + 1} length`}
                   onChange={(e) => /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "l", e.target.value)}
+                />
+                <input
+                  className={field} value={r.e} inputMode="decimal" placeholder="—"
+                  aria-label={`Step ${i + 1} end diameter`}
+                  onChange={(e) => /^[0-9]*.?[0-9]*$/.test(e.target.value) && setRow(i, "e", e.target.value)}
                 />
                 <button
                   onClick={() => setRows((c) => c.filter((_, j) => j !== i))}
@@ -255,14 +275,15 @@ export default function CNCPage() {
             ))}
           </div>
           <button
-            onClick={() => setRows((c) => [...c, { d: "", l: "" }])}
+            onClick={() => setRows((c) => [...c, { d: "", l: "", e: "" }])}
             className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
           >
             + Add step
           </button>
           <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
-            Enter each step from the face outwards. Z is worked out cumulatively, so step two
-            runs to the sum of the lengths before it — the part that is easy to get wrong by hand.
+            Enter each step from the face outwards. Leave End Ø blank for a parallel step, or give it
+            to cut a taper. Z is worked out cumulatively, so step two runs to the sum of the
+            lengths before it — the part that is easy to get wrong by hand.
           </p>
         </Card>
 
@@ -299,6 +320,30 @@ export default function CNCPage() {
           )}
         </Card>
       </div>
+
+      {drawing && !profile.error && (
+        <Card variant="solid" padding="md" className="border-dark-600">
+          <div className="flex items-center justify-between mb-2">
+            <SectionHeader title="Programmed Shape" className="!mb-0" />
+            <span className="text-[10px] text-gray-600">half section · stock shown dashed</span>
+          </div>
+          <svg
+            viewBox={"0 0 " + drawing.width + " " + drawing.height}
+            className="w-full"
+            role="img"
+            aria-label="Half section of the programmed profile"
+          >
+            <path d={drawing.stockPath} stroke="#8b93a7" strokeWidth="1.5" strokeDasharray="6 4" fill="none" />
+            <path d={drawing.partPath} fill="rgba(0,212,255,0.10)" stroke="#00d4ff" strokeWidth="2" strokeLinejoin="round" />
+            <line x1="0" y1={drawing.centreY} x2={drawing.width} y2={drawing.centreY}
+              stroke="#8b93a7" strokeWidth="1" strokeDasharray="10 4 2 4" />
+          </svg>
+          <p className="mt-1 text-[10px] text-gray-600">
+            The shape the blocks will cut. A diameter in the wrong step, or a length that does not
+            add up, shows here before it reaches the machine.
+          </p>
+        </Card>
+      )}
 
       {!error && code.length > 0 && (
         <Card variant="solid" padding="md" className="border-dark-600">
