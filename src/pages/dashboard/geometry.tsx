@@ -118,12 +118,22 @@ function ShapeCalc({ shape, inputUnit, outputUnit }: {
     return !isNaN(v) && v > 0;
   });
 
-  const results = useMemo(() => {
-    if (!allValid) return null;
-    return shape.calc(parsed).map((r) => {
-      const c = convertResult(r.value, r.unit, inputUnit, outputUnit);
-      return { label: r.label, value: c.value, unit: c.unit };
-    });
+  // A shape can reject its inputs — sides that cannot close into a triangle, say —
+  // and the message is more use than a column of NaN.
+  const { results, calcError } = useMemo(() => {
+    if (!allValid) return { results: null, calcError: "" };
+    try {
+      const rows = shape.calc(parsed).map((r) => {
+        const c = convertResult(r.value, r.unit, inputUnit, outputUnit);
+        return { label: r.label, value: c.value, unit: c.unit };
+      });
+      return { results: rows, calcError: "" };
+    } catch (cause) {
+      return {
+        results: null,
+        calcError: cause instanceof Error ? cause.message : "These dimensions do not work.",
+      };
+    }
   }, [allValid, parsed, shape, inputUnit, outputUnit]);
 
   const copyText = results ? results.map(r => `${r.label}: ${fmt(r.value)} ${r.unit}`).join("\n") : "";
@@ -155,6 +165,10 @@ function ShapeCalc({ shape, inputUnit, outputUnit }: {
           <div>
             {results.map((r, i) => <ResultRow key={i} r={r} />)}
             <FormulaBox formula={shape.formula} />
+          </div>
+        ) : calcError ? (
+          <div className="py-6 px-2">
+            <p className="text-sm text-accent-red">{calcError}</p>
           </div>
         ) : (
           <div className="text-center py-8">
