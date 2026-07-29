@@ -6,7 +6,7 @@ import {
   distance, midpoint, slope, lineEquation,
   cartesianToPolar, polarToCartesian,
   cartesianToCylindrical, cartesianToSpherical,
-  distance3D, parsePoints, polygonStats,
+  distance3D, parsePoints, hasDanglingCoordinate, polygonStats,
   LENGTH_UNITS, convertResult,
   type Shape2D, type Shape3D, type GeoResult,
 } from "@/lib/geometry";
@@ -322,6 +322,9 @@ function PolygonCalc({ inputUnit, outputUnit }: { inputUnit: string; outputUnit:
   const [text, setText] = useState("0,0\n60,0\n80,40\n30,70\n0,45");
   const points = useMemo(() => parsePoints(text), [text]);
   const stats = useMemo(() => polygonStats(points), [points]);
+  // An odd number of values means a coordinate is unpaired, which would otherwise
+  // just go missing from the shape.
+  const dangling = useMemo(() => hasDanglingCoordinate(text), [text]);
 
   const view = useMemo(() => {
     if (!stats || points.length < 3) return null;
@@ -346,6 +349,12 @@ function PolygonCalc({ inputUnit, outputUnit }: { inputUnit: string; outputUnit:
         <p className="mt-2 text-[10px] text-gray-600">
           Any irregular shape: list the corner coordinates in order (clockwise or anticlockwise).
         </p>
+        {dangling && (
+          <p className="mt-2 text-[11px] text-accent-amber">
+            One value has no pair — every corner needs both an x and a y, so the last one is
+            being ignored.
+          </p>
+        )}
         {view && (
           <svg viewBox="0 0 200 200" className="mt-3 w-full max-w-56 mx-auto">
             <polygon points={view.pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}

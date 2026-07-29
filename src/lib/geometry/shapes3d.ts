@@ -62,7 +62,22 @@ export const SHAPES_3D: Shape3D[] = [
   {
     id: "hollow_cyl", name: "Hollow Cylinder",
     fields: [f("R", "Outer Radius"), f("r", "Inner Radius"), f("h", "Height")],
-    calc: ({ R, r: ir, h }) => [r("Volume", PI * h * (R * R - ir * ir)), r("Outer LSA", 2 * PI * R * h, "u²"), r("Inner LSA", 2 * PI * ir * h, "u²"), r("Total SA", 2 * PI * (R + ir) * h + 2 * PI * (R * R - ir * ir), "u²")],
+    calc: ({ R, r: ir, h }) => {
+      // Swapping the radii produced a negative volume, which reads as an answer
+      // and would carry a negative weight downstream.
+      if (ir >= R) {
+        throw new Error(
+          `Inner radius (${ir}) must be smaller than the outer radius (${R}).`,
+        );
+      }
+      return [
+        r("Volume", PI * h * (R * R - ir * ir)),
+        r("Wall Thickness", R - ir, "u"),
+        r("Outer LSA", 2 * PI * R * h, "u²"),
+        r("Inner LSA", 2 * PI * ir * h, "u²"),
+        r("Total SA", 2 * PI * (R + ir) * h + 2 * PI * (R * R - ir * ir), "u²"),
+      ];
+    },
     formula: "V = πh(R²−r²)",
   },
   {
@@ -105,14 +120,27 @@ export const SHAPES_3D: Shape3D[] = [
   },
   {
     id: "torus", name: "Torus",
-    fields: [f("R", "Major Radius"), f("r", "Minor Radius (tube)")],
-    calc: ({ R, r: tr }) => [r("Volume", 2 * PI * PI * R * tr * tr), r("Surface Area", 4 * PI * PI * R * tr, "u²")],
+    // "Major Radius" alone does not say whether it reaches the tube centre or the
+    // outside edge. The formula needs the tube centre, and the difference is a
+    // whole tube radius — enough to give a confidently wrong volume.
+    fields: [f("R", "Major Radius (centre → tube centre)"), f("r", "Minor Radius (tube)")],
+    calc: ({ R, r: tr }) => [
+      r("Volume", 2 * PI * PI * R * tr * tr),
+      r("Surface Area", 4 * PI * PI * R * tr, "u²"),
+      r("Outside Diameter", 2 * (R + tr), "u"),
+      r("Bore Diameter", 2 * (R - tr), "u"),
+    ],
     formula: "V = 2π²Rr² · SA = 4π²Rr",
   },
   {
     id: "capsule", name: "Capsule",
     fields: [f("r", "Radius"), f("h", "Cylinder Height")],
-    calc: ({ r: rad, h }) => [r("Volume", PI * rad * rad * h + (4 / 3) * PI * rad ** 3), r("Surface Area", 2 * PI * rad * h + 4 * PI * rad * rad, "u²")],
+    calc: ({ r: rad, h }) => [
+      r("Volume", PI * rad * rad * h + (4 / 3) * PI * rad ** 3),
+      r("Surface Area", 2 * PI * rad * h + 4 * PI * rad * rad, "u²"),
+      // What you measure with calipers is the overall length, not the barrel.
+      r("Total Length", h + 2 * rad, "u"),
+    ],
     formula: "V = πr²h + (4/3)πr³",
   },
 ];

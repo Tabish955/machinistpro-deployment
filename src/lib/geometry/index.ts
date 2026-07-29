@@ -7,7 +7,7 @@ export {
   cartesianToPolar, polarToCartesian,
   cartesianToCylindrical, cylindricalToCartesian,
   cartesianToSpherical, sphericalToCartesian,
-  distance3D, parsePoints, polygonStats,
+  distance3D, parsePoints, hasDanglingCoordinate, polygonStats,
 } from "./coord";
 export type {
   Cartesian2D, Cartesian3D, Polar, Cylindrical, Spherical, PolygonStats,
