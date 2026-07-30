@@ -155,15 +155,32 @@ export function detectMode(
   return facing >= (band.toEdge + band.toSurface) / 2 ? "surface" : "edge";
 }
 
+export type EdgeOrientation = "portrait" | "landscape";
+
 /**
- * Angle of the phone's long edge away from level, degrees, for the edge view.
+ * Which way up the phone is standing, so the reading can be labelled and the
+ * beam drawn along the edge that is actually resting on the work.
+ */
+export function edgeOrientation(g: Gravity): EdgeOrientation {
+  return Math.abs(g.y) >= Math.abs(g.x) ? "portrait" : "landscape";
+}
+
+/**
+ * Angle of the resting edge away from level, degrees — in any of the four
+ * upright positions.
  *
- * Zero is the edge horizontal. Positive tips the right-hand side down, so the
- * line on screen falls the way the phone does.
+ * Measuring against the screen y axis only works in portrait: stood on its long
+ * edge, gravity runs across the screen instead and the same sum reads about 90
+ * degrees out. So find where gravity lies within the screen plane, then take the
+ * deviation from the nearest quarter turn. That is zero whenever an edge is
+ * horizontal, whichever edge happens to be resting.
+ *
+ * Positive tips the right-hand side of the screen down, as the user sees it.
  */
 export function edgeAngle(g: Gravity): number {
-  // In the screen plane, gravity points along the edge that is lowest.
-  return Number((Math.atan2(g.x, Math.abs(g.y)) * (180 / Math.PI)).toFixed(4));
+  const withinPlane = (Math.atan2(g.x, -g.y) * 180) / Math.PI;
+  const nearestAxis = Math.round(withinPlane / 90) * 90;
+  return Number((withinPlane - nearestAxis).toFixed(4));
 }
 
 /** Angle away from plumb, degrees — for checking a column or a face is upright. */

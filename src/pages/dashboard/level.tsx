@@ -10,6 +10,7 @@ import {
   totalTilt,
   detectMode,
   edgeAngle,
+  edgeOrientation,
   plumbAngle,
   gravityToTilt,
   NO_CALIBRATION,
@@ -19,6 +20,7 @@ import {
   type Tilt,
   type Gravity,
   type LevelMode,
+  type EdgeOrientation,
 } from "@/lib/level/level";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -48,6 +50,7 @@ export default function LevelPage() {
   const [mode, setMode] = useState<LevelMode>("surface");
   const [edge, setEdge] = useState(0);
   const [plumb, setPlumb] = useState(0);
+  const [heldOn, setHeldOn] = useState<EdgeOrientation>("portrait");
 
   const start = async () => {
     if (typeof DeviceOrientationEvent === "undefined") {
@@ -104,6 +107,7 @@ export default function LevelPage() {
       setMode((current) => detectMode(g, current));
       setEdge(edgeAngle(g));
       setPlumb(plumbAngle(g));
+      setHeldOn(edgeOrientation(g));
     };
     window.addEventListener("deviceorientation", onOrient, true);
     window.addEventListener("devicemotion", onMotion, true);
@@ -242,6 +246,8 @@ export default function LevelPage() {
                     {edgeLevel
                       ? "Level"
                       : `${edgeShown > 0 ? "right" : "left"} side low`}
+                    {" · on its "}
+                    {heldOn === "portrait" ? "short edge" : "long edge"}
                     {heldEdge !== null && " · held"}
                   </p>
                 </div>
@@ -261,7 +267,7 @@ export default function LevelPage() {
             <p className="mt-3 text-center text-[10px] text-gray-600">
               {mode === "surface"
                 ? "Lying flat — both axes. Stand it on an edge to switch."
-                : "Standing on an edge — one axis. Lay it flat to switch back."}
+                : "Standing on an edge — one axis, portrait or landscape. Lay it flat to switch back."}
             </p>
           </Card>
 

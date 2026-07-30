@@ -12,6 +12,7 @@ import {
   edgeAngle,
   plumbAngle,
   gravityToTilt,
+  edgeOrientation,
 } from "./level";
 
 describe("level", () => {
@@ -144,5 +145,45 @@ describe("how the phone is being held", () => {
     // Nose down by 5 degrees puts gravity slightly along +y.
     const t = gravityToTilt({ x: 0, y: G * Math.sin(5 * Math.PI / 180), z: G * Math.cos(5 * Math.PI / 180) });
     expect(t.pitch).toBeCloseTo(-5, 1);
+  });
+});
+
+describe("edge level in every upright position", () => {
+  const G = 9.81;
+  const at = (deg: number) => (deg * Math.PI) / 180;
+
+  it("reads zero on a level edge whichever way up the phone is", () => {
+    // Portrait, standing on its bottom edge.
+    expect(edgeAngle({ x: 0, y: -G, z: 0 })).toBeCloseTo(0, 3);
+    // Portrait upside down.
+    expect(edgeAngle({ x: 0, y: G, z: 0 })).toBeCloseTo(0, 3);
+    // Landscape, on its long edge, both ways round. These read 90 before.
+    expect(edgeAngle({ x: -G, y: 0, z: 0 })).toBeCloseTo(0, 3);
+    expect(edgeAngle({ x: G, y: 0, z: 0 })).toBeCloseTo(0, 3);
+  });
+
+  it("reads the same tilt in portrait and landscape", () => {
+    const tilt = 8;
+    // Portrait tipped 8 degrees.
+    const portrait = edgeAngle({ x: G * Math.sin(at(tilt)), y: -G * Math.cos(at(tilt)), z: 0 });
+    // Same phone rotated to landscape and tipped the same 8 degrees.
+    const landscape = edgeAngle({ x: -G * Math.cos(at(tilt)), y: -G * Math.sin(at(tilt)), z: 0 });
+    expect(portrait).toBeCloseTo(8, 1);
+    expect(landscape).toBeCloseTo(8, 1);
+  });
+
+  it("keeps the sign meaning the same side is low", () => {
+    const tilt = 12;
+    const portraitRight = edgeAngle({ x: G * Math.sin(at(tilt)), y: -G * Math.cos(at(tilt)), z: 0 });
+    const portraitLeft = edgeAngle({ x: -G * Math.sin(at(tilt)), y: -G * Math.cos(at(tilt)), z: 0 });
+    expect(portraitRight).toBeGreaterThan(0);
+    expect(portraitLeft).toBeLessThan(0);
+  });
+
+  it("names the orientation so the reading can be labelled", () => {
+    expect(edgeOrientation({ x: 0, y: -G, z: 0 })).toBe("portrait");
+    expect(edgeOrientation({ x: G, y: 0, z: 0 })).toBe("landscape");
+    // A slight lean does not change which edge is resting.
+    expect(edgeOrientation({ x: 1.4, y: -9.7, z: 0 })).toBe("portrait");
   });
 });
