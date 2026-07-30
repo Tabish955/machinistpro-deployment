@@ -118,3 +118,65 @@ export function averageTilt(history: Tilt[]): Tilt {
     roll: Number((sum.roll / history.length).toFixed(4)),
   };
 }
+
+/* ── Which way the phone is being held ────────────────────────────────────── */
+
+/** Gravity in device axes, m/s². x across the screen, y up it, z out of it. */
+export interface Gravity {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export type LevelMode = "surface" | "edge";
+
+/**
+ * Flat on a surface, or stood up on an edge?
+ *
+ * Gravity along z means the screen faces up or down, so the phone is lying on
+ * something and both axes are meaningful. Gravity in the screen plane means it is
+ * upright, where only the rotation within that plane can be measured — holding a
+ * phone against a machine column, a bubble would be nonsense.
+ */
+export function detectMode(
+  g: Gravity,
+  current?: LevelMode,
+  band: { toEdge: number; toSurface: number } = { toEdge: 0.6, toSurface: 0.8 },
+): LevelMode {
+  const magnitude = Math.hypot(g.x, g.y, g.z) || 1;
+  const facing = Math.abs(g.z) / magnitude;
+
+  // Two thresholds, not one. A single cut-off sits right where the phone is most
+  // ambiguous, so sensor jitter would flip the whole display back and forth. The
+  // mode has to travel well past the boundary before it changes.
+  if (current === "surface") return facing < band.toEdge ? "edge" : "surface";
+  if (current === "edge") return facing > band.toSurface ? "surface" : "edge";
+  // No previous mode: pick from the midpoint of the band.
+  return facing >= (band.toEdge + band.toSurface) / 2 ? "surface" : "edge";
+}
+
+/**
+ * Angle of the phone's long edge away from level, degrees, for the edge view.
+ *
+ * Zero is the edge horizontal. Positive tips the right-hand side down, so the
+ * line on screen falls the way the phone does.
+ */
+export function edgeAngle(g: Gravity): number {
+  // In the screen plane, gravity points along the edge that is lowest.
+  return Number((Math.atan2(g.x, Math.abs(g.y)) * (180 / Math.PI)).toFixed(4));
+}
+
+/** Angle away from plumb, degrees — for checking a column or a face is upright. */
+export function plumbAngle(g: Gravity): number {
+  const inPlane = Math.hypot(g.x, g.y) || 1;
+  return Number((Math.atan2(g.z, inPlane) * (180 / Math.PI)).toFixed(4));
+}
+
+/** Tilt for the surface view, derived from gravity rather than Euler angles. */
+export function gravityToTilt(g: Gravity): Tilt {
+  const magnitude = Math.hypot(g.x, g.y, g.z) || 1;
+  return {
+    pitch: Number((Math.asin(Math.max(-1, Math.min(1, -g.y / magnitude))) * (180 / Math.PI)).toFixed(4)),
+    roll: Number((Math.asin(Math.max(-1, Math.min(1, g.x / magnitude))) * (180 / Math.PI)).toFixed(4)),
+  };
+}
