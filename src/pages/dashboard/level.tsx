@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   applyCalibration,
   averageTilt,
+  ballOffset,
   formatSlope,
   isLevel,
   normaliseAngle,
@@ -143,10 +144,10 @@ export default function LevelPage() {
   const edgeShown = heldEdge ?? edge;
   const edgeLevel = Math.abs(edgeShown) <= 0.15;
 
-  // Bubble sits opposite the fall, as a real vial does. Clamped so it stays in view.
-  const clamp = (v: number) => Math.max(-1, Math.min(1, v / 5));
-  const bubbleX = -clamp(tilt.roll) * 42;
-  const bubbleY = clamp(tilt.pitch) * 42;
+  // Rolls downhill, both axes the same way round. Pinned at the rim so it stays in view.
+  const ball = ballOffset(tilt);
+  const bubbleX = ball.x * 42;
+  const bubbleY = ball.y * 42;
 
   return (
     <div className="space-y-5 animate-fade-in max-w-3xl mx-auto">

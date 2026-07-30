@@ -197,3 +197,22 @@ export function gravityToTilt(g: Gravity): Tilt {
     roll: Number((Math.asin(Math.max(-1, Math.min(1, g.x / magnitude))) * (180 / Math.PI)).toFixed(4)),
   };
 }
+
+/**
+ * Where the ball sits in the vial, as a fraction of the radius in each direction.
+ *
+ * A ball rolls downhill, so it moves towards whichever side is low — the opposite
+ * of a spirit bubble, which floats to the high side. Both axes must agree on that
+ * or the ball rolls correctly one way and backwards the other.
+ *
+ * Screen y grows downward, and pitch is positive nose-up, so a positive pitch puts
+ * the near edge low and the ball moves down the screen: both positive, no flip.
+ * Roll is positive with the right side down, and screen x grows to the right, so
+ * that is positive too.
+ *
+ * `range` is the tilt in degrees at which the ball reaches the rim.
+ */
+export function ballOffset(tilt: Tilt, range = 5): { x: number; y: number } {
+  const clamp = (v: number) => Math.max(-1, Math.min(1, v / range));
+  return { x: clamp(tilt.roll), y: clamp(tilt.pitch) };
+}

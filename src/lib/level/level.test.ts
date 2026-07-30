@@ -13,6 +13,7 @@ import {
   plumbAngle,
   gravityToTilt,
   edgeOrientation,
+  ballOffset,
 } from "./level";
 
 describe("level", () => {
@@ -185,5 +186,36 @@ describe("edge level in every upright position", () => {
     expect(edgeOrientation({ x: G, y: 0, z: 0 })).toBe("landscape");
     // A slight lean does not change which edge is resting.
     expect(edgeOrientation({ x: 1.4, y: -9.7, z: 0 })).toBe("portrait");
+  });
+});
+
+describe("the ball in the vial", () => {
+  it("rolls towards the low side on both axes", () => {
+    // Right side down: the ball rolls right, so x is positive.
+    expect(ballOffset({ pitch: 0, roll: 2 }).x).toBeGreaterThan(0);
+    // Left side down: it rolls left.
+    expect(ballOffset({ pitch: 0, roll: -2 }).x).toBeLessThan(0);
+    // Nose up puts the near edge low, and screen y grows downward, so y is positive.
+    expect(ballOffset({ pitch: 2, roll: 0 }).y).toBeGreaterThan(0);
+    expect(ballOffset({ pitch: -2, roll: 0 }).y).toBeLessThan(0);
+  });
+
+  it("treats both axes the same way round", () => {
+    // The bug: one axis was negated and the other was not, so the ball rolled
+    // downhill in one direction and uphill in the other.
+    const right = ballOffset({ pitch: 0, roll: 3 });
+    const near = ballOffset({ pitch: 3, roll: 0 });
+    expect(Math.sign(right.x)).toBe(Math.sign(near.y));
+    // Equal tilts give equal travel.
+    expect(Math.abs(right.x)).toBeCloseTo(Math.abs(near.y), 9);
+  });
+
+  it("sits dead centre when level and stops at the rim", () => {
+    expect(ballOffset({ pitch: 0, roll: 0 })).toEqual({ x: 0, y: 0 });
+    // Beyond the range it pins to the edge rather than leaving the vial.
+    expect(ballOffset({ pitch: 40, roll: -40 })).toEqual({ x: -1, y: 1 });
+    expect(ballOffset({ pitch: 5, roll: 0 }, 5).y).toBe(1);
+    // A tighter range makes it more sensitive.
+    expect(ballOffset({ pitch: 1, roll: 0 }, 2).y).toBe(0.5);
   });
 });
