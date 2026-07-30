@@ -8,11 +8,17 @@ import {
   slopeDirection,
   smooth,
   totalTilt,
+  detectMode,
+  edgeAngle,
+  plumbAngle,
+  gravityToTilt,
   NO_CALIBRATION,
   SLOPE_UNITS,
   type LevelCalibration,
   type SlopeUnit,
   type Tilt,
+  type Gravity,
+  type LevelMode,
 } from "@/lib/level/level";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -27,6 +33,7 @@ export default function LevelPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [raw, setRaw] = useState<Tilt>({ pitch: 0, roll: 0 });
   const [held, setHeld] = useState<Tilt | null>(null);
+  const [heldEdge, setHeldEdge] = useState<number | null>(null);
   const [unit, setUnit] = useState<SlopeUnit>("deg");
   const [calibration, setCalibration] = useState<LevelCalibration>(() => {
     try {
@@ -37,6 +44,10 @@ export default function LevelPage() {
     }
   });
   const history = useRef<Tilt[]>([]);
+  const [gravity, setGravity] = useState<Gravity | null>(null);
+  const [mode, setMode] = useState<LevelMode>("surface");
+  const [edge, setEdge] = useState(0);
+  const [plumb, setPlumb] = useState(0);
 
   const start = async () => {
     if (typeof DeviceOrientationEvent === "undefined") {
@@ -58,6 +69,20 @@ export default function LevelPage() {
         return;
       }
     }
+    const motionRequest = (
+      typeof DeviceMotionEvent !== "undefined"
+        ? (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> })
+            .requestPermission
+        : undefined
+    );
+    if (typeof motionRequest === "function") {
+      // A refusal here only costs the automatic mode switch, so it is not fatal.
+      try {
+        await motionRequest();
+      } catch {
+        /* the surface view still works from orientation alone */
+      }
+    }
     setStatus("running");
   };
 
@@ -71,8 +96,21 @@ export default function LevelPage() {
       });
       setRaw(averageTilt(history.current));
     };
+    const onMotion = (e: DeviceMotionEvent) => {
+      const a = e.accelerationIncludingGravity;
+      if (!a || a.x === null || a.y === null || a.z === null) return;
+      const g = { x: a.x, y: a.y, z: a.z };
+      setGravity(g);
+      setMode((current) => detectMode(g, current));
+      setEdge(edgeAngle(g));
+      setPlumb(plumbAngle(g));
+    };
     window.addEventListener("deviceorientation", onOrient, true);
-    return () => window.removeEventListener("deviceorientation", onOrient, true);
+    window.addEventListener("devicemotion", onMotion, true);
+    return () => {
+      window.removeEventListener("deviceorientation", onOrient, true);
+      window.removeEventListener("devicemotion", onMotion, true);
+    };
   }, [status]);
 
   const live = applyCalibration(raw, calibration);
@@ -97,6 +135,9 @@ export default function LevelPage() {
       /* nothing to clear */
     }
   };
+
+  const edgeShown = heldEdge ?? edge;
+  const edgeLevel = Math.abs(edgeShown) <= 0.15;
 
   // Bubble sits opposite the fall, as a real vial does. Clamped so it stays in view.
   const clamp = (v: number) => Math.max(-1, Math.min(1, v / 5));
@@ -139,41 +180,89 @@ export default function LevelPage() {
       ) : (
         <>
           <Card variant="solid" padding="md" className="border-dark-600">
-            <div className="flex flex-col items-center py-2">
-              <div
-                className={`relative h-56 w-56 rounded-full border-2 transition-colors ${
-                  level ? "border-accent-green/70 bg-accent-green/[0.06]" : "border-dark-600 bg-dark-900/60"
-                }`}
-              >
-                <div className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dark-500" />
-                <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-dark-600" />
-                <div className="absolute top-1/2 left-0 w-full h-px -translate-y-1/2 bg-dark-600" />
-                <div
-                  className={`absolute left-1/2 top-1/2 h-12 w-12 rounded-full transition-transform ${
-                    level ? "bg-accent-green/70" : "bg-accent-cyan/70"
-                  }`}
-                  style={{ transform: `translate(calc(-50% + ${bubbleX}%), calc(-50% + ${bubbleY}%))` }}
-                />
-              </div>
-              <p className={`mt-5 font-mono text-4xl ${level ? "text-accent-green" : "text-white"}`}>
-                {formatSlope(total, unit)}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {level ? "Level" : `falls towards ${direction.toFixed(0)}°`}
-                {held && " · held"}
-              </p>
-            </div>
+            {mode === "surface" ? (
+              <>
+                <div className="flex flex-col items-center py-2">
+                  <div
+                    className={`relative h-56 w-56 rounded-full border-2 transition-colors ${
+                      level ? "border-accent-green/70 bg-accent-green/[0.06]" : "border-dark-600 bg-dark-900/60"
+                    }`}
+                  >
+                    <div className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dark-500" />
+                    <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-dark-600" />
+                    <div className="absolute top-1/2 left-0 w-full h-px -translate-y-1/2 bg-dark-600" />
+                    <div
+                      className={`absolute left-1/2 top-1/2 h-12 w-12 rounded-full transition-transform ${
+                        level ? "bg-accent-green/70" : "bg-accent-cyan/70"
+                      }`}
+                      style={{ transform: `translate(calc(-50% + ${bubbleX}%), calc(-50% + ${bubbleY}%))` }}
+                    />
+                  </div>
+                  <p className={`mt-5 font-mono text-4xl ${level ? "text-accent-green" : "text-white"}`}>
+                    {formatSlope(total, unit)}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {level ? "Level" : `falls towards ${direction.toFixed(0)}°`}
+                    {held && " · held"}
+                  </p>
+                </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-dark-700 pt-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-gray-500">Front · back</p>
-                <p className="font-mono text-lg text-white">{formatSlope(tilt.pitch, unit)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-gray-500">Left · right</p>
-                <p className="font-mono text-lg text-white">{formatSlope(tilt.roll, unit)}</p>
-              </div>
-            </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-dark-700 pt-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Front · back</p>
+                    <p className="font-mono text-lg text-white">{formatSlope(tilt.pitch, unit)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Left · right</p>
+                    <p className="font-mono text-lg text-white">{formatSlope(tilt.roll, unit)}</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Stood on an edge, only the angle in the screen plane means anything,
+                    so a seesaw beam replaces the bubble. */}
+                <div className="flex flex-col items-center py-4">
+                  <svg viewBox="0 0 240 150" className="w-full max-w-sm" role="img"
+                    aria-label="Edge level beam">
+                    <line x1="14" y1="118" x2="226" y2="118" stroke="#8b93a7" strokeWidth="1"
+                      strokeDasharray="6 4" />
+                    <g transform={`rotate(${Math.max(-35, Math.min(35, edgeShown))} 120 92)`}>
+                      <rect x="26" y="84" width="188" height="16" rx="8"
+                        fill={edgeLevel ? "rgba(34,197,94,0.22)" : "rgba(0,212,255,0.18)"}
+                        stroke={edgeLevel ? "#22c55e" : "#00d4ff"} strokeWidth="2" />
+                      <circle cx="120" cy="92" r="5" fill={edgeLevel ? "#22c55e" : "#00d4ff"} />
+                    </g>
+                    <polygon points="120,92 134,124 106,124" fill="#8b93a7" opacity="0.5" />
+                  </svg>
+                  <p className={`mt-4 font-mono text-4xl ${edgeLevel ? "text-accent-green" : "text-white"}`}>
+                    {formatSlope(Math.abs(edgeShown), unit)}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {edgeLevel
+                      ? "Level"
+                      : `${edgeShown > 0 ? "right" : "left"} side low`}
+                    {heldEdge !== null && " · held"}
+                  </p>
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-3 border-t border-dark-700 pt-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Off level</p>
+                    <p className="font-mono text-lg text-white">{formatSlope(edgeShown, unit)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Off plumb</p>
+                    <p className="font-mono text-lg text-white">{formatSlope(plumb, unit)}</p>
+                  </div>
+                </div>
+              </>
+            )}
+            <p className="mt-3 text-center text-[10px] text-gray-600">
+              {mode === "surface"
+                ? "Lying flat — both axes. Stand it on an edge to switch."
+                : "Standing on an edge — one axis. Lay it flat to switch back."}
+            </p>
           </Card>
 
           <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
@@ -195,11 +284,14 @@ export default function LevelPage() {
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
               <button
-                onClick={() => setHeld(held ? null : live)}
+                onClick={() => {
+                  if (mode === "edge") setHeldEdge(heldEdge === null ? edge : null);
+                  else setHeld(held ? null : live);
+                }}
                 className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:text-white"
               >
-                {held ? <Play size={13} /> : <Pause size={13} />}
-                {held ? "Resume" : "Hold reading"}
+                {(mode === "edge" ? heldEdge !== null : held !== null) ? <Play size={13} /> : <Pause size={13} />}
+                {(mode === "edge" ? heldEdge !== null : held !== null) ? "Resume" : "Hold reading"}
               </button>
               <button
                 onClick={calibrate}

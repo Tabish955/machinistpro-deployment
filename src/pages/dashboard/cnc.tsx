@@ -8,6 +8,8 @@ import {
   type G71Input,
   type ProfileStep,
 } from "@/lib/cnc/g71";
+import { G71Simulation } from "@/components/cnc/simulation";
+import { Backplot } from "@/components/cnc/backplot";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -345,6 +347,10 @@ export default function CNCPage() {
         </Card>
       )}
 
+      {!error && !profile.error && steps.length > 0 && (
+        <G71Simulation input={input} steps={steps} includeFinish />
+      )}
+
       {!error && code.length > 0 && (
         <Card variant="solid" padding="md" className="border-dark-600">
           <div className="flex items-center justify-between mb-2">
@@ -368,6 +374,8 @@ export default function CNCPage() {
           </p>
         </Card>
       )}
+
+      <Backplot />
     </div>
   );
 }

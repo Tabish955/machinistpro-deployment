@@ -8,6 +8,10 @@ import {
   isLevel,
   smooth,
   averageTilt,
+  detectMode,
+  edgeAngle,
+  plumbAngle,
+  gravityToTilt,
 } from "./level";
 
 describe("level", () => {
@@ -85,5 +89,60 @@ describe("level", () => {
     expect(long).toHaveLength(5);
     expect(long[0].pitch).toBe(15);
     expect(averageTilt([]).pitch).toBe(0);
+  });
+});
+
+describe("how the phone is being held", () => {
+  const G = 9.81;
+
+  it("calls it a surface when the screen faces up or down", () => {
+    expect(detectMode({ x: 0, y: 0, z: G })).toBe("surface");
+    expect(detectMode({ x: 0, y: 0, z: -G })).toBe("surface");
+    // A little off flat is still flat.
+    expect(detectMode({ x: 1, y: 1, z: 9.7 })).toBe("surface");
+  });
+
+  it("calls it an edge when the phone is stood up", () => {
+    // Portrait upright: gravity runs down the screen.
+    expect(detectMode({ x: 0, y: -G, z: 0 })).toBe("edge");
+    // On its side: gravity runs across it.
+    expect(detectMode({ x: G, y: 0, z: 0 })).toBe("edge");
+    // Leaning, but still mostly upright.
+    expect(detectMode({ x: 2, y: -9.4, z: 2 })).toBe("edge");
+  });
+
+  it("will not flicker between modes near the boundary", () => {
+    // Right at the ambiguous 45 degrees, whichever mode is showing stays showing.
+    const tipped = { x: 0, y: -G * Math.SQRT1_2, z: G * Math.SQRT1_2 };
+    expect(detectMode(tipped, "surface")).toBe("surface");
+    expect(detectMode(tipped, "edge")).toBe("edge");
+    // It only gives way once the phone has travelled well past the boundary.
+    const clearlyUp = { x: 0, y: -G * 0.95, z: G * 0.31 };
+    expect(detectMode(clearlyUp, "surface")).toBe("edge");
+    const clearlyFlat = { x: 0, y: -G * 0.3, z: G * 0.95 };
+    expect(detectMode(clearlyFlat, "edge")).toBe("surface");
+  });
+
+  it("measures the edge angle away from level", () => {
+    // Long edge horizontal, screen vertical: level.
+    expect(edgeAngle({ x: 0, y: -G, z: 0 })).toBeCloseTo(0, 3);
+    // Tipped so the right side drops.
+    expect(edgeAngle({ x: G * 0.5, y: -G * 0.866, z: 0 })).toBeCloseTo(30, 1);
+    expect(edgeAngle({ x: -G * 0.5, y: -G * 0.866, z: 0 })).toBeCloseTo(-30, 1);
+  });
+
+  it("measures how far a face is off plumb", () => {
+    // Screen vertical: dead plumb.
+    expect(plumbAngle({ x: 0, y: -G, z: 0 })).toBeCloseTo(0, 3);
+    // Leaning back 10 degrees.
+    const lean = 10 * (Math.PI / 180);
+    expect(plumbAngle({ x: 0, y: -G * Math.cos(lean), z: G * Math.sin(lean) })).toBeCloseTo(10, 1);
+  });
+
+  it("derives the surface tilt from gravity", () => {
+    expect(gravityToTilt({ x: 0, y: 0, z: G })).toEqual({ pitch: 0, roll: 0 });
+    // Nose down by 5 degrees puts gravity slightly along +y.
+    const t = gravityToTilt({ x: 0, y: G * Math.sin(5 * Math.PI / 180), z: G * Math.cos(5 * Math.PI / 180) });
+    expect(t.pitch).toBeCloseTo(-5, 1);
   });
 });
