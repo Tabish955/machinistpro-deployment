@@ -71,22 +71,47 @@ export const SHAPES: ShapeDef[] = [
   {
     id: "tube", name: "Tube (by Wall)", group: "hollow",
     fields: [f("od", "Outside Diameter", "e.g. 50"), f("wt", "Wall Thickness", "e.g. 3"), f("l", "Length", "e.g. 1000")],
+    // A wall thicker than half the OD bores past the centreline: id goes
+    // negative, but OD² - ID² stays positive, so the raw formula answers a
+    // large, confidently-wrong volume rather than failing.
     volume: ({ od, wt, l }) => {
+      if (wt <= 0) throw new Error("Wall thickness must be greater than zero.");
+      if (wt >= od / 2) {
+        throw new Error(
+          `Wall thickness (${wt}) must be less than half the outside diameter (${od / 2}).`,
+        );
+      }
       const id = od - 2 * wt;
-      return PI / 4 * (od * od - id * id) * l;
+      return (PI / 4) * (od * od - id * id) * l;
     },
     formula: "V = π/4 × (OD² − (OD−2t)²) × L",
   },
   {
     id: "hollow_square", name: "Hollow Square", group: "hollow",
     fields: [f("a", "Outer Side", "e.g. 50"), f("t", "Wall Thickness", "e.g. 3"), f("l", "Length", "e.g. 1000")],
-    volume: ({ a, t, l }) => (a * a - (a - 2 * t) * (a - 2 * t)) * l,
+    volume: ({ a, t, l }) => {
+      if (t <= 0) throw new Error("Wall thickness must be greater than zero.");
+      if (t >= a / 2) {
+        throw new Error(
+          `Wall thickness (${t}) must be less than half the outer side (${a / 2}).`,
+        );
+      }
+      return (a * a - (a - 2 * t) * (a - 2 * t)) * l;
+    },
     formula: "V = (A² − (A−2t)²) × L",
   },
   {
     id: "hollow_rect", name: "Hollow Rectangle", group: "hollow",
     fields: [f("w", "Outer Width", "e.g. 80"), f("h", "Outer Height", "e.g. 40"), f("t", "Wall Thickness", "e.g. 3"), f("l", "Length", "e.g. 1000")],
-    volume: ({ w, h, t, l }) => (w * h - (w - 2 * t) * (h - 2 * t)) * l,
+    volume: ({ w, h, t, l }) => {
+      if (t <= 0) throw new Error("Wall thickness must be greater than zero.");
+      if (t >= w / 2 || t >= h / 2) {
+        throw new Error(
+          `Wall thickness (${t}) must be less than half the width (${w / 2}) and height (${h / 2}).`,
+        );
+      }
+      return (w * h - (w - 2 * t) * (h - 2 * t)) * l;
+    },
     formula: "V = (W×H − (W−2t)(H−2t)) × L",
   },
 

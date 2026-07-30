@@ -55,4 +55,25 @@ describe("stock shape volumes", () => {
     expect(ball).toBeCloseTo(4.11, 2);
     expect(steelKgPerM("cylinder", { d: 25, h: 1000 })).toBeCloseTo(3.85, 2);
   });
+
+  it("refuses a wall thicker than half the outside dimension", () => {
+    // A 30 mm wall on a 50 mm OD gives id = -10 mm, and OD² - ID² stays
+    // positive, so the untouched formula answered ~1.88M mm³ — nearly four
+    // times the correct 3 mm-wall value — without raising.
+    expect(() => shape("tube").volume({ od: 0.05, wt: 0.03, l: 1 })).toThrow(
+      /less than half the outside diameter/,
+    );
+    expect(() => shape("hollow_square").volume({ a: 0.05, t: 0.03, l: 1 })).toThrow(
+      /less than half the outer side/,
+    );
+    expect(() => shape("hollow_rect").volume({ w: 0.08, h: 0.04, t: 0.03, l: 1 })).toThrow(
+      /less than half the width/,
+    );
+    // Exactly half has no bore, so it must be rejected too.
+    expect(() => shape("tube").volume({ od: 0.05, wt: 0.025, l: 1 })).toThrow();
+    // Zero wall is not a tube.
+    expect(() => shape("tube").volume({ od: 0.05, wt: 0, l: 1 })).toThrow();
+    // A valid wall still computes, so the guard has not broken the happy path.
+    expect(() => shape("tube").volume({ od: 0.05, wt: 0.003, l: 1 })).not.toThrow();
+  });
 });

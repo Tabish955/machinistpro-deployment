@@ -190,10 +190,18 @@ export default function WeightPage() {
   }, [dims, shape.fields]);
 
   // ── Weight calculation ──
-  const result = useMemo(
-    () => calculateWeight(shape, material, parsedDims, dimUnit, weightUnit),
-    [shape, material, parsedDims, dimUnit, weightUnit]
-  );
+  // A shape can reject its inputs — a wall thicker than half the OD is no
+  // longer a tube — and the reason is more use than a silently wrong weight.
+  const { result, calcError } = useMemo(() => {
+    try {
+      return { result: calculateWeight(shape, material, parsedDims, dimUnit, weightUnit), calcError: "" };
+    } catch (cause) {
+      return {
+        result: null,
+        calcError: cause instanceof Error ? cause.message : "These dimensions do not work.",
+      };
+    }
+  }, [shape, material, parsedDims, dimUnit, weightUnit]);
 
   // ── Cost calculation ──
   const costResult = useMemo(() => {
@@ -411,6 +419,11 @@ export default function WeightPage() {
                     {copied ? <Check size={14} /> : <Copy size={14} />}
                     {copied ? "Copied!" : "Copy Result"}
                   </button>
+                </div>
+              ) : calcError ? (
+                <div className="text-center py-8">
+                  <Weight size={32} className="text-accent-amber mx-auto mb-2" />
+                  <p className="text-sm text-accent-amber">{calcError}</p>
                 </div>
               ) : (
                 <div className="text-center py-8">
