@@ -9,6 +9,7 @@ import {
   type ProfileStep,
 } from "@/lib/cnc/g71";
 import { G71Simulation } from "@/components/cnc/simulation";
+import { Backplot } from "@/components/cnc/backplot";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -373,6 +374,8 @@ export default function CNCPage() {
           </p>
         </Card>
       )}
+
+      <Backplot />
     </div>
   );
 }
