@@ -54,4 +54,16 @@ describe("3D shape labelling", () => {
     const c = calc("capsule", { r: 2, h: 6 });
     expect(c["Total Length"]).toBe(10);
   });
+
+  it("refuses a torus whose tube reaches past the centre", () => {
+    // r > R is a spindle torus: self-intersecting, but 2π²Rr² stays positive and
+    // reports a volume no real part can have. The bore diameter goes negative,
+    // which is the tell.
+    expect(() => calc("torus", { R: 2, r: 5 })).toThrow(/must not exceed the major radius/);
+    // A horn torus (r == R) has a zero bore but is a real, tangent shape.
+    expect(() => calc("torus", { R: 3, r: 3 })).not.toThrow();
+    expect(calc("torus", { R: 3, r: 3 })["Bore Diameter"]).toBe(0);
+    // Ring torus (r < R) still computes with a positive bore.
+    expect(() => calc("torus", { R: 5, r: 2 })).not.toThrow();
+  });
 });

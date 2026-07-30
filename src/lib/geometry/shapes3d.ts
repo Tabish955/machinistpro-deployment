@@ -124,12 +124,23 @@ export const SHAPES_3D: Shape3D[] = [
     // outside edge. The formula needs the tube centre, and the difference is a
     // whole tube radius — enough to give a confidently wrong volume.
     fields: [f("R", "Major Radius (centre → tube centre)"), f("r", "Minor Radius (tube)")],
-    calc: ({ R, r: tr }) => [
-      r("Volume", 2 * PI * PI * R * tr * tr),
-      r("Surface Area", 4 * PI * PI * R * tr, "u²"),
-      r("Outside Diameter", 2 * (R + tr), "u"),
-      r("Bore Diameter", 2 * (R - tr), "u"),
-    ],
+    calc: ({ R, r: tr }) => {
+      // The tube radius reaching past the centre (r > R) folds the torus in on
+      // itself; the swept-volume formula stays positive and reports a number no
+      // real part can have. Reject it the way the hollow cylinder refuses a bore
+      // larger than its outside.
+      if (R < tr) {
+        throw new Error(
+          `Minor radius (${tr}) must not exceed the major radius (${R}).`,
+        );
+      }
+      return [
+        r("Volume", 2 * PI * PI * R * tr * tr),
+        r("Surface Area", 4 * PI * PI * R * tr, "u²"),
+        r("Outside Diameter", 2 * (R + tr), "u"),
+        r("Bore Diameter", 2 * (R - tr), "u"),
+      ];
+    },
     formula: "V = 2π²Rr² · SA = 4π²Rr",
   },
   {
