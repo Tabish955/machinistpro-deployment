@@ -4,6 +4,7 @@ export interface ThreadRecord {
   pitch: number;      // mm
   tpi?: number;
   majorDia: number;   // mm
+  /** External thread minor, d3 = major − 1.2269 × pitch. Not the internal D1. */
   minorDia: number;   // mm
   tapDrill: number;   // mm
   clearDrill: number; // mm
@@ -15,7 +16,9 @@ function t(standard: string, size: string, pitch: number, tpi: number | undefine
 
 export const THREAD_DB: ThreadRecord[] = [
   // ═══ ISO METRIC (coarse) ══════════════════════════════════════════════════
-  t("ISO Metric","M2×0.4",     0.4,  undefined,2,     1.567, 1.6,  2.2),
+  // 1.509 is d3, the external thread minor, which every other row here uses.
+  // This one held 1.567, the internal minor D1, so the column meant two things.
+  t("ISO Metric","M2×0.4",     0.4,  undefined,2,     1.509, 1.6,  2.2),
   t("ISO Metric","M2.5×0.45",  0.45, undefined,2.5,   1.948, 2.05, 2.7),
   t("ISO Metric","M3×0.5",     0.5,  undefined,3,     2.387, 2.5,  3.2),
   t("ISO Metric","M4×0.7",     0.7,  undefined,4,     3.141, 3.3,  4.3),
