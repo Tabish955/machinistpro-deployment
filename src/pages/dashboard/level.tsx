@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   applyCalibration,
   averageTilt,
+  ballOffset,
   formatSlope,
   isLevel,
   normaliseAngle,
@@ -10,6 +11,7 @@ import {
   totalTilt,
   detectMode,
   edgeAngle,
+  edgeOrientation,
   plumbAngle,
   gravityToTilt,
   NO_CALIBRATION,
@@ -19,6 +21,7 @@ import {
   type Tilt,
   type Gravity,
   type LevelMode,
+  type EdgeOrientation,
 } from "@/lib/level/level";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -48,6 +51,7 @@ export default function LevelPage() {
   const [mode, setMode] = useState<LevelMode>("surface");
   const [edge, setEdge] = useState(0);
   const [plumb, setPlumb] = useState(0);
+  const [heldOn, setHeldOn] = useState<EdgeOrientation>("portrait");
 
   const start = async () => {
     if (typeof DeviceOrientationEvent === "undefined") {
@@ -104,6 +108,7 @@ export default function LevelPage() {
       setMode((current) => detectMode(g, current));
       setEdge(edgeAngle(g));
       setPlumb(plumbAngle(g));
+      setHeldOn(edgeOrientation(g));
     };
     window.addEventListener("deviceorientation", onOrient, true);
     window.addEventListener("devicemotion", onMotion, true);
@@ -139,10 +144,10 @@ export default function LevelPage() {
   const edgeShown = heldEdge ?? edge;
   const edgeLevel = Math.abs(edgeShown) <= 0.15;
 
-  // Bubble sits opposite the fall, as a real vial does. Clamped so it stays in view.
-  const clamp = (v: number) => Math.max(-1, Math.min(1, v / 5));
-  const bubbleX = -clamp(tilt.roll) * 42;
-  const bubbleY = clamp(tilt.pitch) * 42;
+  // Rolls downhill, both axes the same way round. Pinned at the rim so it stays in view.
+  const ball = ballOffset(tilt);
+  const bubbleX = ball.x * 42;
+  const bubbleY = ball.y * 42;
 
   return (
     <div className="space-y-5 animate-fade-in max-w-3xl mx-auto">
@@ -242,6 +247,8 @@ export default function LevelPage() {
                     {edgeLevel
                       ? "Level"
                       : `${edgeShown > 0 ? "right" : "left"} side low`}
+                    {" · on its "}
+                    {heldOn === "portrait" ? "short edge" : "long edge"}
                     {heldEdge !== null && " · held"}
                   </p>
                 </div>
@@ -261,7 +268,7 @@ export default function LevelPage() {
             <p className="mt-3 text-center text-[10px] text-gray-600">
               {mode === "surface"
                 ? "Lying flat — both axes. Stand it on an edge to switch."
-                : "Standing on an edge — one axis. Lay it flat to switch back."}
+                : "Standing on an edge — one axis, portrait or landscape. Lay it flat to switch back."}
             </p>
           </Card>
 
