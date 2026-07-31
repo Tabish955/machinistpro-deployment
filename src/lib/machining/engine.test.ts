@@ -6,7 +6,9 @@ import {
   calcChipLoad,
   calcMachiningTime,
   calcMRR,
-  calcMinorDia,
+  calcMinorDiaInternal,
+  calcMinorDiaExternal,
+  calcThreadDepthExternal,
   calcTurningMRR,
   calcDrillFeedPerRev,
   calcDrillPointDepth,
@@ -34,7 +36,27 @@ describe("machining engine", () => {
     expect(calcMachiningTime(100, 400, 2)).toBeCloseTo(0.5, 12);
     // 2 mm deep, 10 mm wide, 400 mm/min = 8000 mm³/min = 8 cm³/min
     expect(calcMRR(2, 10, 400)).toBeCloseTo(8, 12);
-    expect(calcMinorDia(10, 1.5)).toBeCloseTo(8.3763, 4);
+  });
+
+  it("keeps the two thread minor diameters apart", () => {
+    // M10 × 1.5: the nut bores to 8.376, the screw turns down to 8.160. Reading
+    // one for the other leaves a single-point thread 0.108 mm shallow on radius.
+    expect(calcMinorDiaInternal(10, 1.5)).toBeCloseTo(8.3763, 4);
+    expect(calcMinorDiaExternal(10, 1.5)).toBeCloseTo(8.15965, 5);
+    expect(calcMinorDiaInternal(10, 1.5)).toBeGreaterThan(calcMinorDiaExternal(10, 1.5));
+
+    // The infeed must close exactly the gap between the major and the screw minor,
+    // so the depth and the diameter cannot drift apart.
+    const major = 8;
+    const pitch = 1.25;
+    expect(calcThreadDepthExternal(pitch) * 2).toBeCloseTo(
+      major - calcMinorDiaExternal(major, pitch),
+      6,
+    );
+
+    // And it must agree with the engineering database, which tabulates d3.
+    expect(calcMinorDiaExternal(8, 1.25)).toBeCloseTo(6.466, 3);
+    expect(calcMinorDiaExternal(6, 1.0)).toBeCloseTo(4.773, 3);
   });
 
   it("uses the turning form of removal rate, not the milling one", () => {
