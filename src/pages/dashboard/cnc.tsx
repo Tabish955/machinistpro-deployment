@@ -27,7 +27,15 @@ import {
   type ThreadForm,
   type SimpleCycle,
 } from "@/lib/cnc/cycles";
-import { G71Simulation } from "@/components/cnc/simulation";
+import {
+  buildG72Toolpath,
+  buildG73Toolpath,
+  buildG74Toolpath,
+  buildG75Toolpath,
+  buildG76Toolpath,
+  buildSimpleToolpath,
+} from "@/lib/cnc/toolpaths";
+import { G71Simulation, LatheSimulation } from "@/components/cnc/simulation";
 import { Backplot } from "@/components/cnc/backplot";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -139,14 +147,6 @@ function Program({ lines, note }: { lines: string[]; note?: ReactNode }) {
         {lines.join("\n")}
       </pre>
       {note && <p className="mt-2 text-[10px] text-gray-600 leading-relaxed">{note}</p>}
-    </Card>
-  );
-}
-
-function Failure({ message }: { message: string }) {
-  return (
-    <Card variant="solid" padding="md" className="border-accent-red/30">
-      <p className="text-sm text-accent-red">{message}</p>
     </Card>
   );
 }
@@ -523,12 +523,14 @@ function G72Panel() {
       return {
         result: calcG72(input),
         code: generateG72Code(input, { feed: pf(feed) || 0.2 }),
+        moves: buildG72Toolpath(input),
         error: "",
       };
     } catch (cause) {
       return {
         result: null,
         code: [],
+        moves: [],
         error: cause instanceof Error ? cause.message : "Check the values.",
       };
     }
@@ -589,6 +591,14 @@ function G72Panel() {
           )}
         </Card>
       </div>
+      <LatheSimulation
+        moves={out.moves}
+        stockDiameter={pf(stock)}
+        length={Math.max(pf(facing) * 2.5, pf(facing) + 10)}
+        error={out.error}
+        passLabel={(p) => `facing pass ${p}`}
+        note="Each pass clears the end of the bar back to its own Z, so the metal comes off the face rather than off the diameter."
+      />
       {!out.error && (
         <Program
           lines={out.code}
@@ -617,22 +627,36 @@ function G73Panel() {
     allowanceZ: pf(allowZ),
   };
 
+  // G73 follows whatever profile sits between P and Q, so the picture needs a
+  // shape to follow. This one is an illustration; the offsets it is drawn at are
+  // the ones the inputs above produce.
+  const examplePoints = useMemo(
+    () =>
+      profileCoordinates([
+        { diameter: 26, length: 18 },
+        { diameter: 38, length: 22 },
+      ]),
+    [],
+  );
+
   const out = useMemo(() => {
     try {
       return {
         result: calcG73(input),
         code: generateG73Code(input, { feed: pf(feed) || 0.2 }),
+        moves: buildG73Toolpath(input, examplePoints),
         error: "",
       };
     } catch (cause) {
       return {
         result: null,
         code: [],
+        moves: [],
         error: cause instanceof Error ? cause.message : "Check the values.",
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reliefX, reliefZ, divisions, allowX, allowZ, feed]);
+  }, [reliefX, reliefZ, divisions, allowX, allowZ, feed, examplePoints]);
 
   return (
     <div className="space-y-4">
@@ -675,6 +699,15 @@ function G73Panel() {
           )}
         </Card>
       </div>
+      <LatheSimulation
+        moves={out.moves}
+        stockDiameter={38 + 2 * (pf(reliefX) || 0)}
+        length={40}
+        targetPoints={examplePoints}
+        error={out.error}
+        passLabel={(p) => `pass ${p}`}
+        note="The shape here is an illustration — the offsets each pass is drawn at are the ones your relief and divisions produce. Watch every pass keep the same outline, which is what separates this cycle from G71."
+      />
       {!out.error && (
         <Program
           lines={out.code}
@@ -690,6 +723,7 @@ function G73Panel() {
 function G74Panel() {
   const [depth, setDepth] = useState("30");
   const [peck, setPeck] = useState("5");
+  const [drill, setDrill] = useState("10");
   const [retract, setRetract] = useState("1");
   const [feed, setFeed] = useState("0.15");
   const [clearance, setClearance] = useState("2");
@@ -704,18 +738,25 @@ function G74Panel() {
 
   const out = useMemo(() => {
     try {
-      return { result: calcG74(input), code: generateG74Code(input), error: "" };
+      return {
+        result: calcG74(input),
+        code: generateG74Code(input),
+        moves: buildG74Toolpath({ ...input, drillDiameter: pf(drill) || 10 }),
+        error: "",
+      };
     } catch (cause) {
       return {
         result: null,
         code: [],
+        moves: [],
         error: cause instanceof Error ? cause.message : "Check the values.",
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depth, peck, retract, feed, clearance]);
+  }, [depth, peck, drill, retract, feed, clearance]);
 
-  const ratio = pf(depth) > 0 ? pf(depth) : 0;
+  // Depth in diameters is the number that decides whether pecking is optional.
+  const ratio = pf(drill) > 0 ? pf(depth) / pf(drill) : 0;
 
   return (
     <div className="space-y-4">
@@ -724,6 +765,7 @@ function G74Panel() {
           <SectionHeader title="G74 — Peck Drilling" />
           <div className="grid grid-cols-2 gap-3">
             <Num label="Hole Depth" value={depth} onChange={setDepth} suffix="mm" />
+            <Num label="Drill Ø" value={drill} onChange={setDrill} suffix="mm" />
             <Num label="Peck (Q)" value={peck} onChange={setPeck} suffix="mm" />
             <Num label="Retract (R)" value={retract} onChange={setRetract} suffix="mm" />
             <Num label="Feed (F)" value={feed} onChange={setFeed} suffix="mm/rev" />
@@ -745,7 +787,10 @@ function G74Panel() {
               <>
                 <p className="text-xs text-gray-400 mb-3">
                   <span className="font-mono text-white">{out.result.totalPecks}</span> pecks to
-                  reach <span className="font-mono text-white">{ratio}</span> mm
+                  reach <span className="font-mono text-white">{depth}</span> mm —{" "}
+                  <span className={ratio > 3 ? "text-accent-amber" : ""}>
+                    {ratio.toFixed(1)}× diameter
+                  </span>
                 </p>
                 <Table
                   head={["Peck", "Z", "Advance"]}
@@ -756,6 +801,15 @@ function G74Panel() {
           )}
         </Card>
       </div>
+      <LatheSimulation
+        moves={out.moves}
+        stockDiameter={Math.max((pf(drill) || 10) * 3, 20)}
+        length={Math.max(pf(depth) * 1.25, pf(depth) + 5)}
+        start={{ x: pf(drill) || 10, z: pf(clearance) || 2 }}
+        error={out.error}
+        passLabel={(p) => `peck ${p}`}
+        note="The hole is punched out of the bar as the drill advances. Each peck rapids back down to where the last one stopped and only feeds the fresh metal, which is why pecking costs so little time."
+      />
       {!out.error && (
         <Program
           lines={out.code}
@@ -791,11 +845,17 @@ function G75Panel() {
 
   const out = useMemo(() => {
     try {
-      return { result: calcG75(input), code: generateG75Code(input), error: "" };
+      return {
+        result: calcG75(input),
+        code: generateG75Code(input),
+        moves: buildG75Toolpath(input),
+        error: "",
+      };
     } catch (cause) {
       return {
         result: null,
         code: [],
+        moves: [],
         error: cause instanceof Error ? cause.message : "Check the values.",
       };
     }
@@ -860,6 +920,14 @@ function G75Panel() {
           )}
         </Card>
       </div>
+      <LatheSimulation
+        moves={out.moves}
+        stockDiameter={pf(stock)}
+        length={Math.abs(pf(zStart)) + pf(width) + 10}
+        error={out.error}
+        passLabel={(p) => `plunge ${p}`}
+        note="The slot is cut as wide as the tool, not as a line, so overlapping plunges show as one groove. If a step ever exceeded the tool width you would see the metal left standing between them."
+      />
       {!out.error && (
         <Program
           lines={out.code}
@@ -901,11 +969,17 @@ function G76Panel() {
 
   const out = useMemo(() => {
     try {
-      return { result: calcG76(input), code: generateG76Code(input), error: "" };
+      return {
+        result: calcG76(input),
+        code: generateG76Code(input),
+        moves: buildG76Toolpath(input),
+        error: "",
+      };
     } catch (cause) {
       return {
         result: null,
         code: [],
+        moves: [],
         error: cause instanceof Error ? cause.message : "Check the values.",
       };
     }
@@ -1024,6 +1098,16 @@ function G76Panel() {
         </p>
       </Card>
 
+      <LatheSimulation
+        moves={out.moves}
+        stockDiameter={pf(major) + 8}
+        length={Math.abs(pf(zEnd)) + 10}
+        error={out.error}
+        passLabel={(p) =>
+          out.result && p > out.result.roughingPasses ? `finishing pass ${p}` : `pass ${p}`
+        }
+        note="Watch the passes crowd together as they get shallower — that is the constant-volume infeed. The tool infeeds clear of the work each time, which is why a thread needs run-out room in front of a shoulder. The picture shows the envelope the tool sweeps, not the helix itself."
+      />
       {!out.error && (
         <Program
           lines={out.code}
@@ -1065,12 +1149,18 @@ function SimplePanel() {
   const out = useMemo(() => {
     try {
       const result = calcSimpleCycle(input);
-      return { ...result, code: generateSimpleCycleCode(input), error: "" };
+      return {
+        ...result,
+        code: generateSimpleCycleCode(input),
+        moves: buildSimpleToolpath(input),
+        error: "",
+      };
     } catch (cause) {
       return {
         axis: "X" as const,
         stops: [] as number[],
         code: [] as string[],
+        moves: [],
         error: cause instanceof Error ? cause.message : "Check the values.",
       };
     }
@@ -1152,6 +1242,18 @@ function SimplePanel() {
           )}
         </Card>
       </div>
+      <LatheSimulation
+        moves={out.moves}
+        stockDiameter={pf(start)}
+        length={Math.abs(pf(zEnd)) + 10}
+        error={out.error}
+        passLabel={(p) => `block ${p}`}
+        note={
+          facing
+            ? "Every block takes another slice off the end of the bar, holding the same diameter."
+            : "Every block is one full-length pass at the next diameter down."
+        }
+      />
       {!out.error && (
         <Program
           lines={out.code}

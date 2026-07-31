@@ -22,58 +22,71 @@ interface Leg {
 const moveLength = (from: { x: number; z: number }, to: { x: number; z: number }) =>
   Math.hypot((to.x - from.x) / 2, to.z - from.z);
 
-export function G71Simulation({
-  input,
-  steps,
-  includeFinish,
-}: {
-  input: G71Input;
-  steps: ProfileStep[];
-  includeFinish: boolean;
-}) {
+export interface LatheSimulationProps {
+  /** The motion to animate, from whichever cycle is on screen. */
+  moves: Move[];
+  /** Bar diameter before anything is cut, mm. */
+  stockDiameter: number;
+  /** Length of bar to draw, mm. */
+  length: number;
+  /** Finished shape drawn underneath as a dashed target, if the cycle has one. */
+  targetPoints?: { x: number; z: number }[];
+  /** Where the tool starts. Clear of the stock at the face when left out. */
+  start?: { x: number; z: number };
+  /** Names a pass for the caption. */
+  passLabel?: (pass: number) => string;
+  /** Anything the cycle could not plan, shown instead of the picture. */
+  error?: string;
+  /** Sentence under the picture explaining what this particular cycle shows. */
+  note?: string;
+  title?: string;
+}
+
+/**
+ * One picture for every cycle on the page.
+ *
+ * It is driven by a move list rather than by any one cycle, so the material it
+ * shows is removed by the same motion that is drawn, and both come from the
+ * planner that writes the G-code. The three cannot disagree.
+ */
+export function LatheSimulation({
+  moves,
+  stockDiameter,
+  length,
+  targetPoints,
+  start,
+  passLabel,
+  error,
+  note,
+  title = "Simulation",
+}: LatheSimulationProps) {
   const [progress, setProgress] = useState(0); // 0..1 along the whole path
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [showPath, setShowPath] = useState(true);
   const frame = useRef<number>(0);
 
-  const plan = useMemo(() => {
-    try {
-      const moves = buildToolpath(input, steps, { finish: includeFinish });
-      const length = steps.length ? profileLength(steps) : input.length;
-      const points = steps.length
-        ? profileCoordinates(steps)
-        : profileCoordinates([{ diameter: input.finishDiameter, length: input.length }]);
+  const origin = useMemo(() => start ?? { x: stockDiameter + 4, z: 2 }, [start, stockDiameter]);
 
-      // Cumulative distance so the tool travels at an even rate, and a rapid
-      // does not take as long as a cut of the same duration.
-      let travelled = 0;
-      const cursors: Array<{
-        move: Move;
-        start: number;
-        end: number;
-        from: { x: number; z: number };
-      }> = [];
-      let from = { x: input.stockDiameter, z: 2 };
-      for (const m of moves) {
-        const d = Math.max(moveLength(from, m), 0.01) / (m.cutting ? 1 : 4);
-        cursors.push({ move: m, start: travelled, end: travelled + d, from });
-        travelled += d;
-        from = { x: m.x, z: m.z };
-      }
-      return { moves, cursors, total: travelled, length, points, error: "" };
-    } catch (cause) {
-      return {
-        moves: [] as Move[],
-        cursors: [],
-        total: 0,
-        length: 0,
-        points: [],
-        error: cause instanceof Error ? cause.message : "Cannot simulate this.",
-      };
+  const plan = useMemo(() => {
+    // Cumulative distance so the tool travels at an even rate, and a rapid does
+    // not take as long as a cut of the same length.
+    let travelled = 0;
+    const cursors: Array<{
+      move: Move;
+      start: number;
+      end: number;
+      from: { x: number; z: number };
+    }> = [];
+    let from = origin;
+    for (const m of moves) {
+      const d = Math.max(moveLength(from, m), 0.01) / (m.cutting ? 1 : 4);
+      cursors.push({ move: m, start: travelled, end: travelled + d, from });
+      travelled += d;
+      from = { x: m.x, z: m.z };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(input), JSON.stringify(steps), includeFinish]);
+    return { cursors, total: travelled };
+  }, [moves, origin]);
 
   /**
    * The whole motion as legs, drawn faintly under everything else. Seeing where
@@ -95,10 +108,10 @@ export function G71Simulation({
   // scrubbing backwards shows the same material — and the same trail — as
   // playing forwards.
   const state = useMemo(() => {
-    if (plan.error || !plan.total) return null;
-    const stock = createStock(input.stockDiameter, plan.length);
+    if (!plan.total || !(length > 0) || !(stockDiameter > 0)) return null;
+    const stock = createStock(stockDiameter, length);
     const target = progress * plan.total;
-    let tool = { x: input.stockDiameter, z: 2 };
+    let tool = origin;
     let activePass = 0;
     const trail: Leg[] = [];
 
@@ -110,7 +123,7 @@ export function G71Simulation({
         x: c.from.x + (c.move.x - c.from.x) * t,
         z: c.from.z + (c.move.z - c.from.z) * t,
       };
-      if (c.move.cutting) applyCut(stock, c.from, now);
+      if (c.move.cutting) applyCut(stock, c.from, now, c.move);
       // The leg is added only as far as the tool has actually reached, so the
       // line grows out of the tool tip rather than snapping whole into place.
       trail.push({ from: c.from, to: now, cutting: c.move.cutting, pass: c.move.pass });
@@ -118,7 +131,7 @@ export function G71Simulation({
       activePass = c.move.pass;
     }
     return { stock, tool, activePass, trail };
-  }, [plan, progress, input.stockDiameter]);
+  }, [plan, progress, stockDiameter, length, origin]);
 
   useEffect(() => {
     if (!playing || !plan.total) return;
@@ -140,31 +153,39 @@ export function G71Simulation({
     return () => cancelAnimationFrame(frame.current);
   }, [playing, speed, plan.total]);
 
-  if (plan.error) {
+  if (error) {
     return (
       <Card variant="solid" padding="md" className="border-dark-600">
-        <SectionHeader title="Simulation" />
-        <p className="text-sm text-accent-red">{plan.error}</p>
+        <SectionHeader title={title} />
+        <p className="text-sm text-accent-red">{error}</p>
       </Card>
     );
   }
   if (!state) return null;
 
-  const maxRadius = input.stockDiameter / 2;
+  const maxRadius = stockDiameter / 2;
   const centreY = H - PAD;
   // Chuck at the left, face of the part at the right, as the machine stands.
-  const sx = (z: number) => W - PAD + (z / plan.length) * (W - PAD * 2);
+  const sx = (z: number) => W - PAD + (z / length) * (W - PAD * 2);
   const sy = (radius: number) => centreY - (radius / maxRadius) * (H - PAD * 2);
 
-  // Remaining material as one silhouette above the centre line.
-  const stockPath = [
-    `M${sx(0).toFixed(1)},${centreY.toFixed(1)}`,
-    ...state.stock.zs.map((z, i) => `L${sx(z).toFixed(1)},${sy(state.stock.radii[i]).toFixed(1)}`),
-    `L${sx(state.stock.zs[state.stock.zs.length - 1]).toFixed(1)},${centreY.toFixed(1)}`,
-    "Z",
-  ].join(" ");
+  const lastIndex = state.stock.zs.length - 1;
+  const silhouette = (radii: number[]) =>
+    [
+      `M${sx(state.stock.zs[0]).toFixed(1)},${centreY.toFixed(1)}`,
+      ...state.stock.zs.map((z, i) => `L${sx(z).toFixed(1)},${sy(radii[i]).toFixed(1)}`),
+      `L${sx(state.stock.zs[lastIndex]).toFixed(1)},${centreY.toFixed(1)}`,
+      "Z",
+    ].join(" ");
 
-  const targetPath = plan.points
+  // Material still on the bar, with any hole drilled through it punched out.
+  // Even-odd fill turns the second loop into a void rather than a second solid.
+  const bored = state.stock.bores.some((r) => r > 0);
+  const stockPath = bored
+    ? `${silhouette(state.stock.radii)} ${silhouette(state.stock.bores)}`
+    : silhouette(state.stock.radii);
+
+  const targetPath = (targetPoints ?? [])
     .map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.z).toFixed(1)},${sy(p.x / 2).toFixed(1)}`)
     .join(" ");
 
@@ -188,7 +209,8 @@ export function G71Simulation({
 
   const tx = sx(state.tool.z);
   const ty = sy(state.tool.x / 2);
-  const passLabel = state.activePass === 0 ? "finishing pass" : `roughing pass ${state.activePass}`;
+  const describePass =
+    passLabel ?? ((pass: number) => (pass === 0 ? "finishing pass" : `pass ${pass}`));
 
   const step = (dir: 1 | -1) => {
     setPlaying(false);
@@ -204,16 +226,13 @@ export function G71Simulation({
   return (
     <Card variant="solid" padding="md" className="border-dark-600">
       <div className="flex items-center justify-between mb-2">
-        <SectionHeader title="Simulation" className="!mb-0" />
-        <span className="text-[10px] text-gray-600">{progress >= 1 ? "complete" : passLabel}</span>
+        <SectionHeader title={title} className="!mb-0" />
+        <span className="text-[10px] text-gray-600">
+          {progress >= 1 ? "complete" : describePass(state.activePass)}
+        </span>
       </div>
 
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        role="img"
-        aria-label="G71 cycle simulation"
-      >
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`${title} view`}>
         {/* Chuck, drawn so the view stands the same way round as the machine */}
         <g>
           <rect
@@ -237,9 +256,23 @@ export function G71Simulation({
           </text>
         </g>
         {/* Finished shape underneath, as the target */}
-        <path d={targetPath} fill="none" stroke="#8b93a7" strokeWidth="1.5" strokeDasharray="5 4" />
+        {targetPath && (
+          <path
+            d={targetPath}
+            fill="none"
+            stroke="#8b93a7"
+            strokeWidth="1.5"
+            strokeDasharray="5 4"
+          />
+        )}
         {/* Material still on the bar */}
-        <path d={stockPath} fill="rgba(0,212,255,0.13)" stroke="#00d4ff" strokeWidth="1.5" />
+        <path
+          d={stockPath}
+          fillRule="evenodd"
+          fill="rgba(0,212,255,0.13)"
+          stroke="#00d4ff"
+          strokeWidth="1.5"
+        />
         {/* Centre line */}
         <line
           x1="0"
@@ -373,11 +406,55 @@ export function G71Simulation({
 
       <p className="mt-2 text-[10px] text-gray-600 leading-relaxed">
         Chuck on the left, Z0 at the face on the right, as the machine stands. The tool draws its
-        path as it travels — cyan roughing, green the finishing pass, dashed grey the rapids — over
-        the faint line of the moves still to come. Each pass stops where the profile would be cut
-        into, which is why a shallow pass ends at the first shoulder. Step through move by move with
-        the arrows. This shows the geometry, not your control's exact sequencing.
+        path as it travels — cyan cutting, dashed grey the rapids — over the faint line of the moves
+        still to come. Step through move by move with the arrows.
+        {note ? ` ${note}` : ""}
       </p>
     </Card>
+  );
+}
+
+/** The G71 roughing cycle with its finishing pass, planned from the profile. */
+export function G71Simulation({
+  input,
+  steps,
+  includeFinish,
+}: {
+  input: G71Input;
+  steps: ProfileStep[];
+  includeFinish: boolean;
+}) {
+  const plan = useMemo(() => {
+    try {
+      return {
+        moves: buildToolpath(input, steps, { finish: includeFinish }),
+        length: steps.length ? profileLength(steps) : input.length,
+        points: steps.length
+          ? profileCoordinates(steps)
+          : profileCoordinates([{ diameter: input.finishDiameter, length: input.length }]),
+        error: "",
+      };
+    } catch (cause) {
+      return {
+        moves: [] as Move[],
+        length: 0,
+        points: [] as { x: number; z: number }[],
+        error: cause instanceof Error ? cause.message : "Cannot simulate this.",
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(input), JSON.stringify(steps), includeFinish]);
+
+  return (
+    <LatheSimulation
+      moves={plan.moves}
+      stockDiameter={input.stockDiameter}
+      length={plan.length}
+      targetPoints={plan.points}
+      start={{ x: input.stockDiameter, z: 2 }}
+      error={plan.error}
+      passLabel={(pass) => (pass === 0 ? "finishing pass" : `roughing pass ${pass}`)}
+      note="Green is the finishing pass. Each roughing pass stops where the profile would be cut into, which is why a shallow pass ends at the first shoulder. This shows the geometry, not your control's exact sequencing."
+    />
   );
 }
