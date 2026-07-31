@@ -16,6 +16,16 @@ export { reachableZ };
 
 export type MoveKind = "rapid" | "feed" | "retract";
 
+/**
+ * How a cutting move takes metal off. Turning sweeps a diameter along the axis;
+ * facing clears everything between the face and the Z it reaches; a groove is a
+ * turn as wide as the tool; boring opens a hole from the inside out.
+ *
+ * A facing cut modelled as a turn leaves the end of the bar standing, which is
+ * the whole of what a facing cycle is for.
+ */
+export type CutStyle = "turn" | "face" | "groove" | "bore";
+
 export interface Move {
   kind: MoveKind;
   /** Diameter at the end of the move. */
@@ -26,6 +36,10 @@ export interface Move {
   pass: number;
   /** True while the tool is removing material. */
   cutting: boolean;
+  /** How this move removes metal. Turning when left out. */
+  style?: CutStyle;
+  /** Width of the tool along Z, mm — grooving and parting only. */
+  width?: number;
 }
 
 export interface ToolpathOptions {
@@ -111,30 +125,68 @@ export interface StockModel {
   zs: number[];
   /** Remaining radius at each sample, mm. */
   radii: number[];
+  /** Radius of the hole at each sample, mm. Zero where the bar is still solid. */
+  bores: number[];
+  /** Z the face has been cut back to, mm. Zero until something faces it off. */
+  facedZ: number;
 }
 
-export function createStock(
-  stockDiameter: number,
-  length: number,
-  samples = 240,
-): StockModel {
+export function createStock(stockDiameter: number, length: number, samples = 240): StockModel {
   const zs = Array.from({ length: samples + 1 }, (_, i) => -(length * i) / samples);
-  return { zs, radii: zs.map(() => stockDiameter / 2) };
+  return {
+    zs,
+    radii: zs.map(() => stockDiameter / 2),
+    bores: zs.map(() => 0),
+    facedZ: 0,
+  };
 }
 
 /** Cut a straight move into the stock, lowering every sample it passes over. */
-export function applyCut(stock: StockModel, from: { x: number; z: number }, to: { x: number; z: number }): void {
-  const zStart = Math.max(from.z, to.z);
-  const zEnd = Math.min(from.z, to.z);
+export function applyCut(
+  stock: StockModel,
+  from: { x: number; z: number },
+  to: { x: number; z: number },
+  move: { style?: CutStyle; width?: number } = {},
+): void {
+  const style = move.style ?? "turn";
+
+  if (style === "face") {
+    // Facing clears the end of the bar: everything from the face back to where
+    // the tool has reached comes off, out to the diameter it swept.
+    const zPass = Math.min(from.z, to.z);
+    const diameter = Math.min(from.x, to.x);
+    for (let i = 0; i < stock.zs.length; i++) {
+      const z = stock.zs[i];
+      if (z < zPass || z > stock.facedZ) continue;
+      stock.radii[i] = Math.min(stock.radii[i], diameter / 2);
+    }
+    // Once it has swept to centre the bar itself is shorter.
+    if (diameter <= 1e-6) stock.facedZ = Math.min(stock.facedZ, zPass);
+    return;
+  }
+
+  // The tool has width, so a plunge takes a slot rather than a line.
+  const half = (move.width ?? 0) / 2;
+  const zStart = Math.max(from.z, to.z) + half;
+  const zEnd = Math.min(from.z, to.z) - half;
   const span = to.z - from.z;
 
   for (let i = 0; i < stock.zs.length; i++) {
     const z = stock.zs[i];
     if (z > zStart || z < zEnd) continue;
     // Interpolate the tool radius across the move so a taper cuts a taper.
-    const t = span === 0 ? 0 : (z - from.z) / span;
-    const diameter = from.x + t * (to.x - from.x);
-    stock.radii[i] = Math.min(stock.radii[i], diameter / 2);
+    // Clamped, because the half-width overhang sits outside the move itself.
+    const t = span === 0 ? 0 : Math.min(1, Math.max(0, (z - from.z) / span));
+    // A plunge holds Z, so there is nothing to interpolate along: what it takes
+    // off is everything between where it entered and where it stopped. Reading
+    // the start of the move there left the groove uncut.
+    const diameter = span === 0 ? Math.min(from.x, to.x) : from.x + t * (to.x - from.x);
+    if (style === "bore") {
+      // Boring and drilling open the hole outwards from the centre.
+      stock.bores[i] = Math.max(stock.bores[i], diameter / 2);
+    } else {
+      stock.radii[i] = Math.min(stock.radii[i], diameter / 2);
+    }
   }
 }
 
@@ -150,7 +202,7 @@ export function simulate(
 
   let cursor = { x: input.stockDiameter, z: 0 };
   for (const m of moves) {
-    if (m.cutting) applyCut(stock, cursor, m);
+    if (m.cutting) applyCut(stock, cursor, m, m);
     cursor = { x: m.x, z: m.z };
   }
   return { moves, stock };
