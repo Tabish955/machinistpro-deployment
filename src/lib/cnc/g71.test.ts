@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { calculateG71, generateG71Code, profileCoordinates, profileLength, profileDrawing } from "./g71";
+import {
+  calculateG71,
+  generateG71Code,
+  profileCoordinates,
+  profileLength,
+  profileDrawing,
+} from "./g71";
 
 const base = {
   stockDiameter: 50,
@@ -98,13 +104,16 @@ describe("Fanuc G71 roughing", () => {
     expect(() => calculateG71({ ...base, length: 0 })).toThrow("greater than zero");
     expect(() => calculateG71({ ...base, finishAllowanceX: -1 })).toThrow("cannot be negative");
     // An allowance wider than the stock leaves the cycle nothing to do.
-    expect(() => calculateG71({ ...base, finishAllowanceX: 12 })).toThrow("nothing for the roughing");
+    expect(() => calculateG71({ ...base, finishAllowanceX: 12 })).toThrow(
+      "nothing for the roughing",
+    );
   });
 
   it("writes both G71 blocks with the right word on each", () => {
     const code = generateG71Code(base, { startBlock: 100, endBlock: 110, feed: 0.25 });
     // Depth of cut and retract on the first line.
-    expect(code[0]).toBe("G71 U2 R1");
+    // Whole numbers carry a decimal point: a Fanuc reads U2 as two microns.
+    expect(code[0]).toBe("G71 U2.0 R1.0");
     // Allowances and feed on the second — a different U meaning entirely.
     expect(code[1]).toBe("G71 P100 Q110 U0.5 W0.1 F0.25");
     expect(code[2]).toContain("N100");
@@ -125,9 +134,12 @@ describe("profile coordinates", () => {
     // from the face and the first 15 mm is already used.
     const pts = profileCoordinates(steps);
     expect(pts.map((p) => [p.x, p.z])).toEqual([
-      [20, 0], [20, -15],
-      [30, -15], [30, -35],
-      [40, -35], [40, -60],
+      [20, 0],
+      [20, -15],
+      [30, -15],
+      [30, -35],
+      [40, -35],
+      [40, -60],
     ]);
     expect(profileLength(steps)).toBe(60);
   });
@@ -137,12 +149,12 @@ describe("profile coordinates", () => {
       { ...base, finishDiameter: 20, length: 60 },
       { startBlock: 100, endBlock: 110, feed: 0.25, steps },
     );
-    expect(code[2]).toBe("N100 G00 X20");
-    expect(code).toContain("      G01 Z-15");
-    expect(code).toContain("      X30");
-    expect(code).toContain("      G01 Z-35");
-    expect(code).toContain("      G01 Z-60");
-    expect(code.at(-1)).toBe("N110 X50");
+    expect(code[2]).toBe("N100 G00 X20.0");
+    expect(code).toContain("      G01 Z-15.0");
+    expect(code).toContain("      X30.0");
+    expect(code).toContain("      G01 Z-35.0");
+    expect(code).toContain("      G01 Z-60.0");
+    expect(code.at(-1)).toBe("N110 X50.0");
   });
 
   it("refuses an empty or malformed profile", () => {
@@ -167,7 +179,7 @@ describe("taper turning", () => {
       { ...base, finishDiameter: 20, length: 25 },
       { steps: [{ diameter: 20, length: 25, endDiameter: 30 }] },
     );
-    expect(code).toContain("      G01 X30 Z-25");
+    expect(code).toContain("      G01 X30.0 Z-25.0");
   });
 
   it("treats an equal end diameter as a parallel step", () => {
@@ -183,7 +195,12 @@ describe("taper turning", () => {
       { diameter: 30, length: 20 },
     ]);
     expect(pts.map((p) => p.move)).toEqual([
-      "face", "turn", "shoulder", "taper", "shoulder", "turn",
+      "face",
+      "turn",
+      "shoulder",
+      "taper",
+      "shoulder",
+      "turn",
     ]);
     // Z still accumulates across all three: 15, then 25, then 45.
     expect(pts.map((p) => p.z)).toEqual([0, -15, -15, -25, -25, -45]);
@@ -199,7 +216,10 @@ describe("taper turning", () => {
 describe("profile drawing", () => {
   it("draws a closed half-section within the box", () => {
     const d = profileDrawing(
-      [{ diameter: 20, length: 15 }, { diameter: 40, length: 25 }],
+      [
+        { diameter: 20, length: 15 },
+        { diameter: 40, length: 25 },
+      ],
       50,
     );
     expect(d.partPath.startsWith("M")).toBe(true);
@@ -213,7 +233,13 @@ describe("profile drawing", () => {
   });
 
   it("puts the chuck on the left, as the machine stands", () => {
-    const d = profileDrawing([{ diameter: 20, length: 15 }, { diameter: 40, length: 25 }], 50);
+    const d = profileDrawing(
+      [
+        { diameter: 20, length: 15 },
+        { diameter: 40, length: 25 },
+      ],
+      50,
+    );
     // The stock line runs the length of the bar, so its two ends are Z0 and the
     // chuck end. Z0 is the face and belongs on the right.
     const xs = d.stockPath.match(/[ML](-?\d+\.?\d*)/g)!.map((c) => Number(c.slice(1)));

@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  applyCut,
-  buildToolpath,
-  createStock,
-  type Move,
-} from "@/lib/cnc/simulate";
+import { applyCut, buildToolpath, createStock, type Move } from "@/lib/cnc/simulate";
 import { profileCoordinates, profileLength, type G71Input, type ProfileStep } from "@/lib/cnc/g71";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -53,7 +48,12 @@ export function G71Simulation({
       // Cumulative distance so the tool travels at an even rate, and a rapid
       // does not take as long as a cut of the same duration.
       let travelled = 0;
-      const cursors: Array<{ move: Move; start: number; end: number; from: { x: number; z: number } }> = [];
+      const cursors: Array<{
+        move: Move;
+        start: number;
+        end: number;
+        from: { x: number; z: number };
+      }> = [];
       let from = { x: input.stockDiameter, z: 2 };
       for (const m of moves) {
         const d = Math.max(moveLength(from, m), 0.01) / (m.cutting ? 1 : 4);
@@ -205,12 +205,15 @@ export function G71Simulation({
     <Card variant="solid" padding="md" className="border-dark-600">
       <div className="flex items-center justify-between mb-2">
         <SectionHeader title="Simulation" className="!mb-0" />
-        <span className="text-[10px] text-gray-600">
-          {progress >= 1 ? "complete" : passLabel}
-        </span>
+        <span className="text-[10px] text-gray-600">{progress >= 1 ? "complete" : passLabel}</span>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="G71 cycle simulation">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        role="img"
+        aria-label="G71 cycle simulation"
+      >
         {/* Chuck, drawn so the view stands the same way round as the machine */}
         <g>
           <rect
@@ -222,7 +225,13 @@ export function G71Simulation({
             stroke="#4b5568"
             strokeWidth="1"
           />
-          <rect x={PAD - 7} y={sy(maxRadius) - 6} width={7} height={centreY - sy(maxRadius) + 6} fill="#38415a" />
+          <rect
+            x={PAD - 7}
+            y={sy(maxRadius) - 6}
+            width={7}
+            height={centreY - sy(maxRadius) + 6}
+            fill="#38415a"
+          />
           <text x={3} y={centreY - 5} fill="#6b7385" fontSize="8" fontFamily="monospace">
             CHUCK
           </text>
@@ -232,16 +241,50 @@ export function G71Simulation({
         {/* Material still on the bar */}
         <path d={stockPath} fill="rgba(0,212,255,0.13)" stroke="#00d4ff" strokeWidth="1.5" />
         {/* Centre line */}
-        <line x1="0" y1={centreY} x2={W} y2={centreY} stroke="#8b93a7" strokeWidth="1" strokeDasharray="10 4 2 4" />
+        <line
+          x1="0"
+          y1={centreY}
+          x2={W}
+          y2={centreY}
+          stroke="#8b93a7"
+          strokeWidth="1"
+          strokeDasharray="10 4 2 4"
+        />
         {showPath && (
           <g>
             {/* Where the tool has still to go */}
-            <path d={ghostRapid} fill="none" stroke="#8b93a7" strokeWidth="1" strokeDasharray="4 5" opacity="0.28" />
+            <path
+              d={ghostRapid}
+              fill="none"
+              stroke="#8b93a7"
+              strokeWidth="1"
+              strokeDasharray="4 5"
+              opacity="0.28"
+            />
             <path d={ghostCut} fill="none" stroke="#00d4ff" strokeWidth="1.2" opacity="0.28" />
             {/* Where it has been */}
-            <path d={rapidTrail} fill="none" stroke="#8b93a7" strokeWidth="1.2" strokeDasharray="5 4" />
-            <path d={roughTrail} fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" />
-            <path d={finishTrail} fill="none" stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d={rapidTrail}
+              fill="none"
+              stroke="#8b93a7"
+              strokeWidth="1.2"
+              strokeDasharray="5 4"
+            />
+            <path
+              d={roughTrail}
+              fill="none"
+              stroke="#00d4ff"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path
+              d={finishTrail}
+              fill="none"
+              stroke="#22c55e"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </g>
         )}
         {/* Tool */}
@@ -276,16 +319,28 @@ export function G71Simulation({
           {playing ? <Pause size={13} /> : <Play size={13} />}
           {playing ? "Pause" : progress >= 1 ? "Replay" : "Play"}
         </button>
-        <button onClick={() => step(-1)} aria-label="Previous move"
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white">
+        <button
+          onClick={() => step(-1)}
+          aria-label="Previous move"
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"
+        >
           <SkipBack size={13} />
         </button>
-        <button onClick={() => step(1)} aria-label="Next move"
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white">
+        <button
+          onClick={() => step(1)}
+          aria-label="Next move"
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"
+        >
           <SkipForward size={13} />
         </button>
-        <button onClick={() => { setPlaying(false); setProgress(0); }} aria-label="Reset"
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white">
+        <button
+          onClick={() => {
+            setPlaying(false);
+            setProgress(0);
+          }}
+          aria-label="Reset"
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"
+        >
           <RotateCcw size={13} />
         </button>
         <button
@@ -305,7 +360,9 @@ export function G71Simulation({
               key={s}
               onClick={() => setSpeed(s)}
               className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
-                speed === s ? "bg-accent-cyan/20 text-accent-cyan" : "bg-white/[0.04] text-gray-500 hover:text-white"
+                speed === s
+                  ? "bg-accent-cyan/20 text-accent-cyan"
+                  : "bg-white/[0.04] text-gray-500 hover:text-white"
               }`}
             >
               {s}×
@@ -318,8 +375,8 @@ export function G71Simulation({
         Chuck on the left, Z0 at the face on the right, as the machine stands. The tool draws its
         path as it travels — cyan roughing, green the finishing pass, dashed grey the rapids — over
         the faint line of the moves still to come. Each pass stops where the profile would be cut
-        into, which is why a shallow pass ends at the first shoulder. Step through move by move
-        with the arrows. This shows the geometry, not your control's exact sequencing.
+        into, which is why a shallow pass ends at the first shoulder. Step through move by move with
+        the arrows. This shows the geometry, not your control's exact sequencing.
       </p>
     </Card>
   );

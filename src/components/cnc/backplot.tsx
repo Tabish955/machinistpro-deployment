@@ -36,7 +36,8 @@ export function Backplot() {
   const plan = useMemo(() => {
     const { moves, warnings } = parseGCode(source);
     let travelled = 0;
-    const legs: Array<{ move: GMove; from: { x: number; z: number }; start: number; end: number }> = [];
+    const legs: Array<{ move: GMove; from: { x: number; z: number }; start: number; end: number }> =
+      [];
     let from = { x: 0, z: 0 };
     for (const m of moves) {
       const d = Math.max(span(from, m), 0.01) / (m.kind === "rapid" ? 4 : 1);
@@ -55,7 +56,10 @@ export function Backplot() {
       last = now;
       setProgress((p) => {
         const next = p + dt / 5;
-        if (next >= 1) { setPlaying(false); return 1; }
+        if (next >= 1) {
+          setPlaying(false);
+          return 1;
+        }
         return next;
       });
       frame.current = requestAnimationFrame(tick);
@@ -114,9 +118,10 @@ export function Backplot() {
   const step = (dir: 1 | -1) => {
     setPlaying(false);
     const bounds = plan.legs.map((l) => l.start).concat(plan.total);
-    const next = dir === 1
-      ? bounds.find((b) => b > target + 1e-6)
-      : [...bounds].reverse().find((b) => b < target - 1e-6);
+    const next =
+      dir === 1
+        ? bounds.find((b) => b > target + 1e-6)
+        : [...bounds].reverse().find((b) => b < target - 1e-6);
     setProgress(Math.max(0, Math.min(1, (next ?? (dir === 1 ? plan.total : 0)) / plan.total)));
   };
 
@@ -131,7 +136,10 @@ export function Backplot() {
 
       <textarea
         value={source}
-        onChange={(e) => { setSource(e.target.value); setProgress(1); }}
+        onChange={(e) => {
+          setSource(e.target.value);
+          setProgress(1);
+        }}
         aria-label="G-code program"
         spellCheck={false}
         className="w-full min-h-36 rounded-xl bg-dark-900 border border-dark-600 px-3 py-2.5 text-xs font-mono text-white focus:border-accent-cyan/50 focus:outline-none"
@@ -148,9 +156,22 @@ export function Backplot() {
         </div>
       )}
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label="Tool path backplot">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="mt-3 w-full"
+        role="img"
+        aria-label="Tool path backplot"
+      >
         {/* Centre line: the axis the part turns about */}
-        <line x1="0" y1={H - PAD} x2={W} y2={H - PAD} stroke="#8b93a7" strokeWidth="1" strokeDasharray="10 4 2 4" />
+        <line
+          x1="0"
+          y1={H - PAD}
+          x2={W}
+          y2={H - PAD}
+          stroke="#8b93a7"
+          strokeWidth="1"
+          strokeDasharray="10 4 2 4"
+        />
         <path d={rapidPath} fill="none" stroke="#8b93a7" strokeWidth="1.2" strokeDasharray="5 4" />
         <path d={cutPath} fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" />
         {plan.moves.length > 0 && (
@@ -162,27 +183,54 @@ export function Backplot() {
       </svg>
 
       <input
-        type="range" min={0} max={1000} value={Math.round(progress * 1000)}
-        onChange={(e) => { setPlaying(false); setProgress(Number(e.target.value) / 1000); }}
+        type="range"
+        min={0}
+        max={1000}
+        value={Math.round(progress * 1000)}
+        onChange={(e) => {
+          setPlaying(false);
+          setProgress(Number(e.target.value) / 1000);
+        }}
         aria-label="Scrub backplot"
         className="mt-1 w-full accent-accent-cyan"
       />
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
-          onClick={() => { if (progress >= 1) setProgress(0); setPlaying(!playing); }}
+          onClick={() => {
+            if (progress >= 1) setProgress(0);
+            setPlaying(!playing);
+          }}
           aria-label={playing ? "Pause backplot" : "Play backplot"}
           className="flex items-center gap-1.5 rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-2 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20"
         >
           {playing ? <Pause size={13} /> : <Play size={13} />}
           {playing ? "Pause" : progress >= 1 ? "Replay" : "Play"}
         </button>
-        <button onClick={() => step(-1)} aria-label="Previous block"
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"><SkipBack size={13} /></button>
-        <button onClick={() => step(1)} aria-label="Next block"
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"><SkipForward size={13} /></button>
-        <button onClick={() => { setPlaying(false); setProgress(0); }} aria-label="Reset backplot"
-          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"><RotateCcw size={13} /></button>
+        <button
+          onClick={() => step(-1)}
+          aria-label="Previous block"
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"
+        >
+          <SkipBack size={13} />
+        </button>
+        <button
+          onClick={() => step(1)}
+          aria-label="Next block"
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"
+        >
+          <SkipForward size={13} />
+        </button>
+        <button
+          onClick={() => {
+            setPlaying(false);
+            setProgress(0);
+          }}
+          aria-label="Reset backplot"
+          className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white"
+        >
+          <RotateCcw size={13} />
+        </button>
         {activeText && (
           <code className="ml-auto rounded-lg bg-dark-900 px-2 py-1.5 text-[11px] text-accent-cyan">
             {activeText}
@@ -192,8 +240,8 @@ export function Backplot() {
 
       <p className="mt-2 text-[10px] text-gray-600 leading-relaxed">
         Solid cyan is cutting, dashed grey is rapid. Step block by block with the arrows to see
-        where each line takes the tool. It draws the path the words describe — it does not model
-        the machine, so it will not catch a crash into the chuck or a tool that cannot reach.
+        where each line takes the tool. It draws the path the words describe — it does not model the
+        machine, so it will not catch a crash into the chuck or a tool that cannot reach.
       </p>
     </Card>
   );

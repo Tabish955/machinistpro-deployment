@@ -13,6 +13,8 @@
  * says which at every step.
  */
 
+import { word } from "./cycles";
+
 export interface G71Input {
   /** Stock outside diameter before roughing, mm. */
   stockDiameter: number;
@@ -57,11 +59,7 @@ export interface G71Result {
  * Walks the profile from the face. A segment entirely inside the pass diameter is
  * crossed; one entirely outside stops it; one that crosses is interpolated.
  */
-export function reachableZ(
-  points: ProfilePoint[],
-  passDiameter: number,
-  limitZ: number,
-): number {
+export function reachableZ(points: ProfilePoint[], passDiameter: number, limitZ: number): number {
   let z = 0;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
@@ -109,9 +107,7 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
 
   // The roughing has to reach the smallest diameter the part has anywhere, or
   // the material below the first shoulder is never taken off.
-  const targetDiameter = profile?.length
-    ? Math.min(...profile.map((p) => p.x))
-    : finishDiameter;
+  const targetDiameter = profile?.length ? Math.min(...profile.map((p) => p.x)) : finishDiameter;
 
   if (targetDiameter >= stockDiameter) {
     throw new Error(
@@ -259,28 +255,28 @@ export function generateG71Code(
   const feed = options.feed ?? 0.2;
 
   const header = [
-    `G71 U${input.depthOfCut} R${input.retract}`,
-    `G71 P${ns} Q${nf} U${input.finishAllowanceX} W${input.finishAllowanceZ} F${feed}`,
+    `G71 U${word(input.depthOfCut)} R${word(input.retract)}`,
+    `G71 P${ns} Q${nf} U${word(input.finishAllowanceX)} W${word(input.finishAllowanceZ)} F${word(feed)}`,
   ];
 
   if (!options.steps?.length) {
     return [
       ...header,
-      `N${ns} G00 X${input.finishDiameter}`,
-      `      G01 Z${result.roughedZ} F${feed}`,
-      `N${nf} X${input.stockDiameter}`,
+      `N${ns} G00 X${word(input.finishDiameter)}`,
+      `      G01 Z${word(result.roughedZ)} F${word(feed)}`,
+      `N${nf} X${word(input.stockDiameter)}`,
     ];
   }
 
   const points = profileCoordinates(options.steps);
   const body = points.map((p, i) => {
-    if (i === 0) return `N${ns} G00 X${p.x}`;
+    if (i === 0) return `N${ns} G00 X${word(p.x)}`;
     const previous = points[i - 1];
     // A taper moves both words in one block; a shoulder moves X; a turn moves Z.
-    if (p.x !== previous.x && p.z !== previous.z) return `      G01 X${p.x} Z${p.z}`;
-    return p.z !== previous.z ? `      G01 Z${p.z}` : `      X${p.x}`;
+    if (p.x !== previous.x && p.z !== previous.z) return `      G01 X${word(p.x)} Z${word(p.z)}`;
+    return p.z !== previous.z ? `      G01 Z${word(p.z)}` : `      X${word(p.x)}`;
   });
-  return [...header, ...body, `N${nf} X${input.stockDiameter}`];
+  return [...header, ...body, `N${nf} X${word(input.stockDiameter)}`];
 }
 
 /* ── Drawing ──────────────────────────────────────────────────────────────── */
@@ -325,7 +321,9 @@ export function profileDrawing(
   const sx = (z: number) => size.width - pad + (z / total) * usableW;
   const sy = (diameter: number) => centreY - (diameter / 2 / (maxDia / 2)) * usableH;
 
-  const commands = points.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.z).toFixed(1)},${sy(p.x).toFixed(1)}`);
+  const commands = points.map(
+    (p, i) => `${i === 0 ? "M" : "L"}${sx(p.z).toFixed(1)},${sy(p.x).toFixed(1)}`,
+  );
   // Close the section down to the centre line and back along the axis.
   const last = points[points.length - 1];
   commands.push(`L${sx(last.z).toFixed(1)},${centreY.toFixed(1)}`);

@@ -113,17 +113,17 @@ export interface StockModel {
   radii: number[];
 }
 
-export function createStock(
-  stockDiameter: number,
-  length: number,
-  samples = 240,
-): StockModel {
+export function createStock(stockDiameter: number, length: number, samples = 240): StockModel {
   const zs = Array.from({ length: samples + 1 }, (_, i) => -(length * i) / samples);
   return { zs, radii: zs.map(() => stockDiameter / 2) };
 }
 
 /** Cut a straight move into the stock, lowering every sample it passes over. */
-export function applyCut(stock: StockModel, from: { x: number; z: number }, to: { x: number; z: number }): void {
+export function applyCut(
+  stock: StockModel,
+  from: { x: number; z: number },
+  to: { x: number; z: number },
+): void {
   const zStart = Math.max(from.z, to.z);
   const zEnd = Math.min(from.z, to.z);
   const span = to.z - from.z;
