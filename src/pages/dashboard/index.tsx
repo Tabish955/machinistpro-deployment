@@ -1,177 +1,164 @@
-
-import { useState, useEffect, useMemo } from "react";
-import { useAuthStore } from "@/store/auth-store";
-import { ModuleCard } from "@/components/dashboard/module-card";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { SectionHeader } from "@/components/ui/section-header";
-import {
-  calculatorModules,
-  referenceModules,
-  allCalculatorModules,
-} from "@/config/modules";
-import { FORMULAS } from "@/lib/formulas";
-import { MATERIAL_PROFILES } from "@/lib/engdb/materials";
-import {
-  Sparkles, Clock, Star, TrendingUp, Zap, ArrowRight,
-  Calendar, Sun, Moon, CloudSun, Keyboard, Command,
-} from "lucide-react";
+import { useMemo } from "react";
+import { useHistoryStore } from "@/store/history-store";
+import { calculatorModules, referenceModules, type ModuleConfig } from "@/config/modules";
 import Link from "@/lib/next-compat";
+import { ArrowRight, Star } from "lucide-react";
 
-function getGreeting(): { text: string; icon: typeof Sun } {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return { text: "Good morning", icon: Sun };
-  if (h >= 12 && h < 17) return { text: "Good afternoon", icon: CloudSun };
-  if (h >= 17 && h < 21) return { text: "Good evening", icon: CloudSun };
-  return { text: "Good night", icon: Moon };
+/**
+ * The dashboard.
+ *
+ * What it used to be: a greeting, a live clock, and four tiles counting how many
+ * tools and formulas exist. None of that is why anyone opens this app. A
+ * machinist coming back to the bench wants the figure they worked out twenty
+ * minutes ago, and then the tool they were using. So that is what is here, in
+ * that order, and nothing else.
+ *
+ * No cards, no glow, no gradient. Rules and space, like a page of a handbook.
+ */
+
+function ago(timestamp: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "yesterday" : `${days} days ago`;
 }
 
-function formatDate(): string {
-  return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-}
-
-function formatTime(): string {
-  return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-}
-
-const QUICK_LINKS = [
-  { label: "Scientific", href: "/dashboard/scientific", color: "cyan" as const },
-  { label: "Converter", href: "/dashboard/converter", color: "blue" as const },
-  { label: "Weight", href: "/dashboard/weight", color: "purple" as const },
-  { label: "Machining", href: "/dashboard/machining", color: "red" as const },
-  { label: "Geometry", href: "/dashboard/geometry", color: "amber" as const },
-  { label: "Formulas", href: "/dashboard/formulas", color: "orange" as const },
-];
-
-const availableModules = allCalculatorModules.filter(m => m.status === "available");
-
-export default function DashboardPage() {
-  const { user } = useAuthStore();
-  const [time, setTime] = useState(formatTime());
-  const greeting = getGreeting();
-  const GIcon = greeting.icon;
-
-  useEffect(() => {
-    const id = setInterval(() => setTime(formatTime()), 30000);
-    return () => clearInterval(id);
-  }, []);
+function ToolRow({ module }: { module: ModuleConfig }) {
+  const Icon = module.icon;
+  const ready = module.status === "available";
 
   return (
-    <div className="space-y-6 pb-4">
-      {/* ═══ Welcome ═══ */}
-      <Card variant="solid" padding="lg" className="border-dark-600 relative overflow-hidden animate-fade-in">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-accent-cyan/8 via-accent-blue/4 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent-purple/6 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
-        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <Link
+      href={ready ? module.href : "#"}
+      className={`group flex items-baseline gap-4 border-b border-dark-700/60 py-3.5 last:border-0 ${
+        ready ? "" : "pointer-events-none opacity-40"
+      }`}
+    >
+      <Icon
+        size={15}
+        className="shrink-0 translate-y-0.5 text-gray-600 group-hover:text-accent-cyan"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-gray-200 group-hover:text-white">
+          {module.name}
+          {!ready && <span className="ml-2 text-[11px] font-normal text-gray-600">not yet</span>}
+        </p>
+        <p className="mt-0.5 text-[13px] leading-snug text-gray-500">{module.description}</p>
+      </div>
+      <ArrowRight
+        size={14}
+        className="shrink-0 translate-y-1 text-transparent group-hover:text-gray-600"
+      />
+    </Link>
+  );
+}
+
+export default function DashboardPage() {
+  const entries = useHistoryStore((s) => s.entries);
+
+  const recent = useMemo(() => entries.slice(0, 6), [entries]);
+  const pinned = useMemo(() => entries.filter((e) => e.isFavorite).slice(0, 4), [entries]);
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-10 pb-8">
+      {/* ── Pinned ─────────────────────────────────────────────────────────── */}
+      {pinned.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-[13px] font-semibold text-gray-400">Pinned</h2>
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <GIcon size={16} className="text-accent-cyan" />
-              <Badge color="green"><Sparkles size={10} /> Online</Badge>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">{greeting.text}, {user?.username || "Engineer"}!</h1>
-            <p className="text-sm text-gray-500 mt-1 max-w-md">Your precision engineering workspace is ready. Open any tool below or press <kbd className="px-1.5 py-0.5 rounded bg-dark-700 text-[10px] font-mono text-gray-400 mx-0.5"><Command size={9} className="inline" />K</kbd> to search.</p>
+            {pinned.map((entry) => (
+              <Link
+                key={entry.id}
+                href={`/dashboard/history`}
+                className="group flex items-baseline justify-between gap-4 border-b border-dark-700/60 py-3 last:border-0"
+              >
+                <span className="flex min-w-0 items-baseline gap-2.5">
+                  <Star size={12} className="shrink-0 translate-y-0.5 text-accent-amber" />
+                  <span className="truncate font-mono text-[15px] tabular text-gray-200 group-hover:text-white">
+                    {entry.title}
+                  </span>
+                </span>
+                <span className="shrink-0 text-[12px] text-gray-600">{entry.moduleLabel}</span>
+              </Link>
+            ))}
           </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <div className="flex items-center gap-2 text-gray-600"><Calendar size={13} /><span className="text-xs">{formatDate()}</span></div>
-            <p className="text-3xl font-bold text-white font-mono tracking-tight">{time}</p>
-          </div>
-        </div>
-      </Card>
+        </section>
+      )}
 
-      {/* ═══ Quick Access Bar ═══ */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none animate-fade-in" style={{ animationDelay: "0.05s", opacity: 0 }}>
-        {QUICK_LINKS.map(link => {
-          const bgMap: Record<string, string> = { cyan: "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/20", blue: "bg-accent-blue/15 text-accent-blue border-accent-blue/20", purple: "bg-accent-purple/15 text-accent-purple border-accent-purple/20", red: "bg-accent-red/15 text-accent-red border-accent-red/20", amber: "bg-accent-amber/15 text-accent-amber border-accent-amber/20", orange: "bg-orange-500/15 text-orange-400 border-orange-500/20" };
-          return (
-            <Link key={link.href} href={link.href}
-              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold border transition-all hover:brightness-125 ${bgMap[link.color] || bgMap.cyan}`}>
-              {link.label}
+      {/* ── Where you left off ─────────────────────────────────────────────── */}
+      <section>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-[13px] font-semibold text-gray-400">Recent</h2>
+          {entries.length > 0 && (
+            <Link
+              href="/dashboard/history"
+              className="text-[12px] text-gray-600 hover:text-accent-cyan"
+            >
+              All {entries.length}
             </Link>
-          );
-        })}
-      </div>
-
-      {/* ═══ Stats ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: "0.1s", opacity: 0 }}>
-        {[
-          { icon: Zap, label: "Active Tools", value: `${availableModules.length}`, sub: "Ready to use", color: "text-accent-cyan", bg: "bg-accent-cyan/10" },
-          // Counted, not typed in. The library had grown to 186 while the card
-          // still read 42, and the number a user checks first was the one wrong.
-          { icon: TrendingUp, label: "Formulas", value: `${FORMULAS.length}`, sub: "In library", color: "text-accent-blue", bg: "bg-accent-blue/10" },
-          { icon: Star, label: "Materials", value: `${MATERIAL_PROFILES.length}`, sub: "In database", color: "text-accent-amber", bg: "bg-accent-amber/10" },
-          { icon: Clock, label: "Status", value: "Active", sub: user?.subscription || "Standard", color: "text-accent-green", bg: "bg-accent-green/10" },
-        ].map(s => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label} variant="solid" padding="md" className="border-dark-600">
-              <div className="flex items-start justify-between mb-2">
-                <div className={`rounded-lg ${s.bg} p-2`}><Icon size={14} className={s.color} /></div>
-              </div>
-              <p className="text-xl font-bold text-white">{s.value}</p>
-              <p className="text-[10px] text-gray-600">{s.label}</p>
-              <p className="text-[10px] text-gray-700 mt-0.5">{s.sub}</p>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* ═══ Modules Grid ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left — Recent & Favorites */}
-        <div className="space-y-5">
-          <div className="animate-fade-in" style={{ animationDelay: "0.15s", opacity: 0 }}>
-            <SectionHeader title="Favorites" action={{ label: "Manage", href: "/dashboard/favorites" }} />
-            <Card variant="solid" padding="md" className="border-dark-600">
-              <div className="text-center py-5">
-                <Star size={24} className="text-dark-500 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">Pin your go-to tools</p>
-                <p className="text-[10px] text-gray-700 mt-1">Star any calculator from its page</p>
-              </div>
-            </Card>
-          </div>
-
-          <div className="animate-fade-in" style={{ animationDelay: "0.2s", opacity: 0 }}>
-            <SectionHeader title="Keyboard Shortcuts" />
-            <Card variant="solid" padding="md" className="border-dark-600">
-              <div className="space-y-2 text-xs">
-                {[
-                  { keys: "⌘ K", action: "Search everything" },
-                  { keys: "Esc", action: "Close / Clear" },
-                  { keys: "↑ ↓ ↵", action: "Navigate & select" },
-                ].map(s => (
-                  <div key={s.keys} className="flex items-center justify-between">
-                    <kbd className="px-2 py-1 rounded bg-dark-700 font-mono text-gray-400">{s.keys}</kbd>
-                    <span className="text-gray-500">{s.action}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+          )}
         </div>
 
-        {/* Right — Calculator Modules */}
-        <div className="lg:col-span-2 space-y-5">
-          <div className="animate-fade-in" style={{ animationDelay: "0.1s", opacity: 0 }}>
-            <SectionHeader title="Calculator Modules" description={`${calculatorModules.length} tools`} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {calculatorModules.map((m, i) => (
-                <div key={m.id} className="animate-fade-in-up" style={{ animationDelay: `${0.12 + i * 0.03}s`, opacity: 0 }}>
-                  <ModuleCard module={m} />
-                </div>
-              ))}
-            </div>
+        {recent.length === 0 ? (
+          <p className="max-w-md text-[14px] leading-relaxed text-gray-500">
+            Nothing worked out yet. Whatever you calculate is kept here with the numbers you put in,
+            so you can check a figure hours later without doing it twice — or find out what you
+            actually used when the part comes back.
+          </p>
+        ) : (
+          <div>
+            {recent.map((entry) => (
+              <Link
+                key={entry.id}
+                href="/dashboard/history"
+                className="group flex items-baseline justify-between gap-4 border-b border-dark-700/60 py-3 last:border-0"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-mono text-[15px] tabular text-gray-200 group-hover:text-white">
+                    {entry.title}
+                  </span>
+                  {entry.details && (
+                    <span className="mt-0.5 block truncate text-[12px] text-gray-600">
+                      {entry.details}
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-[12px] text-gray-500">{entry.moduleLabel}</span>
+                  <span className="block text-[11px] text-gray-700">{ago(entry.timestamp)}</span>
+                </span>
+              </Link>
+            ))}
           </div>
+        )}
+      </section>
 
-          <div className="animate-fade-in" style={{ animationDelay: "0.35s", opacity: 0 }}>
-            <SectionHeader title="Reference & Tools" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {referenceModules.map(m => (
-                <ModuleCard key={m.id} module={m} />
-              ))}
-            </div>
-          </div>
+      {/* ── The tools ──────────────────────────────────────────────────────── */}
+      <section>
+        <h2 className="mb-1 text-[13px] font-semibold text-gray-400">Calculators</h2>
+        <div>
+          {calculatorModules.map((m) => (
+            <ToolRow key={m.id} module={m} />
+          ))}
         </div>
-      </div>
+      </section>
+
+      <section>
+        <h2 className="mb-1 text-[13px] font-semibold text-gray-400">Reference</h2>
+        <div>
+          {referenceModules.map((m) => (
+            <ToolRow key={m.id} module={m} />
+          ))}
+        </div>
+      </section>
+
+      <p className="text-[12px] text-gray-700">
+        Every figure here is worth checking against your own setup before it reaches a machine.
+      </p>
     </div>
   );
 }
