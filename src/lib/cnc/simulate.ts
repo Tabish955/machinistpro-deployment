@@ -7,8 +7,12 @@
  * on. Getting that wrong draws a cut that would gouge the part.
  */
 
-import type { G71Input, ProfilePoint, ProfileStep } from "./g71";
-import { calculateG71, profileCoordinates, profileLength } from "./g71";
+import type { G71Input, ProfileStep } from "./g71";
+import { calculateG71, profileCoordinates, profileLength, reachableZ } from "./g71";
+
+// Lives with the pass planner now, since the planner needs it to stop each pass
+// at the profile. Re-exported so the callers here keep their import.
+export { reachableZ };
 
 export type MoveKind = "rapid" | "feed" | "retract";
 
@@ -22,39 +26,6 @@ export interface Move {
   pass: number;
   /** True while the tool is removing material. */
   cutting: boolean;
-}
-
-/**
- * How far in Z a pass at this diameter may travel before it would cut into the
- * finished profile.
- *
- * Walks the profile from the face. A segment entirely inside the pass diameter is
- * crossed; one entirely outside stops it; one that crosses is interpolated.
- */
-export function reachableZ(
-  points: ProfilePoint[],
-  passDiameter: number,
-  limitZ: number,
-): number {
-  let z = 0;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-
-    // Whole segment sits inside the pass: the tool can pass over it.
-    if (a.x <= passDiameter && b.x <= passDiameter) {
-      z = Math.min(z, b.z);
-      continue;
-    }
-    // Segment starts outside: the tool cannot enter it at all.
-    if (a.x >= passDiameter) return Math.max(z, limitZ);
-    // Segment crosses the pass diameter: stop where it crosses.
-    const span = b.x - a.x;
-    const t = span === 0 ? 0 : (passDiameter - a.x) / span;
-    const crossZ = a.z + t * (b.z - a.z);
-    return Math.max(Math.min(z, crossZ), limitZ);
-  }
-  return Math.max(z, limitZ);
 }
 
 export interface ToolpathOptions {
@@ -77,16 +48,20 @@ export function buildToolpath(
   options: ToolpathOptions = {},
 ): Move[] {
   const approach = options.approach ?? 2;
-  const rough = calculateG71(input);
   const points = steps.length
     ? profileCoordinates(steps)
     : profileCoordinates([{ diameter: input.finishDiameter, length: input.length }]);
+  // The passes are planned against the profile, so roughing steps down to the
+  // smallest diameter on the part and each pass stops at its own shoulder.
+  const rough = calculateG71(input, points);
 
   const moves: Move[] = [];
   const startZ = approach;
 
   for (const pass of rough.passes) {
-    const stopZ = reachableZ(points, pass.diameter, rough.roughedZ);
+    // The pass leaves the X allowance on, so it is blocked by the profile plus
+    // that allowance, not by the finished line itself.
+    const stopZ = reachableZ(points, pass.diameter + input.finishAllowanceX, rough.roughedZ);
     moves.push({ kind: "rapid", x: pass.diameter, z: startZ, pass: pass.pass, cutting: false });
     moves.push({ kind: "feed", x: pass.diameter, z: stopZ, pass: pass.pass, cutting: true });
     // Fanuc lifts away at 45° by R rather than pulling straight back along the cut.

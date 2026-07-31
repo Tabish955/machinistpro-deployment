@@ -67,7 +67,8 @@ export function Backplot() {
   const { minZ, maxZ, maxX } = plan.bounds;
   const zRange = Math.max(maxZ - minZ, 1);
   const xRange = Math.max(maxX / 2, 1);
-  const sx = (z: number) => PAD + ((maxZ - z) / zRange) * (W - PAD * 2);
+  // Chuck at the left, face of the part at the right, as the machine stands.
+  const sx = (z: number) => W - PAD - ((maxZ - z) / zRange) * (W - PAD * 2);
   const sy = (diameter: number) => H - PAD - (diameter / 2 / xRange) * (H - PAD * 2);
 
   /** SVG arc for a circular move, or a line if the centre is missing. */
@@ -76,8 +77,9 @@ export function Backplot() {
     const r = Math.hypot(m.centre.z - from.z, (m.centre.x - from.x) / 2);
     const rx = (r / xRange) * (H - PAD * 2);
     const rz = (r / zRange) * (W - PAD * 2);
-    // Z runs right-to-left on screen, which flips the sweep.
-    const sweep = m.kind === "arcCW" ? 0 : 1;
+    // Radius runs up the screen while SVG's y runs down, so one axis is mirrored
+    // and a clockwise arc has to be drawn with the anticlockwise sweep flag.
+    const sweep = m.kind === "arcCW" ? 1 : 0;
     return `A${rz},${rx} 0 0 ${sweep} ${sx(m.z)},${sy(m.x)}`;
   };
 
