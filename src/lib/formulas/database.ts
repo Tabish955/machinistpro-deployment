@@ -16,7 +16,7 @@ const CORE_FORMULAS: FormulaEntry[] = [
     description: "Hypotenuse of a right triangle from two sides.",
     variables: [v("a","Side a","m"), v("b","Side b","m"), v("c","Hypotenuse","m")],
     example: { description: "a=3, b=4", inputs:{a:3,b:4}, result:"c = 5" },
-    related: ["rt_triangle"], keywords: ["pythagoras","hypotenuse","right triangle"], calcLink: "/dashboard/geometry" },
+    related: ["trig_sin"], keywords: ["pythagoras","hypotenuse","right triangle"], calcLink: "/dashboard/geometry" },
   { id: "percentage", name: "Percentage", category: "algebra",
     expression: "P = (Part / Whole) × 100",
     description: "Calculate percentage of a value.",
@@ -323,6 +323,16 @@ const CORE_FORMULAS: FormulaEntry[] = [
     keywords: ["flow","rate","volume","velocity","area"], calcLink: "/dashboard/converter" },
 ];
 
-export const FORMULAS: FormulaEntry[] = [...CORE_FORMULAS, ...EXTENDED_FORMULAS];
+// Thirteen ids appear in both sets. Concatenating listed each twice on the page,
+// and FORMULA_MAP silently kept whichever came last, so a lookup returned the
+// extended copy while the list showed both. The core entry wins, being the
+// curated set, and the extended duplicate is dropped.
+export const FORMULAS: FormulaEntry[] = (() => {
+  const byId = new Map<string, FormulaEntry>();
+  for (const f of [...CORE_FORMULAS, ...EXTENDED_FORMULAS]) {
+    if (!byId.has(f.id)) byId.set(f.id, f);
+  }
+  return [...byId.values()];
+})();
 
 export const FORMULA_MAP = new Map(FORMULAS.map(f => [f.id, f]));

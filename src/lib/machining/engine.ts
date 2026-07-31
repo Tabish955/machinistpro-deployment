@@ -63,10 +63,29 @@ export function calcTapDrill(majorDia_mm: number, pitch_mm: number, threadPct = 
   return majorDia_mm - pitch_mm * (threadPct / 75);
 }
 
-// ─── Thread minor diameter ──────────────────────────────────────────────────
-export function calcMinorDia(majorDia_mm: number, pitch_mm: number): number {
-  // ISO metric: d_minor = d_major - 1.0825 × pitch
+// ─── Thread minor diameters ─────────────────────────────────────────────────
+/*
+ * A thread has two minor diameters and they are not interchangeable: the screw
+ * runs down to d3, the nut only to D1, and they differ by 0.1444 × pitch. The
+ * engineering database holds d3; this file used to return D1 under the bare
+ * name "minor diameter", so the same M8 read 6.466 on one page and 6.647 on
+ * another with nothing to say which was which. Both are given, each named for
+ * the job it belongs to.
+ */
+
+/** D1, the nut minor — what a tap or a bore has to clear. major − 1.0825 × P */
+export function calcMinorDiaInternal(majorDia_mm: number, pitch_mm: number): number {
   return majorDia_mm - 1.0825 * pitch_mm;
+}
+
+/** d3, the screw minor — where a single-point threading tool stops. major − 1.2269 × P */
+export function calcMinorDiaExternal(majorDia_mm: number, pitch_mm: number): number {
+  return majorDia_mm - 1.2269 * pitch_mm;
+}
+
+/** Infeed on the cross-slide to cut a full external thread: (major − d3) / 2. */
+export function calcThreadDepthExternal(pitch_mm: number): number {
+  return 0.61345 * pitch_mm;
 }
 
 // ─── Drilling ───────────────────────────────────────────────────────────────

@@ -10,6 +10,8 @@ import {
   referenceModules,
   allCalculatorModules,
 } from "@/config/modules";
+import { FORMULAS } from "@/lib/formulas";
+import { MATERIAL_PROFILES } from "@/lib/engdb/materials";
 import {
   Sparkles, Clock, Star, TrendingUp, Zap, ArrowRight,
   Calendar, Sun, Moon, CloudSun, Keyboard, Command,
@@ -93,8 +95,10 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: "0.1s", opacity: 0 }}>
         {[
           { icon: Zap, label: "Active Tools", value: `${availableModules.length}`, sub: "Ready to use", color: "text-accent-cyan", bg: "bg-accent-cyan/10" },
-          { icon: TrendingUp, label: "Formulas", value: "42", sub: "In library", color: "text-accent-blue", bg: "bg-accent-blue/10" },
-          { icon: Star, label: "Materials", value: "34", sub: "In database", color: "text-accent-amber", bg: "bg-accent-amber/10" },
+          // Counted, not typed in. The library had grown to 186 while the card
+          // still read 42, and the number a user checks first was the one wrong.
+          { icon: TrendingUp, label: "Formulas", value: `${FORMULAS.length}`, sub: "In library", color: "text-accent-blue", bg: "bg-accent-blue/10" },
+          { icon: Star, label: "Materials", value: `${MATERIAL_PROFILES.length}`, sub: "In database", color: "text-accent-amber", bg: "bg-accent-amber/10" },
           { icon: Clock, label: "Status", value: "Active", sub: user?.subscription || "Standard", color: "text-accent-green", bg: "bg-accent-green/10" },
         ].map(s => {
           const Icon = s.icon;

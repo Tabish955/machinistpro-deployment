@@ -183,6 +183,7 @@ function SurfaceTab() {
       <Card variant="solid" padding="sm" className="border-dark-600 overflow-x-auto">
         <table className="w-full text-xs min-w-[500px]">
           <thead><tr className="text-gray-500 border-b border-dark-700">
+            <th className="text-left py-2 px-3 font-semibold">Grade</th>
             <th className="text-right py-2 px-3 font-semibold">Ra (μm)</th>
             <th className="text-right py-2 px-2 font-semibold">Rz (μm)</th>
             <th className="text-left py-2 px-2 font-semibold">Process</th>
@@ -191,6 +192,7 @@ function SurfaceTab() {
           </tr></thead>
           <tbody>{SURFACE_FINISHES.map((s, i) => (
             <tr key={i} className="border-b border-dark-700/30 hover:bg-dark-700/20">
+              <td className="py-2 px-3 font-mono text-accent-amber font-semibold">{s.n}</td>
               <td className="py-2 px-3 text-right font-mono text-accent-cyan font-semibold">{s.ra}</td>
               <td className="py-2 px-2 text-right font-mono text-gray-400">{s.rz}</td>
               <td className="py-2 px-2 text-gray-300">{s.process}</td>

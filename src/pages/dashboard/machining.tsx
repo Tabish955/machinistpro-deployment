@@ -10,7 +10,9 @@ import {
   calcChipLoad,
   calcMachiningTime,
   calcMRR,
-  calcMinorDia,
+  calcMinorDiaInternal,
+  calcMinorDiaExternal,
+  calcThreadDepthExternal,
   calcDrillFeedPerRev,
   calcDrillPointDepth,
   calcCuttingPower,
@@ -458,7 +460,9 @@ function ThreadCalc() {
   const table = THREAD_TABLES[std];
   const thread: ThreadEntry | undefined = table.entries[idx];
 
-  const minorDia = thread ? calcMinorDia(thread.major, thread.pitch) : 0;
+  const minorScrew = thread ? calcMinorDiaExternal(thread.major, thread.pitch) : 0;
+  const minorNut = thread ? calcMinorDiaInternal(thread.major, thread.pitch) : 0;
+  const threadDepth = thread ? calcThreadDepthExternal(thread.pitch) : 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -484,7 +488,9 @@ function ThreadCalc() {
         <Card variant="solid" padding="md" className="border-dark-600">
           <SectionHeader title="Thread Data" />
           <ResultRow label="Major Diameter" value={fmt(thread.major, 3)} unit="mm" accent />
-          <ResultRow label="Minor Diameter" value={fmt(minorDia, 3)} unit="mm" />
+          <ResultRow label="Minor Ø — screw (d3)" value={fmt(minorScrew, 3)} unit="mm" />
+          <ResultRow label="Minor Ø — nut / bore (D1)" value={fmt(minorNut, 3)} unit="mm" />
+          <ResultRow label="Thread Depth (infeed)" value={fmt(threadDepth, 3)} unit="mm" />
           <ResultRow label="Pitch" value={fmt(thread.pitch, 3)} unit="mm" />
           {thread.tpi !== undefined && <ResultRow label="TPI" value={fmt(thread.tpi, 0)} unit="TPI" />}
           <ResultRow label="Tap Drill Size" value={fmt(thread.tapDrill, 2)} unit="mm" accent />
