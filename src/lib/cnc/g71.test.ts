@@ -31,6 +31,47 @@ describe("Fanuc G71 roughing", () => {
     expect(r.passes.at(-1)!.diameter).toBe(r.roughedDiameter);
   });
 
+  it("roughs down to the smallest diameter on the part, not the largest step", () => {
+    // A stepped shaft: Ø20 at the face, then Ø30, then Ø40. Roughing only to 40
+    // left the whole Ø40→Ø20 shoulder for the finishing pass, which then took
+    // 10 mm of radius in a single cut — the fault this pins.
+    const profile = profileCoordinates([
+      { diameter: 20, length: 15 },
+      { diameter: 30, length: 20 },
+      { diameter: 40, length: 25 },
+    ]);
+    const r = calculateG71(base, profile);
+
+    expect(r.roughedDiameter).toBe(20.5); // 20 plus the diameter allowance
+    // Every pass leaves at most the programmed depth on the radius.
+    const diameters = [base.stockDiameter, ...r.passes.map((p) => p.diameter)];
+    for (let i = 1; i < diameters.length; i++) {
+      expect((diameters[i - 1] - diameters[i]) / 2).toBeLessThanOrEqual(base.depthOfCut + 1e-9);
+    }
+    expect(r.passes.at(-1)!.diameter).toBe(r.roughedDiameter);
+  });
+
+  it("stops each pass where the profile blocks it", () => {
+    const profile = profileCoordinates([
+      { diameter: 20, length: 15 },
+      { diameter: 30, length: 20 },
+      { diameter: 40, length: 25 },
+    ]);
+    const r = calculateG71(base, profile);
+    const zOf = (diameter: number) => r.passes.find((p) => p.diameter <= diameter)!.z;
+
+    // Above every step, a pass runs the full length less the Z allowance.
+    expect(r.passes[0].z).toBeCloseTo(-59.9, 6);
+    // Below Ø40 it is stopped by the last shoulder at Z−35, and below Ø30 by
+    // the first at Z−15. A pass that ran on would gouge the part.
+    expect(zOf(39)).toBeCloseTo(-35, 6);
+    expect(zOf(29)).toBeCloseTo(-15, 6);
+    // Passes never go deeper as they get smaller — the staircase only shortens.
+    for (let i = 1; i < r.passes.length; i++) {
+      expect(r.passes[i].z).toBeGreaterThanOrEqual(r.passes[i - 1].z);
+    }
+  });
+
   it("never cuts inside the finished profile", () => {
     for (const depth of [0.5, 1, 1.5, 2, 3, 7]) {
       const r = calculateG71({ ...base, depthOfCut: depth });
@@ -169,6 +210,15 @@ describe("profile drawing", () => {
     const nums = d.partPath.match(/-?\d+\.?\d*/g)!.map(Number);
     expect(Math.min(...nums)).toBeGreaterThanOrEqual(0);
     expect(Math.max(...nums)).toBeLessThanOrEqual(Math.max(d.width, d.height));
+  });
+
+  it("puts the chuck on the left, as the machine stands", () => {
+    const d = profileDrawing([{ diameter: 20, length: 15 }, { diameter: 40, length: 25 }], 50);
+    // The stock line runs the length of the bar, so its two ends are Z0 and the
+    // chuck end. Z0 is the face and belongs on the right.
+    const xs = d.stockPath.match(/[ML](-?\d+\.?\d*)/g)!.map((c) => Number(c.slice(1)));
+    const [faceX, chuckX] = xs;
+    expect(faceX).toBeGreaterThan(chuckX);
   });
 
   it("needs something to draw", () => {

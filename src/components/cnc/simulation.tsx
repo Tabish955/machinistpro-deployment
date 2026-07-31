@@ -8,11 +8,20 @@ import {
 import { profileCoordinates, profileLength, type G71Input, type ProfileStep } from "@/lib/cnc/g71";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
+import { Pause, Play, RotateCcw, Route, SkipBack, SkipForward } from "lucide-react";
 
 const W = 620;
 const H = 260;
 const PAD = 28;
+
+/** One straight leg of the motion, in part coordinates: X is a diameter, Z runs negative. */
+interface Leg {
+  from: { x: number; z: number };
+  to: { x: number; z: number };
+  cutting: boolean;
+  /** Which pass drew it; 0 is the finishing pass. */
+  pass: number;
+}
 
 /** Distance of a move, used to pace the animation so rapids are not slow. */
 const moveLength = (from: { x: number; z: number }, to: { x: number; z: number }) =>
@@ -30,6 +39,7 @@ export function G71Simulation({
   const [progress, setProgress] = useState(0); // 0..1 along the whole path
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [showPath, setShowPath] = useState(true);
   const frame = useRef<number>(0);
 
   const plan = useMemo(() => {
@@ -65,14 +75,32 @@ export function G71Simulation({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(input), JSON.stringify(steps), includeFinish]);
 
+  /**
+   * The whole motion as legs, drawn faintly under everything else. Seeing where
+   * the tool is going next is half of reading a backplot; without it the first
+   * play is the only time you learn the shape of the cycle.
+   */
+  const wholePath = useMemo<Leg[]>(
+    () =>
+      plan.cursors.map((c) => ({
+        from: c.from,
+        to: { x: c.move.x, z: c.move.z },
+        cutting: c.move.cutting,
+        pass: c.move.pass,
+      })),
+    [plan],
+  );
+
   // Replay the path from the start each frame rather than mutating as we go, so
-  // scrubbing backwards shows the same material as playing forwards.
+  // scrubbing backwards shows the same material — and the same trail — as
+  // playing forwards.
   const state = useMemo(() => {
     if (plan.error || !plan.total) return null;
     const stock = createStock(input.stockDiameter, plan.length);
     const target = progress * plan.total;
     let tool = { x: input.stockDiameter, z: 2 };
     let activePass = 0;
+    const trail: Leg[] = [];
 
     for (const c of plan.cursors) {
       if (c.start >= target) break;
@@ -83,10 +111,13 @@ export function G71Simulation({
         z: c.from.z + (c.move.z - c.from.z) * t,
       };
       if (c.move.cutting) applyCut(stock, c.from, now);
+      // The leg is added only as far as the tool has actually reached, so the
+      // line grows out of the tool tip rather than snapping whole into place.
+      trail.push({ from: c.from, to: now, cutting: c.move.cutting, pass: c.move.pass });
       tool = now;
       activePass = c.move.pass;
     }
-    return { stock, tool, activePass };
+    return { stock, tool, activePass, trail };
   }, [plan, progress, input.stockDiameter]);
 
   useEffect(() => {
@@ -121,7 +152,8 @@ export function G71Simulation({
 
   const maxRadius = input.stockDiameter / 2;
   const centreY = H - PAD;
-  const sx = (z: number) => PAD + (-z / plan.length) * (W - PAD * 2);
+  // Chuck at the left, face of the part at the right, as the machine stands.
+  const sx = (z: number) => W - PAD + (z / plan.length) * (W - PAD * 2);
   const sy = (radius: number) => centreY - (radius / maxRadius) * (H - PAD * 2);
 
   // Remaining material as one silhouette above the centre line.
@@ -135,6 +167,24 @@ export function G71Simulation({
   const targetPath = plan.points
     .map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.z).toFixed(1)},${sy(p.x / 2).toFixed(1)}`)
     .join(" ");
+
+  // Each leg is drawn as its own subpath so a rapid never joins to a cut.
+  const legPath = (legs: Leg[]) =>
+    legs
+      .map(
+        (l) =>
+          `M${sx(l.from.z).toFixed(1)},${sy(l.from.x / 2).toFixed(1)} ` +
+          `L${sx(l.to.z).toFixed(1)},${sy(l.to.x / 2).toFixed(1)}`,
+      )
+      .join(" ");
+
+  // Split by pass, not by what is happening right now: a roughing line must not
+  // turn green behind the tool when the finishing pass starts.
+  const roughTrail = legPath(state.trail.filter((l) => l.cutting && l.pass !== 0));
+  const finishTrail = legPath(state.trail.filter((l) => l.cutting && l.pass === 0));
+  const rapidTrail = legPath(state.trail.filter((l) => !l.cutting));
+  const ghostCut = legPath(wholePath.filter((l) => l.cutting));
+  const ghostRapid = legPath(wholePath.filter((l) => !l.cutting));
 
   const tx = sx(state.tool.z);
   const ty = sy(state.tool.x / 2);
@@ -161,12 +211,39 @@ export function G71Simulation({
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="G71 cycle simulation">
+        {/* Chuck, drawn so the view stands the same way round as the machine */}
+        <g>
+          <rect
+            x={0}
+            y={sy(maxRadius) - 14}
+            width={PAD}
+            height={centreY - sy(maxRadius) + 14}
+            fill="#252b3a"
+            stroke="#4b5568"
+            strokeWidth="1"
+          />
+          <rect x={PAD - 7} y={sy(maxRadius) - 6} width={7} height={centreY - sy(maxRadius) + 6} fill="#38415a" />
+          <text x={3} y={centreY - 5} fill="#6b7385" fontSize="8" fontFamily="monospace">
+            CHUCK
+          </text>
+        </g>
         {/* Finished shape underneath, as the target */}
         <path d={targetPath} fill="none" stroke="#8b93a7" strokeWidth="1.5" strokeDasharray="5 4" />
         {/* Material still on the bar */}
         <path d={stockPath} fill="rgba(0,212,255,0.13)" stroke="#00d4ff" strokeWidth="1.5" />
         {/* Centre line */}
         <line x1="0" y1={centreY} x2={W} y2={centreY} stroke="#8b93a7" strokeWidth="1" strokeDasharray="10 4 2 4" />
+        {showPath && (
+          <g>
+            {/* Where the tool has still to go */}
+            <path d={ghostRapid} fill="none" stroke="#8b93a7" strokeWidth="1" strokeDasharray="4 5" opacity="0.28" />
+            <path d={ghostCut} fill="none" stroke="#00d4ff" strokeWidth="1.2" opacity="0.28" />
+            {/* Where it has been */}
+            <path d={rapidTrail} fill="none" stroke="#8b93a7" strokeWidth="1.2" strokeDasharray="5 4" />
+            <path d={roughTrail} fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" />
+            <path d={finishTrail} fill="none" stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        )}
         {/* Tool */}
         <polygon
           points={`${tx},${ty} ${tx + 11},${ty - 15} ${tx - 11},${ty - 15}`}
@@ -211,6 +288,17 @@ export function G71Simulation({
           className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-gray-300 hover:text-white">
           <RotateCcw size={13} />
         </button>
+        <button
+          onClick={() => setShowPath(!showPath)}
+          aria-pressed={showPath}
+          className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[11px] font-semibold ${
+            showPath
+              ? "border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan"
+              : "border-white/[0.08] bg-white/[0.04] text-gray-500 hover:text-white"
+          }`}
+        >
+          <Route size={13} /> Path
+        </button>
         <div className="flex gap-1 ml-auto">
           {[0.5, 1, 2, 4].map((s) => (
             <button
@@ -227,9 +315,11 @@ export function G71Simulation({
       </div>
 
       <p className="mt-2 text-[10px] text-gray-600 leading-relaxed">
-        Amber is roughing, green the finishing pass. Each pass stops where the profile would be
-        cut into, which is why a shallow pass ends at the first shoulder. Step through move by
-        move with the arrows. This shows the geometry, not your control's exact sequencing.
+        Chuck on the left, Z0 at the face on the right, as the machine stands. The tool draws its
+        path as it travels — cyan roughing, green the finishing pass, dashed grey the rapids — over
+        the faint line of the moves still to come. Each pass stops where the profile would be cut
+        into, which is why a shallow pass ends at the first shoulder. Step through move by move
+        with the arrows. This shows the geometry, not your control's exact sequencing.
       </p>
     </Card>
   );

@@ -119,7 +119,9 @@ export default function CNCPage() {
   const { result, code, error } = useMemo(() => {
     try {
       return {
-        result: calculateG71(input),
+        // Planned against the profile so the table shows the passes the cycle
+        // really makes, down to the smallest diameter and stopping at each shoulder.
+        result: calculateG71(input, steps.length ? profileCoordinates(steps) : undefined),
         code: generateG71Code(input, {
           startBlock: parseInt(ns, 10) || 100,
           endBlock: parseInt(nf, 10) || 110,
@@ -165,7 +167,13 @@ export default function CNCPage() {
           <SectionHeader title="G71 — OD Roughing (Type I)" />
           <div className="grid grid-cols-2 gap-3">
             <Num label="Stock Ø" value={stock} onChange={setStock} suffix="mm" />
-            <Num label="Finished Ø" value={finish} onChange={setFinish} suffix="mm" />
+              <Num
+              label="Finished Ø"
+              value={finish}
+              onChange={setFinish}
+              suffix="mm"
+              hint="plain turn only — a profile below sets its own"
+            />
             <Num label="Length of Cut" value={length} onChange={setLength} suffix="mm" />
             <Num
               label="Depth of Cut (U)"

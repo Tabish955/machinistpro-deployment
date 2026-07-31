@@ -50,7 +50,50 @@ export interface G71Result {
   roughedZ: number;
 }
 
-export function calculateG71(input: G71Input): G71Result {
+/**
+ * How far in Z a pass at this diameter may travel before it would cut into the
+ * finished profile.
+ *
+ * Walks the profile from the face. A segment entirely inside the pass diameter is
+ * crossed; one entirely outside stops it; one that crosses is interpolated.
+ */
+export function reachableZ(
+  points: ProfilePoint[],
+  passDiameter: number,
+  limitZ: number,
+): number {
+  let z = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+
+    // Whole segment sits inside the pass: the tool can pass over it.
+    if (a.x <= passDiameter && b.x <= passDiameter) {
+      z = Math.min(z, b.z);
+      continue;
+    }
+    // Segment starts outside: the tool cannot enter it at all.
+    if (a.x >= passDiameter) return Math.max(z, limitZ);
+    // Segment crosses the pass diameter: stop where it crosses.
+    const span = b.x - a.x;
+    const t = span === 0 ? 0 : (passDiameter - a.x) / span;
+    const crossZ = a.z + t * (b.z - a.z);
+    return Math.max(Math.min(z, crossZ), limitZ);
+  }
+  return Math.max(z, limitZ);
+}
+
+/**
+ * Plan the roughing passes.
+ *
+ * Given the profile, the cycle roughs down to the *smallest* diameter on the
+ * part, not to the single finished diameter in the input, and every pass stops
+ * where the profile blocks it. That is what leaves the staircase of material a
+ * G71 actually produces. Roughing only to the largest step and letting the
+ * finishing pass take the rest made the tool remove the whole shoulder in one
+ * cut — ten millimetres of radius in a pass no machine would survive.
+ */
+export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Result {
   const {
     stockDiameter,
     finishDiameter,
@@ -63,9 +106,16 @@ export function calculateG71(input: G71Input): G71Result {
 
   if (!(stockDiameter > 0)) throw new Error("Stock diameter must be greater than zero.");
   if (!(finishDiameter > 0)) throw new Error("Finished diameter must be greater than zero.");
-  if (finishDiameter >= stockDiameter) {
+
+  // The roughing has to reach the smallest diameter the part has anywhere, or
+  // the material below the first shoulder is never taken off.
+  const targetDiameter = profile?.length
+    ? Math.min(...profile.map((p) => p.x))
+    : finishDiameter;
+
+  if (targetDiameter >= stockDiameter) {
     throw new Error(
-      `Finished diameter (${finishDiameter}) must be smaller than the stock diameter (${stockDiameter}) — there is nothing to turn off.`,
+      `Finished diameter (${targetDiameter}) must be smaller than the stock diameter (${stockDiameter}) — there is nothing to turn off.`,
     );
   }
   if (!(length > 0)) throw new Error("Length of cut must be greater than zero.");
@@ -77,7 +127,7 @@ export function calculateG71(input: G71Input): G71Result {
 
   // Roughing stops short of the finished size by the X allowance, which is a
   // diameter, so it costs half that on the radius.
-  const roughedDiameter = finishDiameter + finishAllowanceX;
+  const roughedDiameter = targetDiameter + finishAllowanceX;
   if (roughedDiameter >= stockDiameter) {
     throw new Error(
       `The finishing allowance (${finishAllowanceX}) leaves nothing for the roughing cycle to remove.`,
@@ -94,11 +144,17 @@ export function calculateG71(input: G71Input): G71Result {
     // whatever is left rather than overshooting the finish allowance.
     const cumulative = Math.min(i * depthOfCut, radialStock);
     const previous = Math.min((i - 1) * depthOfCut, radialStock);
+    const diameter = Number((stockDiameter - 2 * cumulative).toFixed(4));
+    // Each pass runs until the profile stops it, so the table shows the same Z
+    // the tool will actually reach rather than the full length for every pass.
+    const passZ = profile?.length
+      ? reachableZ(profile, diameter + finishAllowanceX, roughedZ)
+      : roughedZ;
     passes.push({
       pass: i,
-      diameter: Number((stockDiameter - 2 * cumulative).toFixed(4)),
+      diameter,
       depth: Number((cumulative - previous).toFixed(4)),
-      z: Number(roughedZ.toFixed(4)),
+      z: Number(passZ.toFixed(4)),
     });
   }
 
@@ -263,8 +319,10 @@ export function profileDrawing(
   const usableW = size.width - pad * 2;
   const usableH = size.height - pad * 2;
 
-  // Z runs right to left from the face; radius runs up from the centre line.
-  const sx = (z: number) => pad + (-z / total) * usableW;
+  // Laid out as the machine stands: chuck at the left, the face of the part at
+  // the right, so Z0 is the right edge and negative Z runs back towards the jaws.
+  // Drawn the other way round it reads as a mirror image of the job in front of you.
+  const sx = (z: number) => size.width - pad + (z / total) * usableW;
   const sy = (diameter: number) => centreY - (diameter / 2 / (maxDia / 2)) * usableH;
 
   const commands = points.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.z).toFixed(1)},${sy(p.x).toFixed(1)}`);
