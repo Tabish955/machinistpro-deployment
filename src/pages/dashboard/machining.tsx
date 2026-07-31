@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import {
   MATERIALS,
@@ -33,6 +32,7 @@ import {
   type UnitSystem,
   type ThreadEntry,
 } from "@/lib/machining";
+import { Field, Choice, DataRow, Readout } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,43 +44,44 @@ import { formatMath } from "@/lib/core/math-symbols";
    Shared components
    ═══════════════════════════════════════════════════════════════════════════ */
 
-function Num({ label, value, onChange, suffix, placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; suffix?: string; placeholder?: string;
-}) {
-  return (
-    <div>
-      <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">{label}</label>
-      <div className="relative">
-        <input type="text" inputMode="decimal" value={value}
-          onChange={(e) => { const v = e.target.value; if (/^[0-9]*\.?[0-9]*$/.test(v) || v === "") onChange(v); }}
-          placeholder={placeholder}
-          className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm font-mono text-white placeholder:text-gray-700 focus:border-accent-cyan/50 focus:outline-none pr-14" />
-        {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-600">{suffix}</span>}
-      </div>
-    </div>
-  );
-}
+// Num, ResultRow and the rest now live in components/ui/field, shared with the
+// other calculator pages so the hierarchy cannot drift between them again.
+const Num = ({
+  label,
+  value,
+  onChange,
+  suffix,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  suffix?: string;
+  placeholder?: string;
+}) => (
+  <Field label={label} value={value} onChange={onChange} unit={suffix} placeholder={placeholder} />
+);
 
-function ResultRow({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent?: boolean }) {
-  return (
-    <div className="flex justify-between py-2 border-b border-dark-700/50 last:border-0">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className={`text-sm font-mono ${accent ? "text-accent-cyan font-semibold" : "text-gray-300"}`}>
-        {value}{unit ? <span className="text-gray-600 ml-1">{unit}</span> : null}
-      </span>
-    </div>
-  );
-}
+const ResultRow = ({
+  label,
+  value,
+  unit,
+  accent,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  accent?: boolean;
+}) => <DataRow label={label} value={value} unit={unit} emphasis={accent} />;
 
 function MaterialSelect({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   return (
-    <div>
-      <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">Material Preset</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer appearance-none">
-        {MATERIALS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-      </select>
-    </div>
+    <Choice
+      label="Material"
+      value={value}
+      onChange={onChange}
+      options={MATERIALS.map((m) => ({ value: m.id, label: m.name }))}
+    />
   );
 }
 
@@ -88,8 +89,11 @@ function UnitToggle({ value, onChange }: { value: UnitSystem; onChange: (v: Unit
   return (
     <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600 w-fit">
       {(["metric", "imperial"] as UnitSystem[]).map((u) => (
-        <button key={u} onClick={() => onChange(u)}
-          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${value === u ? "bg-accent-cyan/20 text-accent-cyan" : "text-gray-500 hover:text-white"}`}>
+        <button
+          key={u}
+          onClick={() => onChange(u)}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${value === u ? "bg-accent-cyan/20 text-accent-cyan" : "text-gray-500 hover:text-white"}`}
+        >
           {u === "metric" ? "Metric" : "Imperial"}
         </button>
       ))}
@@ -101,14 +105,19 @@ function FormulaBox({ formula, steps }: { formula: string; steps?: string[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="mt-3">
-      <button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer"
+      >
         <Info size={12} /> <span>Formula</span>
         <ChevronRight size={10} className={`transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
       {open && (
         <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono text-gray-500 space-y-1 animate-fade-in">
           <p className="text-accent-cyan">{formatMath(formula)}</p>
-          {steps?.map((s, i) => <p key={i}>{formatMath(s)}</p>)}
+          {steps?.map((s, i) => (
+            <p key={i}>{formatMath(s)}</p>
+          ))}
         </div>
       )}
     </div>
@@ -117,9 +126,16 @@ function FormulaBox({ formula, steps }: { formula: string; steps?: string[] }) {
 
 function CopyBtn({ text }: { text: string }) {
   const [ok, setOk] = useState(false);
-  const copy = () => { navigator.clipboard?.writeText(text); setOk(true); setTimeout(() => setOk(false), 1500); };
+  const copy = () => {
+    navigator.clipboard?.writeText(text);
+    setOk(true);
+    setTimeout(() => setOk(false), 1500);
+  };
   return (
-    <button onClick={copy} className={`p-2 rounded-lg transition-all cursor-pointer ${ok ? "bg-accent-green/20 text-accent-green" : "bg-dark-700/50 text-gray-600 hover:text-white"}`}>
+    <button
+      onClick={copy}
+      className={`p-2 rounded-lg transition-all cursor-pointer ${ok ? "bg-accent-green/20 text-accent-green" : "bg-dark-700/50 text-gray-600 hover:text-white"}`}
+    >
       {ok ? <Check size={14} /> : <Copy size={14} />}
     </button>
   );
@@ -150,18 +166,46 @@ function RPMCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
         <MaterialSelect value={matId} onChange={setMatId} />
-        <Num label={`Tool Diameter`} value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} placeholder="e.g. 10" />
-        <Num label={`Cutting Speed (override)`} value={csOverride} onChange={setCsOverride} suffix={isM ? "m/min" : "SFM"} placeholder={`default ${defaultCs}`} />
+        <Num
+          label={`Tool Diameter`}
+          value={dia}
+          onChange={setDia}
+          suffix={isM ? "mm" : "in"}
+          placeholder="e.g. 10"
+        />
+        <Num
+          label={`Cutting Speed (override)`}
+          value={csOverride}
+          onChange={setCsOverride}
+          suffix={isM ? "m/min" : "SFM"}
+          placeholder={`default ${defaultCs}`}
+        />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
-        <SectionHeader title="Results" />
-        <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow label="Surface Speed" value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))} unit={isM ? "m/min" : "SFM"} />
-        <ResultRow label="Material" value={mat.name} />
+        <Readout
+          label="Spindle Speed"
+          value={rpm > 0 ? fmt(rpm, 0) : "—"}
+          unit="RPM"
+          secondary={rpm > 0 ? `${fmt(csMm)} m/min on Ø${fmt(dMm)} mm` : undefined}
+        />
+        <div className="mt-3">
+          <ResultRow
+            label="Surface Speed"
+            value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))}
+            unit={isM ? "m/min" : "SFM"}
+          />
+          <ResultRow label="Material" value={mat.name} />
+        </div>
         <CopyBtn text={`RPM: ${fmt(rpm, 0)}`} />
-        <FormulaBox formula="RPM = (Vc × 1000) / (π × D)" steps={[`Vc = ${fmt(csMm)} m/min`, `D = ${fmt(dMm)} mm`, `RPM = ${fmt(rpm, 0)}`]} />
+        <FormulaBox
+          formula="RPM = (Vc × 1000) / (π × D)"
+          steps={[`Vc = ${fmt(csMm)} m/min`, `D = ${fmt(dMm)} mm`, `RPM = ${fmt(rpm, 0)}`]}
+        />
       </Card>
     </div>
   );
@@ -188,18 +232,55 @@ function FeedCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
         <MaterialSelect value={matId} onChange={setMatId} />
-        <Num label="Spindle Speed" value={rpm} onChange={setRpm} suffix="RPM" placeholder="e.g. 3000" />
+        <Num
+          label="Spindle Speed"
+          value={rpm}
+          onChange={setRpm}
+          suffix="RPM"
+          placeholder="e.g. 3000"
+        />
         <Num label="Number of Teeth / Flutes" value={teeth} onChange={setTeeth} suffix="z" />
-        <Num label="Chip Load (override)" value={chipLoad} onChange={setChipLoad} suffix={isM ? "mm" : "in"} placeholder={`default ${defaultCl}`} />
+        <Num
+          label="Chip Load (override)"
+          value={chipLoad}
+          onChange={setChipLoad}
+          suffix={isM ? "mm" : "in"}
+          placeholder={`default ${defaultCl}`}
+        />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
-        <SectionHeader title="Results" />
-        <ResultRow label="Feed Rate" value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)} unit={isM ? "mm/min" : "in/min"} accent />
-        <ResultRow label="Chip Load" value={isM ? fmt(clMm, 3) : fmt(mmToIn(clMm), 4)} unit={isM ? "mm/tooth" : "in/tooth"} />
-        <CopyBtn text={`Feed Rate: ${isM ? fmt(feed) + " mm/min" : fmt(mmToIn(feed), 3) + " in/min"}`} />
-        <FormulaBox formula="Vf = N × z × fz" steps={[`N = ${fmt(n, 0)} RPM`, `z = ${fmt(z, 0)}`, `fz = ${fmt(clMm, 3)} mm`, `Vf = ${fmt(feed)} mm/min`]} />
+        <Readout
+          label="Feed Rate"
+          value={feed > 0 ? (isM ? fmt(feed) : fmt(mmToIn(feed), 3)) : "—"}
+          unit={isM ? "mm/min" : "in/min"}
+          secondary={
+            feed > 0 ? `${fmt(n, 0)} RPM × ${fmt(z, 0)} flutes × ${fmt(clMm, 3)} mm` : undefined
+          }
+        />
+        <div className="mt-3">
+          <ResultRow
+            label="Chip Load"
+            value={isM ? fmt(clMm, 3) : fmt(mmToIn(clMm), 4)}
+            unit={isM ? "mm/tooth" : "in/tooth"}
+          />
+        </div>
+        <CopyBtn
+          text={`Feed Rate: ${isM ? fmt(feed) + " mm/min" : fmt(mmToIn(feed), 3) + " in/min"}`}
+        />
+        <FormulaBox
+          formula="Vf = N × z × fz"
+          steps={[
+            `N = ${fmt(n, 0)} RPM`,
+            `z = ${fmt(z, 0)}`,
+            `fz = ${fmt(clMm, 3)} mm`,
+            `Vf = ${fmt(feed)} mm/min`,
+          ]}
+        />
       </Card>
     </div>
   );
@@ -250,7 +331,10 @@ function MillingCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="grid grid-cols-2 gap-3">
           <Num label="Tool Diameter" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} />
@@ -258,36 +342,73 @@ function MillingCalc() {
           <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
           <Num label="Depth of Cut" value={doc} onChange={setDoc} suffix={isM ? "mm" : "in"} />
           <Num label="Width of Cut" value={woc} onChange={setWoc} suffix={isM ? "mm" : "in"} />
-          <Num label="Cutting Speed" value={csOverride} onChange={setCsOverride} suffix={isM ? "m/min" : "SFM"} placeholder={`${defaultCs}`} />
-          <Num label="Chip Load" value={clOverride} onChange={setClOverride} suffix={isM ? "mm" : "in"} placeholder={`${defaultCl}`} />
+          <Num
+            label="Cutting Speed"
+            value={csOverride}
+            onChange={setCsOverride}
+            suffix={isM ? "m/min" : "SFM"}
+            placeholder={`${defaultCs}`}
+          />
+          <Num
+            label="Chip Load"
+            value={clOverride}
+            onChange={setClOverride}
+            suffix={isM ? "mm" : "in"}
+            placeholder={`${defaultCl}`}
+          />
         </div>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
-        <SectionHeader title="Results" />
-        <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow label="Feed Rate" value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)} unit={isM ? "mm/min" : "IPM"} accent />
-        <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
-        <ResultRow
-          label="Material Removal Rate"
-          value={mrr > 0 ? (isM ? fmt(mrr) : fmt(mrr / 16.387, 3)) : "—"}
-          unit={isM ? "cm³/min" : "in³/min"}
+        <Readout
+          label="Spindle Speed"
+          value={rpm > 0 ? fmt(rpm, 0) : "—"}
+          unit="RPM"
+          secondary={
+            feed > 0
+              ? `feed ${isM ? `${fmt(feed)} mm/min` : `${fmt(mmToIn(feed), 3)} IPM`}`
+              : undefined
+          }
         />
-        <ResultRow label="Cutting Power" value={cuttingPower > 0 ? fmt(cuttingPower, 2) : "—"} unit="kW" />
-        <ResultRow
-          label="Spindle Power (80% eff.)"
-          value={spindlePower > 0 ? `${fmt(spindlePower, 2)} kW · ${fmt(kwToHp(spindlePower), 2)}` : "—"}
-          unit={spindlePower > 0 ? "hp" : ""}
-          accent
-        />
-        <ResultRow label="Spindle Torque" value={torque > 0 ? fmt(torque, 1) : "—"} unit="Nm" />
-        {thinning > 1.001 && (
+        <div className="mt-3">
           <ResultRow
-            label="Chip Thinning Factor"
-            value={`×${fmt(thinning, 3)}`}
-            unit={`feed ${isM ? fmt(feed * thinning) : fmt(mmToIn(feed * thinning), 3)} ${isM ? "mm/min" : "IPM"}`}
+            label="Feed Rate"
+            value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
+            unit={isM ? "mm/min" : "IPM"}
+            accent
           />
-        )}
-        <CopyBtn text={`RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feed)} mm/min, Power: ${fmt(spindlePower, 2)} kW`} />
+          <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
+          <ResultRow
+            label="Material Removal Rate"
+            value={mrr > 0 ? (isM ? fmt(mrr) : fmt(mrr / 16.387, 3)) : "—"}
+            unit={isM ? "cm³/min" : "in³/min"}
+          />
+          <ResultRow
+            label="Cutting Power"
+            value={cuttingPower > 0 ? fmt(cuttingPower, 2) : "—"}
+            unit="kW"
+          />
+          <ResultRow
+            label="Spindle Power (80% eff.)"
+            value={
+              spindlePower > 0
+                ? `${fmt(spindlePower, 2)} kW · ${fmt(kwToHp(spindlePower), 2)}`
+                : "—"
+            }
+            unit={spindlePower > 0 ? "hp" : ""}
+            accent
+          />
+          <ResultRow label="Spindle Torque" value={torque > 0 ? fmt(torque, 1) : "—"} unit="Nm" />
+          {thinning > 1.001 && (
+            <ResultRow
+              label="Chip Thinning Factor"
+              value={`×${fmt(thinning, 3)}`}
+              unit={`feed ${isM ? fmt(feed * thinning) : fmt(mmToIn(feed * thinning), 3)} ${isM ? "mm/min" : "IPM"}`}
+            />
+          )}
+        </div>
+        <CopyBtn
+          text={`RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feed)} mm/min, Power: ${fmt(spindlePower, 2)} kW`}
+        />
         <FormulaBox formula="RPM = (Vc×1000)/(π×D) · Vf = N×z×fz · Pc = MRR×kc/60000 · M = 9550P/n" />
       </Card>
     </div>
@@ -337,32 +458,83 @@ function TurningCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="grid grid-cols-2 gap-3">
           <Num label="Workpiece Dia" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} />
           <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
-          <Num label="Cutting Speed" value={csOverride} onChange={setCsOverride} suffix={isM ? "m/min" : "SFM"} placeholder={`${defaultCs}`} />
-          <Num label="Feed / Rev" value={feedOverride} onChange={setFeedOverride} suffix={isM ? "mm/rev" : "in/rev"} placeholder={`${defaultFeed}`} />
-          <Num label="Depth of Cut" value={depthOfCut} onChange={setDepthOfCut} suffix={isM ? "mm" : "in"} placeholder="for power" />
-          <Num label="Nose Radius" value={noseRadius} onChange={setNoseRadius} suffix={isM ? "mm" : "in"} placeholder="0.8" />
+          <Num
+            label="Cutting Speed"
+            value={csOverride}
+            onChange={setCsOverride}
+            suffix={isM ? "m/min" : "SFM"}
+            placeholder={`${defaultCs}`}
+          />
+          <Num
+            label="Feed / Rev"
+            value={feedOverride}
+            onChange={setFeedOverride}
+            suffix={isM ? "mm/rev" : "in/rev"}
+            placeholder={`${defaultFeed}`}
+          />
+          <Num
+            label="Depth of Cut"
+            value={depthOfCut}
+            onChange={setDepthOfCut}
+            suffix={isM ? "mm" : "in"}
+            placeholder="for power"
+          />
+          <Num
+            label="Nose Radius"
+            value={noseRadius}
+            onChange={setNoseRadius}
+            suffix={isM ? "mm" : "in"}
+            placeholder="0.8"
+          />
         </div>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
-        <SectionHeader title="Results" />
-        <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow label="Feed Rate" value={isM ? fmt(feedRate) : fmt(mmToIn(feedRate), 3)} unit={isM ? "mm/min" : "IPM"} />
-        <ResultRow label="Surface Speed" value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))} unit={isM ? "m/min" : "SFM"} />
-        <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
-        <ResultRow label="Surface Finish Ra" value={ra > 0 ? fmt(ra, 2) : "—"} unit="µm" accent />
-        <ResultRow label="Finish (Rz approx.)" value={ra > 0 ? fmt(ra * 4, 2) : "—"} unit="µm" />
-        {turnPower > 0 && (
-          <>
-            <ResultRow label="Spindle Power (80% eff.)" value={`${fmt(turnPower, 2)} kW · ${fmt(kwToHp(turnPower), 2)}`} unit="hp" />
-            <ResultRow label="Spindle Torque" value={fmt(turnTorque, 1)} unit="Nm" />
-          </>
-        )}
-        <CopyBtn text={`RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feedRate)} mm/min, Ra: ${fmt(ra, 2)} µm`} />
+        <Readout
+          label="Spindle Speed"
+          value={rpm > 0 ? fmt(rpm, 0) : "—"}
+          unit="RPM"
+          secondary={
+            rpm > 0
+              ? `feed ${isM ? `${fmt(feedRate)} mm/min` : `${fmt(mmToIn(feedRate), 3)} IPM`}`
+              : undefined
+          }
+        />
+        <div className="mt-3">
+          <ResultRow
+            label="Feed Rate"
+            value={isM ? fmt(feedRate) : fmt(mmToIn(feedRate), 3)}
+            unit={isM ? "mm/min" : "IPM"}
+          />
+          <ResultRow
+            label="Surface Speed"
+            value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))}
+            unit={isM ? "m/min" : "SFM"}
+          />
+          <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
+          <ResultRow label="Surface Finish Ra" value={ra > 0 ? fmt(ra, 2) : "—"} unit="µm" accent />
+          <ResultRow label="Finish (Rz approx.)" value={ra > 0 ? fmt(ra * 4, 2) : "—"} unit="µm" />
+          {turnPower > 0 && (
+            <>
+              <ResultRow
+                label="Spindle Power (80% eff.)"
+                value={`${fmt(turnPower, 2)} kW · ${fmt(kwToHp(turnPower), 2)}`}
+                unit="hp"
+              />
+              <ResultRow label="Spindle Torque" value={fmt(turnTorque, 1)} unit="Nm" />
+            </>
+          )}
+        </div>
+        <CopyBtn
+          text={`RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feedRate)} mm/min, Ra: ${fmt(ra, 2)} µm`}
+        />
         <FormulaBox formula="RPM = (Vc×1000)/(π×D) · Vf = N×f · Ra ≈ f²/(32×r)" />
       </Card>
     </div>
@@ -412,12 +584,33 @@ function DrillCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="grid grid-cols-2 gap-3">
-          <Num label="Drill Diameter" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} placeholder="e.g. 8" />
-          <Num label="Hole Depth" value={depth} onChange={setDepth} suffix={isM ? "mm" : "in"} placeholder="e.g. 25" />
-          <Num label="Point Angle" value={pointAngle} onChange={setPointAngle} suffix="°" placeholder="118" />
+          <Num
+            label="Drill Diameter"
+            value={dia}
+            onChange={setDia}
+            suffix={isM ? "mm" : "in"}
+            placeholder="e.g. 8"
+          />
+          <Num
+            label="Hole Depth"
+            value={depth}
+            onChange={setDepth}
+            suffix={isM ? "mm" : "in"}
+            placeholder="e.g. 25"
+          />
+          <Num
+            label="Point Angle"
+            value={pointAngle}
+            onChange={setPointAngle}
+            suffix="°"
+            placeholder="118"
+          />
           <Num
             label="Feed / Rev (override)"
             value={feedOverride}
@@ -437,14 +630,47 @@ function DrillCalc() {
         </label>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
-        <SectionHeader title="Results" />
-        <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow label="Drill Cutting Speed" value={isM ? fmt(drillCs) : fmt(mat.drillSfm)} unit={isM ? "m/min" : "SFM"} />
-        <ResultRow label="Feed / Rev" value={isM ? fmt(fprMm, 3) : fmt(mmToIn(fprMm), 4)} unit={isM ? "mm/rev" : "in/rev"} />
-        <ResultRow label="Feed Rate" value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)} unit={isM ? "mm/min" : "IPM"} accent />
-        <ResultRow label="Drill Point Depth" value={pointDepthMm > 0 ? (isM ? fmt(pointDepthMm) : fmt(mmToIn(pointDepthMm), 3)) : "—"} unit={isM ? "mm" : "in"} />
-        <ResultRow label="Total Travel" value={travelMm > 0 ? (isM ? fmt(travelMm) : fmt(mmToIn(travelMm), 3)) : "—"} unit={isM ? "mm" : "in"} />
-        <ResultRow label="Drilling Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
+        <Readout
+          label="Spindle Speed"
+          value={rpm > 0 ? fmt(rpm, 0) : "—"}
+          unit="RPM"
+          secondary={
+            feed > 0
+              ? `feed ${isM ? `${fmt(feed)} mm/min` : `${fmt(mmToIn(feed), 3)} IPM`}`
+              : undefined
+          }
+        />
+        <div className="mt-3">
+          <ResultRow
+            label="Drill Cutting Speed"
+            value={isM ? fmt(drillCs) : fmt(mat.drillSfm)}
+            unit={isM ? "m/min" : "SFM"}
+          />
+          <ResultRow
+            label="Feed / Rev"
+            value={isM ? fmt(fprMm, 3) : fmt(mmToIn(fprMm), 4)}
+            unit={isM ? "mm/rev" : "in/rev"}
+          />
+          <ResultRow
+            label="Feed Rate"
+            value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
+            unit={isM ? "mm/min" : "IPM"}
+            accent
+          />
+          <ResultRow
+            label="Drill Point Depth"
+            value={
+              pointDepthMm > 0 ? (isM ? fmt(pointDepthMm) : fmt(mmToIn(pointDepthMm), 3)) : "—"
+            }
+            unit={isM ? "mm" : "in"}
+          />
+          <ResultRow
+            label="Total Travel"
+            value={travelMm > 0 ? (isM ? fmt(travelMm) : fmt(mmToIn(travelMm), 3)) : "—"}
+            unit={isM ? "mm" : "in"}
+          />
+          <ResultRow label="Drilling Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
+        </div>
         <CopyBtn text={`Drill RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feed)} mm/min`} />
         <FormulaBox formula="RPM = (Vc×1000)/(π×D) · fn = f×D · Point = (D/2)/tan(θ/2)" />
       </Card>
@@ -470,17 +696,32 @@ function ThreadCalc() {
         <SectionHeader title="Thread Standard" />
         <div className="flex gap-1.5 flex-wrap">
           {Object.entries(THREAD_TABLES).map(([k, v]) => (
-            <button key={k} onClick={() => { setStd(k); setIdx(0); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${std === k ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30" : "bg-dark-700/50 text-gray-500 border border-dark-600 hover:text-white"}`}>
+            <button
+              key={k}
+              onClick={() => {
+                setStd(k);
+                setIdx(0);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${std === k ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30" : "bg-dark-700/50 text-gray-500 border border-dark-600 hover:text-white"}`}
+            >
               {v.label}
             </button>
           ))}
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">Thread Size</label>
-          <select value={idx} onChange={(e) => setIdx(Number(e.target.value))}
-            className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer appearance-none">
-            {table.entries.map((t, i) => <option key={i} value={i}>{t.label}</option>)}
+          <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+            Thread Size
+          </label>
+          <select
+            value={idx}
+            onChange={(e) => setIdx(Number(e.target.value))}
+            className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer appearance-none"
+          >
+            {table.entries.map((t, i) => (
+              <option key={i} value={i}>
+                {t.label}
+              </option>
+            ))}
           </select>
         </div>
       </Card>
@@ -492,11 +733,24 @@ function ThreadCalc() {
           <ResultRow label="Minor Ø — nut / bore (D1)" value={fmt(minorNut, 3)} unit="mm" />
           <ResultRow label="Thread Depth (infeed)" value={fmt(threadDepth, 3)} unit="mm" />
           <ResultRow label="Pitch" value={fmt(thread.pitch, 3)} unit="mm" />
-          {thread.tpi !== undefined && <ResultRow label="TPI" value={fmt(thread.tpi, 0)} unit="TPI" />}
+          {thread.tpi !== undefined && (
+            <ResultRow label="TPI" value={fmt(thread.tpi, 0)} unit="TPI" />
+          )}
           <ResultRow label="Tap Drill Size" value={fmt(thread.tapDrill, 2)} unit="mm" accent />
-          <ResultRow label="Tap Drill (imperial)" value={fmt(mmToIn(thread.tapDrill), 4)} unit="in" />
+          <ResultRow
+            label="Tap Drill (imperial)"
+            value={fmt(mmToIn(thread.tapDrill), 4)}
+            unit="in"
+          />
           <CopyBtn text={`${thread.label}: Tap drill = ${fmt(thread.tapDrill, 2)} mm`} />
-          <FormulaBox formula="Tap Drill ≈ Major Dia − Pitch" steps={[`Major = ${fmt(thread.major, 3)} mm`, `Pitch = ${fmt(thread.pitch, 3)} mm`, `Tap = ${fmt(thread.tapDrill, 2)} mm`]} />
+          <FormulaBox
+            formula="Tap Drill ≈ Major Dia − Pitch"
+            steps={[
+              `Major = ${fmt(thread.major, 3)} mm`,
+              `Pitch = ${fmt(thread.pitch, 3)} mm`,
+              `Tap = ${fmt(thread.tapDrill, 2)} mm`,
+            ]}
+          />
         </Card>
       )}
     </div>
@@ -522,9 +776,17 @@ function TimeCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
         <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
-        <Num label="Feed Rate" value={feedRate} onChange={setFeedRate} suffix={isM ? "mm/min" : "IPM"} />
+        <Num
+          label="Feed Rate"
+          value={feedRate}
+          onChange={setFeedRate}
+          suffix={isM ? "mm/min" : "IPM"}
+        />
         <Num label="Number of Passes" value={passes} onChange={setPasses} suffix="passes" />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
@@ -550,11 +812,7 @@ function BoltCircleCalc() {
   const holes = useMemo(() => {
     try {
       const pcdMm = isM ? parseFloat(pcd) || 0 : inToMm(parseFloat(pcd) || 0);
-      const list = calcBoltCircle(
-        parseInt(count, 10) || 0,
-        pcdMm,
-        parseFloat(start) || 0,
-      );
+      const list = calcBoltCircle(parseInt(count, 10) || 0, pcdMm, parseFloat(start) || 0);
       const ox = isM ? parseFloat(centreX) || 0 : inToMm(parseFloat(centreX) || 0);
       const oy = isM ? parseFloat(centreY) || 0 : inToMm(parseFloat(centreY) || 0);
       return { list: list.map((h) => ({ ...h, x: h.x + ox, y: h.y + oy })), error: "" };
@@ -571,7 +829,10 @@ function BoltCircleCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Num label="Number of Holes" value={count} onChange={setCount} suffix="holes" />
           <Num label="Bolt Circle Dia" value={pcd} onChange={setPcd} suffix={isM ? "mm" : "in"} />
@@ -642,17 +903,56 @@ function TaperCalc() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <div className="flex justify-between items-center"><SectionHeader title="Inputs" className="!mb-0" /><UnitToggle value={units} onChange={setUnits} /></div>
-        <Num label="Large Diameter" value={large} onChange={setLarge} suffix={isM ? "mm" : "in"} placeholder="e.g. 20" />
-        <Num label="Small Diameter" value={small} onChange={setSmall} suffix={isM ? "mm" : "in"} placeholder="e.g. 10" />
-        <Num label="Length Between" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} placeholder="e.g. 50" />
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Inputs" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
+        <Num
+          label="Large Diameter"
+          value={large}
+          onChange={setLarge}
+          suffix={isM ? "mm" : "in"}
+          placeholder="e.g. 20"
+        />
+        <Num
+          label="Small Diameter"
+          value={small}
+          onChange={setSmall}
+          suffix={isM ? "mm" : "in"}
+          placeholder="e.g. 10"
+        />
+        <Num
+          label="Length Between"
+          value={length}
+          onChange={setLength}
+          suffix={isM ? "mm" : "in"}
+          placeholder="e.g. 50"
+        />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
-        <ResultRow label="Included Angle" value={result ? fmt(result.includedAngle_deg, 4) : "—"} unit="°" accent />
-        <ResultRow label="Compound Set-over" value={result ? fmt(result.compoundAngle_deg, 4) : "—"} unit="°" accent />
-        <ResultRow label="Taper per mm" value={result ? fmt(result.taperPerMm, 5) : "—"} unit={isM ? "mm/mm" : "in/in"} />
-        <ResultRow label="Taper per Foot" value={result ? fmt(mmToIn(result.taperPerFoot_mm), 4) : "—"} unit="in/ft" />
+        <ResultRow
+          label="Included Angle"
+          value={result ? fmt(result.includedAngle_deg, 4) : "—"}
+          unit="°"
+          accent
+        />
+        <ResultRow
+          label="Compound Set-over"
+          value={result ? fmt(result.compoundAngle_deg, 4) : "—"}
+          unit="°"
+          accent
+        />
+        <ResultRow
+          label="Taper per mm"
+          value={result ? fmt(result.taperPerMm, 5) : "—"}
+          unit={isM ? "mm/mm" : "in/in"}
+        />
+        <ResultRow
+          label="Taper per Foot"
+          value={result ? fmt(mmToIn(result.taperPerFoot_mm), 4) : "—"}
+          unit="in/ft"
+        />
         <p className="mt-2 text-[10px] text-gray-600">
           Set the compound rest to the set-over angle: half the included angle.
         </p>
@@ -667,15 +967,15 @@ function TaperCalc() {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const TABS = [
-  { id: "rpm",      name: "RPM",        comp: RPMCalc },
-  { id: "feed",     name: "Feed Rate",  comp: FeedCalc },
-  { id: "milling",  name: "Milling",    comp: MillingCalc },
-  { id: "turning",  name: "Turning",    comp: TurningCalc },
-  { id: "drilling", name: "Drilling",   comp: DrillCalc },
-  { id: "thread",   name: "Threads",    comp: ThreadCalc },
-  { id: "bolt",     name: "Bolt Circle", comp: BoltCircleCalc },
-  { id: "taper",    name: "Taper",      comp: TaperCalc },
-  { id: "time",     name: "Time",       comp: TimeCalc },
+  { id: "rpm", name: "RPM", comp: RPMCalc },
+  { id: "feed", name: "Feed Rate", comp: FeedCalc },
+  { id: "milling", name: "Milling", comp: MillingCalc },
+  { id: "turning", name: "Turning", comp: TurningCalc },
+  { id: "drilling", name: "Drilling", comp: DrillCalc },
+  { id: "thread", name: "Threads", comp: ThreadCalc },
+  { id: "bolt", name: "Bolt Circle", comp: BoltCircleCalc },
+  { id: "taper", name: "Taper", comp: TaperCalc },
+  { id: "time", name: "Time", comp: TimeCalc },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════════
