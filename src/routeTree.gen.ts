@@ -37,6 +37,7 @@ import { Route as DashboardTapDrillRouteImport } from './routes/dashboard/tap-dr
 import { Route as DashboardTolerancesRouteImport } from './routes/dashboard/tolerances'
 import { Route as DashboardWeightRouteImport } from './routes/dashboard/weight'
 import { Route as DashboardWorkspaceRouteImport } from './routes/dashboard/workspace'
+import { Route as ApiAuthHealthRouteImport } from './routes/api/auth/health'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
@@ -181,6 +182,11 @@ const DashboardWorkspaceRoute = DashboardWorkspaceRouteImport.update({
   path: '/workspace',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const ApiAuthHealthRoute = ApiAuthHealthRouteImport.update({
+  id: '/api/auth/health',
+  path: '/api/auth/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
   id: '/api/auth/login',
   path: '/api/auth/login',
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/health': typeof ApiAuthHealthRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/api/auth/health': typeof ApiAuthHealthRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -292,6 +300,7 @@ export interface FileRoutesById {
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/health': typeof ApiAuthHealthRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -327,6 +336,7 @@ export interface FileRouteTypes {
     | '/dashboard/weight'
     | '/dashboard/workspace'
     | '/dashboard/'
+    | '/api/auth/health'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -359,6 +369,7 @@ export interface FileRouteTypes {
     | '/dashboard/weight'
     | '/dashboard/workspace'
     | '/dashboard'
+    | '/api/auth/health'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/dashboard/weight'
     | '/dashboard/workspace'
     | '/dashboard/'
+    | '/api/auth/health'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -407,6 +419,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiAuthHealthRoute: typeof ApiAuthHealthRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
@@ -610,6 +623,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardWorkspaceRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/api/auth/health': {
+      id: '/api/auth/health'
+      path: '/api/auth/health'
+      fullPath: '/api/auth/health'
+      preLoaderRoute: typeof ApiAuthHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/login': {
       id: '/api/auth/login'
       path: '/api/auth/login'
@@ -692,6 +712,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiAuthHealthRoute: ApiAuthHealthRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,

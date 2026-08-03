@@ -89,7 +89,11 @@ export async function issueSession(opts: IssueOptions): Promise<IssueResult> {
     // a working token. Login must not hard-fail because the audit table is down.
     // session.ts will still 401 for forged tokens on next validate; in the window
     // between issue and validate, a logged-but-unpersisted token can be used.
-    console.error("[session-server] Failed to persist session row:", error.message);
+    console.error(
+      `[session-server] Failed to persist session row for user=${opts.username}:`,
+      error.message,
+      "— check SUPABASE_SERVICE_ROLE_KEY is set and the sessions migration ran.",
+    );
   }
   return { token, expiresAt };
 }

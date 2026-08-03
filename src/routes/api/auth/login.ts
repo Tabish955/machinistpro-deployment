@@ -21,11 +21,20 @@ async function mughalInit() {
   const name = process.env.MUGHAL_APP_NAME || "MachinistPro";
   const ownerId = process.env.MUGHAL_OWNER_ID;
   const version = process.env.MUGHAL_VERSION || "1.0";
-  if (!ownerId)
+  if (!ownerId) {
+    console.error("[mughal-init] MUGHAL_OWNER_ID is not set");
     return {
       success: false as const,
       error: "Server configuration error: Missing MUGHAL_OWNER_ID",
     };
+  }
+  if (ownerId.length !== 10) {
+    console.error(`[mughal-init] MUGHAL_OWNER_ID is ${ownerId.length} chars; Mughal requires exactly 10`);
+    return {
+      success: false as const,
+      error: "Server configuration error: Invalid MUGHAL_OWNER_ID",
+    };
+  }
   try {
     const params = new URLSearchParams({ type: "init", ver: version, name, ownerid: ownerId });
     const res = await fetch(`${API_URL}?${params.toString()}`, {
@@ -37,11 +46,14 @@ async function mughalInit() {
     try {
       data = JSON.parse(text) as MughalInitResponse;
     } catch {
+      console.error(`[mughal-init] Non-JSON response: ${text.slice(0, 200)}`);
       return { success: false as const, error: "Invalid response from authentication server" };
     }
     if (data.success) return { success: true as const, sessionId: data.sessionid };
+    console.error(`[mughal-init] Rejected: ${data.message}`);
     return { success: false as const, error: data.message || "Initialization failed" };
-  } catch {
+  } catch (e) {
+    console.error(`[mughal-init] Fetch failed:`, e);
     return { success: false as const, error: "Failed to connect to authentication server" };
   }
 }
