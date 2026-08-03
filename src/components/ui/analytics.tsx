@@ -1,9 +1,6 @@
 import { useEffect } from "react";
 
-interface ViteEnv extends ImportMeta {
-  env?: { VITE_GA_ID?: string };
-}
-const GA_ID = (import.meta as ViteEnv).env?.VITE_GA_ID;
+const GA_ID = (import.meta as unknown as { env?: { VITE_GA_ID?: string } }).env?.VITE_GA_ID;
 
 export function AnalyticsScript() {
   useEffect(() => {
