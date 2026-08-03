@@ -27,6 +27,7 @@ interface LoginResponse {
   username?: string;
   subscription?: string;
   expiry?: string;
+  isAdmin?: boolean;
   error?: string;
 }
 
@@ -191,10 +192,18 @@ export default function LoginPage() {
       setIsLoading(true);
 
       try {
+        // Device signals power the one-device (HWID) licence lock.
+        let signals: Awaited<ReturnType<typeof collectSignals>> | undefined;
+        try {
+          signals = await collectSignals();
+        } catch {
+          signals = undefined;
+        }
+
         const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: username.trim(), password, rememberMe }),
+          body: JSON.stringify({ username: username.trim(), password, rememberMe, signals }),
         });
 
         const data: LoginResponse = await res.json();
@@ -208,6 +217,7 @@ export default function LoginPage() {
               username: data.username || username.trim(),
               subscription: data.subscription || "Standard",
               expiry: data.expiry || "",
+              isAdmin: data.isAdmin ?? false,
             }),
           );
           setUser({
@@ -215,6 +225,7 @@ export default function LoginPage() {
             subscription: data.subscription || "Standard",
             expiry: data.expiry || "",
             sessionToken: data.sessionToken,
+            isAdmin: data.isAdmin ?? false,
           });
           toast.success("Welcome back!", `Logged in as ${data.username || username.trim()}`);
           router.push("/dashboard");

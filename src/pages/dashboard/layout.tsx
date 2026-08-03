@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { TrialBanner } from "@/components/trial-banner";
-import { AnnouncementBanner, MaintenanceGate } from "@/components/site-notice";
+import { MaintenanceGate } from "@/components/site-notice";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -11,7 +11,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
       <MaintenanceGate>
-        <AnnouncementBanner />
         <div className="flex min-h-screen bg-dark-950 gradient-bg">
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
