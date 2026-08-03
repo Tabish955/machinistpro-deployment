@@ -8,7 +8,7 @@ const W = 620;
 const H = 300;
 const PAD = 30;
 
-const SAMPLE = `(THREE STEP SHAFT)
+export const SAMPLE = `(THREE STEP SHAFT)
 G21 G97 S900 M03
 T0101
 G00 X52 Z2
@@ -27,11 +27,31 @@ M30`;
 const span = (a: { x: number; z: number }, b: { x: number; z: number }) =>
   Math.hypot((b.x - a.x) / 2, b.z - a.z);
 
-export function Backplot() {
-  const [source, setSource] = useState(SAMPLE);
+/**
+ * Takes its program from the page when one is given, so the blocks a cycle just
+ * wrote can be plotted without copying them out and pasting them back in.
+ * Falls back to its own state, and the sample, when used on its own.
+ */
+export function Backplot({
+  source: controlledSource,
+  onSourceChange,
+}: {
+  source?: string;
+  onSourceChange?: (source: string) => void;
+} = {}) {
+  const [ownSource, setOwnSource] = useState(SAMPLE);
+  const source = controlledSource ?? ownSource;
+  const setSource = onSourceChange ?? setOwnSource;
   const [progress, setProgress] = useState(1);
   const [playing, setPlaying] = useState(false);
   const frame = useRef(0);
+
+  // A program arriving from outside is a different program: show all of it
+  // rather than however far the last one had been scrubbed to.
+  useEffect(() => {
+    setProgress(1);
+    setPlaying(false);
+  }, [source]);
 
   const plan = useMemo(() => {
     const { moves, warnings } = parseGCode(source);

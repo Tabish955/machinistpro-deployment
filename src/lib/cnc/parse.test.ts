@@ -2,6 +2,40 @@ import { describe, expect, it } from "vitest";
 import { parseGCode, centreFromRadius, pathBounds } from "./parse";
 
 describe("reading a lathe program", () => {
+  it("says when a canned cycle cannot be drawn from its words alone", () => {
+    // G76 X16.933 is where the thread finishes after twenty-odd passes, not a
+    // move to that diameter. Plotting the block as written understates it by a
+    // whole cycle, so the reader has to be told.
+    const { warnings } = parseGCode(`
+      G00 X24.0 Z5.0
+      G76 P021060 Q50 R0.05
+      G76 X16.933 Z-30.0 R0.0 P1534 Q300 F2.5
+    `);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain("G76");
+    expect(warnings[0].message).toContain("threading");
+  });
+
+  it("says it once per cycle, not once per block", () => {
+    // G71 takes two lines; warning on both is noise.
+    const { warnings } = parseGCode(`
+      G71 U2.0 R1.0
+      G71 P100 Q110 U0.5 W0.1 F0.25
+      N100 G00 X20.0
+      N110 X50.0
+    `);
+    expect(warnings.filter((w) => w.message.includes("G71"))).toHaveLength(1);
+  });
+
+  it("leaves an ordinary program unwarned", () => {
+    const { warnings } = parseGCode(`
+      G00 X50 Z2
+      G01 Z-20 F0.2
+      X60
+    `);
+    expect(warnings).toEqual([]);
+  });
+
   it("carries the motion mode forward between blocks", () => {
     // G01 stays in force, so the later blocks are feeds without repeating it.
     const { moves } = parseGCode(

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import {
   calculateG71,
   generateG71Code,
@@ -36,11 +36,11 @@ import {
   buildSimpleToolpath,
 } from "@/lib/cnc/toolpaths";
 import { G71Simulation, LatheSimulation } from "@/components/cnc/simulation";
-import { Backplot } from "@/components/cnc/backplot";
+import { Backplot, SAMPLE } from "@/components/cnc/backplot";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Cpu, Copy, Check, AlertTriangle } from "lucide-react";
+import { Cpu, Copy, Check, AlertTriangle, Route } from "lucide-react";
 
 const field =
   "w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm font-mono text-white placeholder:text-gray-700 focus:border-accent-cyan/50 focus:outline-none";
@@ -118,9 +118,17 @@ function Pick<T extends string>({
   );
 }
 
+/**
+ * Hands a cycle's generated blocks to the backplot tab. The backplot used to sit
+ * under every cycle showing the same canned sample, which taught nobody
+ * anything; it is one tab now, and each cycle can send its own program to it.
+ */
+const SendToBackplot = createContext<((lines: string[]) => void) | null>(null);
+
 /** A generated program with the copy button beside it. */
 function Program({ lines, note }: { lines: string[]; note?: ReactNode }) {
   const [copied, setCopied] = useState(false);
+  const plot = useContext(SendToBackplot);
   const copy = () => {
     navigator.clipboard?.writeText(lines.join("\n"));
     setCopied(true);
@@ -131,17 +139,27 @@ function Program({ lines, note }: { lines: string[]; note?: ReactNode }) {
     <Card variant="solid" padding="md" className="border-dark-600">
       <div className="flex items-center justify-between mb-2">
         <SectionHeader title="Program Blocks" className="!mb-0" />
-        <button
-          onClick={copy}
-          aria-label="Copy program blocks"
-          className={`p-2 rounded-lg transition-all cursor-pointer ${
-            copied
-              ? "bg-accent-green/20 text-accent-green"
-              : "bg-dark-700/50 text-gray-500 hover:text-white"
-          }`}
-        >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-        </button>
+        <div className="flex items-center gap-2">
+          {plot && (
+            <button
+              onClick={() => plot(lines)}
+              className="flex items-center gap-1.5 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-2.5 py-1.5 text-[11px] font-semibold text-accent-cyan hover:bg-accent-cyan/20 cursor-pointer"
+            >
+              <Route size={12} /> Backplot this
+            </button>
+          )}
+          <button
+            onClick={copy}
+            aria-label="Copy program blocks"
+            className={`p-2 rounded-lg transition-all cursor-pointer ${
+              copied
+                ? "bg-accent-green/20 text-accent-green"
+                : "bg-dark-700/50 text-gray-500 hover:text-white"
+            }`}
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+        </div>
       </div>
       <pre className="rounded-xl bg-dark-900 border border-dark-700 p-3 text-xs font-mono text-accent-cyan overflow-x-auto">
         {lines.join("\n")}
@@ -1274,11 +1292,23 @@ const TABS = [
   { id: "g75", label: "G75 · Groove", comp: G75Panel },
   { id: "g76", label: "G76 · Thread", comp: G76Panel },
   { id: "simple", label: "G90 · G92 · G94", comp: SimplePanel },
+  // The backplot is a tab of its own rather than a footer under every cycle.
+  // Repeated seven times it only ever showed the same canned sample.
+  { id: "backplot", label: "Backplot", comp: null },
 ];
 
 export default function CNCPage() {
   const [tab, setTab] = useState("g71");
+  const [program, setProgram] = useState(SAMPLE);
   const Panel = TABS.find((t) => t.id === tab)!.comp;
+
+  const plot = useMemo(
+    () => (lines: string[]) => {
+      setProgram(lines.join("\n"));
+      setTab("backplot");
+    },
+    [],
+  );
 
   return (
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
@@ -1312,9 +1342,13 @@ export default function CNCPage() {
         ))}
       </div>
 
-      <Panel />
-
-      <Backplot />
+      {Panel ? (
+        <SendToBackplot.Provider value={plot}>
+          <Panel />
+        </SendToBackplot.Provider>
+      ) : (
+        <Backplot source={program} onSourceChange={setProgram} />
+      )}
     </div>
   );
 }
