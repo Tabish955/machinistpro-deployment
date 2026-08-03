@@ -1,160 +1,97 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { randomBytes } from "crypto";
-import { issueSession } from "@/lib/session-server";
+import { z } from "zod";
+import { issueSession, revokeUserSessions } from "@/lib/session-server";
+import { verifyPassword } from "@/lib/password";
+import { clientSignalsSchema, hashHwid } from "@/lib/device-server";
 
-// Mughal auth still needs `randomBytes` for HWID. Server session uses `issueSession`.
+const bodySchema = z.object({
+  username: z.string().trim().min(1).max(200),
+  password: z.string().min(1).max(200),
+  rememberMe: z.boolean().optional(),
+  signals: clientSignalsSchema.optional(),
+});
 
-interface MughalInitResponse {
-  success: boolean;
-  sessionid?: string;
-  message?: string;
-}
-interface MughalLoginResponse {
-  success: boolean;
-  message?: string;
-  info?: { username: string; subscriptions?: Array<{ subscription: string; expiry: string }> };
-}
-
-const API_URL = "https://api.mughalxcheat.xyz/api/1.2/index.php";
-
-async function mughalInit() {
-  const name = process.env.MUGHAL_APP_NAME || "MachinistPro";
-  const ownerId = process.env.MUGHAL_OWNER_ID;
-  const version = process.env.MUGHAL_VERSION || "1.0";
-  if (!ownerId) {
-    console.error("[mughal-init] MUGHAL_OWNER_ID is not set");
-    return {
-      success: false as const,
-      error: "Server configuration error: Missing MUGHAL_OWNER_ID",
-    };
-  }
-  if (ownerId.length !== 10) {
-    console.error(`[mughal-init] MUGHAL_OWNER_ID is ${ownerId.length} chars; Mughal requires exactly 10`);
-    return {
-      success: false as const,
-      error: "Server configuration error: Invalid MUGHAL_OWNER_ID",
-    };
-  }
-  try {
-    const params = new URLSearchParams({ type: "init", ver: version, name, ownerid: ownerId });
-    const res = await fetch(`${API_URL}?${params.toString()}`, {
-      method: "GET",
-      headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
-    });
-    const text = await res.text();
-    let data: MughalInitResponse;
-    try {
-      data = JSON.parse(text) as MughalInitResponse;
-    } catch {
-      console.error(`[mughal-init] Non-JSON response: ${text.slice(0, 200)}`);
-      return { success: false as const, error: "Invalid response from authentication server" };
-    }
-    if (data.success) return { success: true as const, sessionId: data.sessionid };
-    console.error(`[mughal-init] Rejected: ${data.message}`);
-    return { success: false as const, error: data.message || "Initialization failed" };
-  } catch (e) {
-    console.error(`[mughal-init] Fetch failed:`, e);
-    return { success: false as const, error: "Failed to connect to authentication server" };
-  }
-}
-
-async function mughalLogin(sessionId: string, username: string, password: string) {
-  const ownerId = process.env.MUGHAL_OWNER_ID;
-  const name = process.env.MUGHAL_APP_NAME || "MachinistPro";
-  if (!ownerId) return { success: false as const, error: "Server configuration error" };
-  // Mughal Auth requires HWID >= 20 characters
-  const hwid = randomBytes(16).toString("hex"); // 32 chars
-  try {
-    const params = new URLSearchParams({
-      type: "login",
-      username,
-      pass: password,
-      sessionid: sessionId,
-      name,
-      ownerid: ownerId,
-      hwid,
-    });
-    const res = await fetch(`${API_URL}?${params.toString()}`, {
-      method: "GET",
-      headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
-    });
-    const text = await res.text();
-    let data: MughalLoginResponse;
-    try {
-      data = JSON.parse(text) as MughalLoginResponse;
-    } catch {
-      return { success: false as const, error: "Invalid response from authentication server" };
-    }
-    if (data.success && data.info) {
-      const sub = data.info.subscriptions?.[0];
-      return {
-        success: true as const,
-        username: data.info.username,
-        subscription: sub?.subscription || "Standard",
-        expiry: sub?.expiry || "",
-      };
-    }
-    return { success: false as const, error: data.message || "Invalid username or password" };
-  } catch {
-    return { success: false as const, error: "Authentication request failed. Please try again." };
-  }
+function fail(error: string, status = 401) {
+  return Response.json({ success: false, error }, { status });
 }
 
 export const Route = createFileRoute("/api/auth/login")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        let raw: unknown;
         try {
-          const body = (await request.json()) as {
-            username?: string;
-            password?: string;
-            rememberMe?: boolean;
-          };
-          const { username, password, rememberMe } = body;
-          if (!username?.trim())
-            return Response.json(
-              { success: false, error: "Username is required" },
-              { status: 400 },
-            );
-          if (!password)
-            return Response.json(
-              { success: false, error: "Password is required" },
-              { status: 400 },
-            );
-          const init = await mughalInit();
-          if (!init.success || !init.sessionId) {
-            return Response.json(
-              { success: false, error: "Authentication server unavailable" },
-              { status: 503 },
-            );
+          raw = await request.json();
+        } catch {
+          return fail("Invalid request", 400);
+        }
+        const parsed = bodySchema.safeParse(raw);
+        if (!parsed.success) return fail("Username and password are required", 400);
+        const { username, password, rememberMe, signals } = parsed.data;
+
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const ident = username.toLowerCase();
+          const { data: user } = await supabaseAdmin
+            .from("app_users")
+            .select(
+              "id,username,email,password_hash,subscription,expiry_date,is_admin,is_active,hwid,allow_multi_device",
+            )
+            .or(`username.ilike.${ident},email.ilike.${ident}`)
+            .maybeSingle();
+
+          if (!user) return fail("Invalid username or password");
+          const ok = await verifyPassword(password, user.password_hash);
+          if (!ok) return fail("Invalid username or password");
+          if (!user.is_active) return fail("This account has been suspended.", 403);
+          if (user.expiry_date && new Date(user.expiry_date).getTime() <= Date.now()) {
+            return fail("Your subscription has expired.", 403);
           }
-          const login = await mughalLogin(init.sessionId, username.trim(), password);
-          if (!login.success) {
-            return Response.json(
-              { success: false, error: "Invalid username or password" },
-              { status: 401 },
-            );
+
+          // ---- One device per licence (HWID lock) ----
+          const ua = request.headers.get("user-agent")?.slice(0, 512) ?? "";
+          const hwid = signals ? hashHwid(signals, ua) : null;
+          if (!user.allow_multi_device) {
+            if (!hwid) return fail("Device verification failed. Please retry in a normal browser window.", 403);
+            if (!user.hwid) {
+              await supabaseAdmin.from("app_users").update({ hwid }).eq("id", user.id);
+            } else if (user.hwid !== hwid) {
+              return fail(
+                "This account is locked to another device. Ask the administrator to reset your device (HWID).",
+                403,
+              );
+            }
+            // Single active session per licence.
+            await revokeUserSessions(user.id);
           }
-          // Issue a server-persisted session token. Without this, session.ts can't
-          // distinguish a real login from localStorage forgery.
+
           const issued = await issueSession({
-            username: login.username || username.trim(),
-            subscription: login.subscription || "Standard",
-            expiryDate: login.expiry || "",
+            username: user.username,
+            subscription: user.subscription,
+            expiryDate: user.expiry_date ?? "",
             rememberMe: rememberMe ?? false,
+            isAdmin: user.is_admin,
+            userId: user.id,
+            hwid: hwid ?? undefined,
           });
+
+          await supabaseAdmin
+            .from("app_users")
+            .update({ last_login_at: new Date().toISOString() })
+            .eq("id", user.id);
+
           return Response.json({
             success: true,
             sessionToken: issued.token,
-            sessionExpiresAt: issued.expiresAt,
-            username: login.username || username.trim(),
-            subscription: login.subscription || "Standard",
-            expiry: login.expiry || "",
+            username: user.username,
+            subscription: user.subscription,
+            expiry: user.expiry_date ?? "",
+            isAdmin: user.is_admin,
           });
         } catch (err) {
           console.error("[/api/auth/login] failed:", err);
           return Response.json(
-            { success: false, error: "An unexpected error occurred. Please try again." },
+            { success: false, error: "Authentication service is unavailable. Please try again." },
             { status: 500 },
           );
         }
