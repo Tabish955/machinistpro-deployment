@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      app_users: {
+        Row: {
+          allow_multi_device: boolean
+          created_at: string
+          email: string | null
+          expiry_date: string | null
+          hwid: string | null
+          id: string
+          is_active: boolean
+          is_admin: boolean
+          last_login_at: string | null
+          password_hash: string
+          subscription: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          allow_multi_device?: boolean
+          created_at?: string
+          email?: string | null
+          expiry_date?: string | null
+          hwid?: string | null
+          id?: string
+          is_active?: boolean
+          is_admin?: boolean
+          last_login_at?: string | null
+          password_hash: string
+          subscription?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          allow_multi_device?: boolean
+          created_at?: string
+          email?: string | null
+          expiry_date?: string | null
+          hwid?: string | null
+          id?: string
+          is_active?: boolean
+          is_admin?: boolean
+          last_login_at?: string | null
+          password_hash?: string
+          subscription?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       device_fingerprints: {
         Row: {
           fingerprint_hash: string
@@ -76,6 +142,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          expiry_date: string | null
+          hwid: string | null
+          is_admin: boolean
+          is_trial: boolean
+          remember_me: boolean
+          subscription: string
+          token_hash: string
+          user_id: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          expiry_date?: string | null
+          hwid?: string | null
+          is_admin?: boolean
+          is_trial?: boolean
+          remember_me?: boolean
+          subscription?: string
+          token_hash: string
+          user_id?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          expiry_date?: string | null
+          hwid?: string | null
+          is_admin?: boolean
+          is_trial?: boolean
+          remember_me?: boolean
+          subscription?: string
+          token_hash?: string
+          user_id?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "app_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trial_ip_log: {
         Row: {
