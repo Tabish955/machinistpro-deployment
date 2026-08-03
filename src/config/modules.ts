@@ -14,6 +14,7 @@ import {
   Factory,
   Cpu,
   Compass,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -397,6 +398,20 @@ export const referenceModules: ModuleConfig[] = [
 
 // Workspace & Tools
 export const workspaceModules: ModuleConfig[] = [
+  {
+    id: "dxf-converter",
+    name: "DXF Workshop",
+    shortName: "DXF Workshop",
+    description:
+      "Convert vector drawings, coordinates and traced images into offline CAD-ready DXF files",
+    icon: ScanLine,
+    href: "/dashboard/dxf-converter",
+    color: "cyan",
+    status: "beta",
+    category: "tools",
+    keywords: ["dxf", "cad", "svg", "image trace", "cnc", "laser", "plasma", "coordinates"],
+    version: "0.1",
+  },
   {
     id: "workspace",
     name: "Workspace",
