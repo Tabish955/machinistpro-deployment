@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConversionResult } from "@/lib/converter/types";
@@ -33,7 +32,7 @@ export const useConverterStore = create<ConverterStore>()(
               r.fromUnit.id === item.fromUnit.id &&
               r.toUnit.id === item.toUnit.id &&
               r.category === item.category
-            )
+            ),
         );
         set({
           recentConversions: [item, ...filtered].slice(0, MAX_RECENT),
@@ -49,19 +48,16 @@ export const useConverterStore = create<ConverterStore>()(
           set({
             favoriteConversions: favoriteConversions.filter((f) => f.id !== id),
             recentConversions: recentConversions.map((r) =>
-              r.id === id ? { ...r, isFavorite: false } : r
+              r.id === id ? { ...r, isFavorite: false } : r,
             ),
           });
         } else {
           const item = recentConversions.find((r) => r.id === id);
           if (item) {
             set({
-              favoriteConversions: [
-                ...favoriteConversions,
-                { ...item, isFavorite: true },
-              ],
+              favoriteConversions: [...favoriteConversions, { ...item, isFavorite: true }],
               recentConversions: recentConversions.map((r) =>
-                r.id === id ? { ...r, isFavorite: true } : r
+                r.id === id ? { ...r, isFavorite: true } : r,
               ),
             });
           }
@@ -90,6 +86,6 @@ export const useConverterStore = create<ConverterStore>()(
         favoriteConversions: state.favoriteConversions,
         favoriteCategories: state.favoriteCategories,
       }),
-    }
-  )
+    },
+  ),
 );

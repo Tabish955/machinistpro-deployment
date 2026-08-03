@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
@@ -17,8 +16,18 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import {
-  Settings, User, Shield, LogOut, Download, Upload, Trash2,
-  HardDrive, AlertTriangle, Check, ChevronRight, RefreshCw,
+  Settings,
+  User,
+  Shield,
+  LogOut,
+  Download,
+  Upload,
+  Trash2,
+  HardDrive,
+  AlertTriangle,
+  Check,
+  ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -101,14 +110,20 @@ export default function SettingsPage() {
     logout();
     setShowResetConfirm(false);
     toast.success("App reset", "MachinistPro has been reset to default");
-    setTimeout(() => { window.location.href = "/login"; }, 1000);
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 1000);
   };
 
   const formatExpiry = (expiry: string | undefined) => {
     if (!expiry) return "—";
     const timestamp = Number(expiry);
     if (isNaN(timestamp)) return expiry;
-    return new Date(timestamp * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   return (
@@ -121,7 +136,13 @@ export default function SettingsPage() {
       />
 
       {/* Hidden file input for import */}
-      <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={handleImportFile}
+      />
 
       {/* Account */}
       <Card variant="solid" padding="lg" className="border-dark-600 relative overflow-hidden">
@@ -164,7 +185,9 @@ export default function SettingsPage() {
           </div>
           <div className="flex-1">
             <h3 className="text-base font-semibold text-white">{user?.username || "User"}</h3>
-            <p className="text-xs text-gray-500">{user?.subscription || "Standard"} · MachinistPro</p>
+            <p className="text-xs text-gray-500">
+              {user?.subscription || "Standard"} · MachinistPro
+            </p>
           </div>
           <Button variant="danger" size="sm" icon={<LogOut size={14} />} onClick={handleLogout}>
             Sign Out
@@ -193,7 +216,13 @@ export default function SettingsPage() {
       </Card>
 
       {/* Export */}
-      <Card variant="solid" padding="md" hoverable className="border-dark-600 group cursor-pointer" onClick={handleExport}>
+      <Card
+        variant="solid"
+        padding="md"
+        hoverable
+        className="border-dark-600 group cursor-pointer"
+        onClick={handleExport}
+      >
         <div className="flex items-center gap-4">
           <div className="rounded-lg bg-accent-cyan/10 p-2.5 group-hover:bg-accent-cyan/20 transition-colors">
             <Download size={18} className="text-accent-cyan" />
@@ -207,7 +236,13 @@ export default function SettingsPage() {
       </Card>
 
       {/* Import */}
-      <Card variant="solid" padding="md" hoverable className="border-dark-600 group cursor-pointer" onClick={handleImportClick}>
+      <Card
+        variant="solid"
+        padding="md"
+        hoverable
+        className="border-dark-600 group cursor-pointer"
+        onClick={handleImportClick}
+      >
         <div className="flex items-center gap-4">
           <div className="rounded-lg bg-accent-blue/10 p-2.5 group-hover:bg-accent-blue/20 transition-colors">
             <Upload size={18} className="text-accent-blue" />
@@ -230,7 +265,12 @@ export default function SettingsPage() {
 
       {/* Clear data */}
       {!showClearConfirm ? (
-        <Card variant="solid" padding="md" className="border-dark-600 cursor-pointer" onClick={() => setShowClearConfirm(true)}>
+        <Card
+          variant="solid"
+          padding="md"
+          className="border-dark-600 cursor-pointer"
+          onClick={() => setShowClearConfirm(true)}
+        >
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-accent-amber/10 p-2.5">
               <Trash2 size={18} className="text-accent-amber" />
@@ -248,15 +288,22 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-sm font-semibold text-accent-amber">Clear all local data?</h3>
               <p className="text-xs text-gray-400 mt-1">
-                This will permanently delete your calculation history, favorites, workspace projects, and saved preferences. Your account will not be affected.
+                This will permanently delete your calculation history, favorites, workspace
+                projects, and saved preferences. Your account will not be affected.
               </p>
             </div>
           </div>
           <div className="flex gap-2 ml-8">
-            <button onClick={handleClearData} className="px-4 py-2 rounded-xl bg-accent-amber/20 text-accent-amber text-xs font-semibold cursor-pointer hover:bg-accent-amber/30 transition-colors">
+            <button
+              onClick={handleClearData}
+              className="px-4 py-2 rounded-xl bg-accent-amber/20 text-accent-amber text-xs font-semibold cursor-pointer hover:bg-accent-amber/30 transition-colors"
+            >
               Yes, Clear Data
             </button>
-            <button onClick={() => setShowClearConfirm(false)} className="px-4 py-2 rounded-xl text-gray-500 text-xs cursor-pointer hover:text-white">
+            <button
+              onClick={() => setShowClearConfirm(false)}
+              className="px-4 py-2 rounded-xl text-gray-500 text-xs cursor-pointer hover:text-white"
+            >
               Cancel
             </button>
           </div>
@@ -265,7 +312,12 @@ export default function SettingsPage() {
 
       {/* Full reset */}
       {!showResetConfirm ? (
-        <Card variant="solid" padding="md" className="border-dark-600 cursor-pointer" onClick={() => setShowResetConfirm(true)}>
+        <Card
+          variant="solid"
+          padding="md"
+          className="border-dark-600 cursor-pointer"
+          onClick={() => setShowResetConfirm(true)}
+        >
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-accent-red/10 p-2.5">
               <RefreshCw size={18} className="text-accent-red" />
@@ -283,15 +335,22 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-sm font-semibold text-accent-red">Reset MachinistPro?</h3>
               <p className="text-xs text-gray-400 mt-1">
-                This will delete ALL local data, sign you out, and reset the app to its default state. This action cannot be undone.
+                This will delete ALL local data, sign you out, and reset the app to its default
+                state. This action cannot be undone.
               </p>
             </div>
           </div>
           <div className="flex gap-2 ml-8">
-            <button onClick={handleFullReset} className="px-4 py-2 rounded-xl bg-accent-red/20 text-accent-red text-xs font-semibold cursor-pointer hover:bg-accent-red/30 transition-colors">
+            <button
+              onClick={handleFullReset}
+              className="px-4 py-2 rounded-xl bg-accent-red/20 text-accent-red text-xs font-semibold cursor-pointer hover:bg-accent-red/30 transition-colors"
+            >
               Yes, Reset Everything
             </button>
-            <button onClick={() => setShowResetConfirm(false)} className="px-4 py-2 rounded-xl text-gray-500 text-xs cursor-pointer hover:text-white">
+            <button
+              onClick={() => setShowResetConfirm(false)}
+              className="px-4 py-2 rounded-xl text-gray-500 text-xs cursor-pointer hover:text-white"
+            >
               Cancel
             </button>
           </div>

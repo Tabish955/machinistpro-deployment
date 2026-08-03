@@ -1,4 +1,3 @@
-
 interface SkeletonProps {
   className?: string;
   variant?: "text" | "circular" | "rectangular" | "card";
@@ -6,14 +5,9 @@ interface SkeletonProps {
   height?: string | number;
 }
 
-export function Skeleton({ 
-  className = "", 
-  variant = "text",
-  width,
-  height 
-}: SkeletonProps) {
+export function Skeleton({ className = "", variant = "text", width, height }: SkeletonProps) {
   const baseClasses = "animate-shimmer rounded";
-  
+
   const variantClasses = {
     text: "h-4 w-full rounded",
     circular: "rounded-full",
@@ -26,12 +20,7 @@ export function Skeleton({
     height: height ? (typeof height === "number" ? `${height}px` : height) : undefined,
   };
 
-  return (
-    <div 
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
-      style={style}
-    />
-  );
+  return <div className={`${baseClasses} ${variantClasses[variant]} ${className}`} style={style} />;
 }
 
 export function SkeletonCard() {

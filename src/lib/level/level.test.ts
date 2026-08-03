@@ -144,7 +144,11 @@ describe("how the phone is being held", () => {
   it("derives the surface tilt from gravity", () => {
     expect(gravityToTilt({ x: 0, y: 0, z: G })).toEqual({ pitch: 0, roll: 0 });
     // Nose down by 5 degrees puts gravity slightly along +y.
-    const t = gravityToTilt({ x: 0, y: G * Math.sin(5 * Math.PI / 180), z: G * Math.cos(5 * Math.PI / 180) });
+    const t = gravityToTilt({
+      x: 0,
+      y: G * Math.sin((5 * Math.PI) / 180),
+      z: G * Math.cos((5 * Math.PI) / 180),
+    });
     expect(t.pitch).toBeCloseTo(-5, 1);
   });
 });
@@ -175,8 +179,16 @@ describe("edge level in every upright position", () => {
 
   it("keeps the sign meaning the same side is low", () => {
     const tilt = 12;
-    const portraitRight = edgeAngle({ x: G * Math.sin(at(tilt)), y: -G * Math.cos(at(tilt)), z: 0 });
-    const portraitLeft = edgeAngle({ x: -G * Math.sin(at(tilt)), y: -G * Math.cos(at(tilt)), z: 0 });
+    const portraitRight = edgeAngle({
+      x: G * Math.sin(at(tilt)),
+      y: -G * Math.cos(at(tilt)),
+      z: 0,
+    });
+    const portraitLeft = edgeAngle({
+      x: -G * Math.sin(at(tilt)),
+      y: -G * Math.cos(at(tilt)),
+      z: 0,
+    });
     expect(portraitRight).toBeGreaterThan(0);
     expect(portraitLeft).toBeLessThan(0);
   });

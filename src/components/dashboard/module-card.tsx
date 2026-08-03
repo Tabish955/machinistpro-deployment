@@ -1,4 +1,3 @@
-
 import { Link } from "@/lib/next-compat";
 import { Badge } from "@/components/ui/badge";
 import { type ModuleConfig, moduleColors } from "@/config/modules";
@@ -65,9 +64,7 @@ export function ModuleCard({ module, variant = "default" }: ModuleCardProps) {
         <h3 className="text-base font-semibold text-white mb-2 group-hover:text-accent-cyan transition-colors">
           {module.name}
         </h3>
-        <p className="text-sm text-gray-500 leading-relaxed">
-          {module.description}
-        </p>
+        <p className="text-sm text-gray-500 leading-relaxed">{module.description}</p>
       </Link>
     );
   }
@@ -103,9 +100,7 @@ export function ModuleCard({ module, variant = "default" }: ModuleCardProps) {
       <h3 className="text-sm font-semibold text-white mb-1 group-hover:text-accent-cyan transition-colors">
         {module.name}
       </h3>
-      <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
-        {module.description}
-      </p>
+      <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{module.description}</p>
     </Link>
   );
 }

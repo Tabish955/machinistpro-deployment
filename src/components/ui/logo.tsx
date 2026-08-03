@@ -1,4 +1,3 @@
-
 import { Cog } from "lucide-react";
 
 interface LogoProps {
@@ -24,16 +23,8 @@ export function Logo({ size = "md", showText = true }: LogoProps) {
       </div>
       {showText && (
         <div className="flex items-baseline gap-0.5">
-          <span
-            className={`${s.text} font-bold tracking-tight text-white`}
-          >
-            Machinist
-          </span>
-          <span
-            className={`${s.text} font-bold tracking-tight text-accent-cyan`}
-          >
-            Pro
-          </span>
+          <span className={`${s.text} font-bold tracking-tight text-white`}>Machinist</span>
+          <span className={`${s.text} font-bold tracking-tight text-accent-cyan`}>Pro</span>
         </div>
       )}
     </div>

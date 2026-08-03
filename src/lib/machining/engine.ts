@@ -32,14 +32,22 @@ export function calcChipLoad(feedRate_mmMin: number, rpm: number, teeth: number)
 
 // ─── Machining time ─────────────────────────────────────────────────────────
 /** Time = (L × passes) / Vf   result in minutes */
-export function calcMachiningTime(length_mm: number, feedRate_mmMin: number, passes: number): number {
+export function calcMachiningTime(
+  length_mm: number,
+  feedRate_mmMin: number,
+  passes: number,
+): number {
   if (feedRate_mmMin <= 0) return 0;
   return (length_mm * passes) / feedRate_mmMin;
 }
 
 // ─── Material removal rate ──────────────────────────────────────────────────
 /** MRR = ap × ae × Vf   result in cm³/min  (ap,ae in mm, Vf in mm/min) */
-export function calcMRR(depthOfCut_mm: number, widthOfCut_mm: number, feedRate_mmMin: number): number {
+export function calcMRR(
+  depthOfCut_mm: number,
+  widthOfCut_mm: number,
+  feedRate_mmMin: number,
+): number {
   return (depthOfCut_mm * widthOfCut_mm * feedRate_mmMin) / 1000;
 }
 
@@ -138,7 +146,9 @@ export function calcSpindleTorque(power_kW: number, rpm: number): number {
   return (9550 * power_kW) / rpm;
 }
 
-export function kwToHp(kw: number): number { return kw / 0.7457; }
+export function kwToHp(kw: number): number {
+  return kw / 0.7457;
+}
 
 // ─── Surface finish ─────────────────────────────────────────────────────────
 /**
@@ -165,13 +175,19 @@ export function calcFeedForRa(targetRa_um: number, noseRadius_mm: number): numbe
 export function calcChipThinningFactor(widthOfCut_mm: number, toolDiameter_mm: number): number {
   if (widthOfCut_mm <= 0 || toolDiameter_mm <= 0) return 1;
   if (widthOfCut_mm >= toolDiameter_mm / 2) return 1;
-  const denominator = 2 * Math.sqrt(toolDiameter_mm * widthOfCut_mm - widthOfCut_mm * widthOfCut_mm);
+  const denominator =
+    2 * Math.sqrt(toolDiameter_mm * widthOfCut_mm - widthOfCut_mm * widthOfCut_mm);
   if (denominator <= 0) return 1;
   return toolDiameter_mm / denominator;
 }
 
 // ─── Bolt circle ────────────────────────────────────────────────────────────
-export interface BoltHole { index: number; angle: number; x: number; y: number; }
+export interface BoltHole {
+  index: number;
+  angle: number;
+  x: number;
+  y: number;
+}
 
 /**
  * Hole centres on a pitch circle, measured from the circle centre.
@@ -220,12 +236,24 @@ export function calcTaper(largeDia_mm: number, smallDia_mm: number, length_mm: n
 }
 
 // ─── Unit helpers ───────────────────────────────────────────────────────────
-export function inToMm(v: number): number { return v * 25.4; }
-export function mmToIn(v: number): number { return v / 25.4; }
-export function sfmToSmm(sfm: number): number { return sfm * 0.3048; }
-export function smmToSfm(smm: number): number { return smm / 0.3048; }
-export function ipmToMmMin(ipm: number): number { return ipm * 25.4; }
-export function mmMinToIpm(mm: number): number { return mm / 25.4; }
+export function inToMm(v: number): number {
+  return v * 25.4;
+}
+export function mmToIn(v: number): number {
+  return v / 25.4;
+}
+export function sfmToSmm(sfm: number): number {
+  return sfm * 0.3048;
+}
+export function smmToSfm(smm: number): number {
+  return smm / 0.3048;
+}
+export function ipmToMmMin(ipm: number): number {
+  return ipm * 25.4;
+}
+export function mmMinToIpm(mm: number): number {
+  return mm / 25.4;
+}
 
 // ─── Formatting ─────────────────────────────────────────────────────────────
 export function fmt(n: number, dec = 2): string {

@@ -91,9 +91,7 @@ function EngineeringWorkspace({
   const [dmsAngle, setDmsAngle] = useState("53°7'48.37\"");
   const [angleResult, setAngleResult] = useState("");
   const [angleError, setAngleError] = useState("");
-  const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | "angle" | null>(
-    null,
-  );
+  const [copied, setCopied] = useState<"notation" | "prefix" | "coordinate" | "angle" | null>(null);
 
   useEffect(() => {
     const restored = historyItem?.engineeringState;
@@ -616,9 +614,7 @@ function EngineeringWorkspace({
 
         <section className={panel}>
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-gray-300">
-              Degrees, minutes and seconds
-            </h3>
+            <h3 className="text-xs font-semibold text-gray-300">Degrees, minutes and seconds</h3>
             <button className={button} onClick={resetAngle}>
               Reset
             </button>

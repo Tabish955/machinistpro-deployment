@@ -410,14 +410,18 @@ export function PremiumCalculator() {
         {(mode === "standard" || mode === "scientific") && (
           <>
             {/* ─── Display ─── */}
-            <div className={`shrink-0 px-3 pt-1 pb-2 sm:px-4 ${mode === "standard" ? "mx-auto w-full max-w-2xl" : ""}`}>
+            <div
+              className={`shrink-0 px-3 pt-1 pb-2 sm:px-4 ${mode === "standard" ? "mx-auto w-full max-w-2xl" : ""}`}
+            >
               <PremiumDisplay />
             </div>
 
             {/* ─── Keypad (fills all remaining space) ─── */}
             <div
               className={`flex-1 px-2 pb-2 sm:px-3 sm:pb-3 lg:pb-2 ${
-                mode === "standard" ? "mx-auto w-full max-w-2xl min-h-[19rem]" : "min-h-0 overflow-y-auto"
+                mode === "standard"
+                  ? "mx-auto w-full max-w-2xl min-h-[19rem]"
+                  : "min-h-0 overflow-y-auto"
               }`}
             >
               <PremiumKeypad scientific={mode === "scientific"} />

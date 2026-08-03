@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
@@ -20,7 +19,7 @@ interface HistoryStore {
     title: string,
     details: string,
     inputs: Record<string, string>,
-    outputs: Record<string, string>
+    outputs: Record<string, string>,
   ) => void;
 
   remove: (id: string) => void;
@@ -71,6 +70,6 @@ export const useHistoryStore = create<HistoryStore>()(
       partialize: (state) => ({
         entries: state.entries.slice(0, 100), // persist last 100
       }),
-    }
-  )
+    },
+  ),
 );

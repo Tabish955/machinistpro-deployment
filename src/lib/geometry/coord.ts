@@ -30,11 +30,29 @@ function fmt(n: number): string {
 
 /* ─── Coordinate-system conversions ───────────────────────────────────────── */
 
-export interface Cartesian2D { x: number; y: number }
-export interface Polar { r: number; theta: number }          // theta in degrees
-export interface Cartesian3D { x: number; y: number; z: number }
-export interface Cylindrical { r: number; theta: number; z: number }
-export interface Spherical { rho: number; theta: number; phi: number } // theta azimuth, phi polar
+export interface Cartesian2D {
+  x: number;
+  y: number;
+}
+export interface Polar {
+  r: number;
+  theta: number;
+} // theta in degrees
+export interface Cartesian3D {
+  x: number;
+  y: number;
+  z: number;
+}
+export interface Cylindrical {
+  r: number;
+  theta: number;
+  z: number;
+}
+export interface Spherical {
+  rho: number;
+  theta: number;
+  phi: number;
+} // theta azimuth, phi polar
 
 const DEG = 180 / Math.PI;
 const RAD = Math.PI / 180;
@@ -91,7 +109,7 @@ export interface PolygonStats {
   perimeter: number;
   centroid: Cartesian2D;
   sides: number[];
-  interiorAngles: number[];   // degrees
+  interiorAngles: number[]; // degrees
   convex: boolean;
   selfIntersecting: boolean;
   boundingBox: { width: number; height: number; minX: number; minY: number };
@@ -119,15 +137,21 @@ export function parsePoints(text: string): Cartesian2D[] {
 
 /** True when the text holds an odd number of values, so a coordinate is unpaired. */
 export function hasDanglingCoordinate(text: string): boolean {
-  return ((text.match(/-?\d*\.?\d+(?:[eE][+-]?\d+)?/g) ?? []).length % 2) === 1;
+  return (text.match(/-?\d*\.?\d+(?:[eE][+-]?\d+)?/g) ?? []).length % 2 === 1;
 }
 
 function segmentsIntersect(
-  p1: Cartesian2D, p2: Cartesian2D, p3: Cartesian2D, p4: Cartesian2D,
+  p1: Cartesian2D,
+  p2: Cartesian2D,
+  p3: Cartesian2D,
+  p4: Cartesian2D,
 ): boolean {
   const d = (a: Cartesian2D, b: Cartesian2D, c: Cartesian2D) =>
     (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2), d3 = d(p1, p2, p3), d4 = d(p1, p2, p4);
+  const d1 = d(p3, p4, p1),
+    d2 = d(p3, p4, p2),
+    d3 = d(p1, p2, p3),
+    d4 = d(p1, p2, p4);
   return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
@@ -136,7 +160,10 @@ export function polygonStats(points: Cartesian2D[]): PolygonStats | null {
   const n = points.length;
   if (n < 3) return null;
 
-  let a2 = 0, cx = 0, cy = 0, perimeter = 0;
+  let a2 = 0,
+    cx = 0,
+    cy = 0,
+    perimeter = 0;
   const sides: number[] = [];
   for (let i = 0; i < n; i++) {
     const p = points[i];
@@ -159,7 +186,8 @@ export function polygonStats(points: Cartesian2D[]): PolygonStats | null {
       : { x: cx / (3 * a2), y: cy / (3 * a2) };
 
   const interiorAngles: number[] = [];
-  let positive = 0, negative = 0;
+  let positive = 0,
+    negative = 0;
   for (let i = 0; i < n; i++) {
     const prev = points[(i - 1 + n) % n];
     const cur = points[i];
@@ -190,7 +218,8 @@ export function polygonStats(points: Cartesian2D[]): PolygonStats | null {
 
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
-  const minX = Math.min(...xs), minY = Math.min(...ys);
+  const minX = Math.min(...xs),
+    minY = Math.min(...ys);
 
   return {
     area,

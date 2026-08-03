@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useCallback } from "react";
 
 export function CustomCursor() {
@@ -41,8 +40,12 @@ export function CustomCursor() {
       if (!visible.current) visible.current = true;
     };
 
-    const handleEnter = () => { visible.current = true; };
-    const handleLeave = () => { visible.current = false; };
+    const handleEnter = () => {
+      visible.current = true;
+    };
+    const handleLeave = () => {
+      visible.current = false;
+    };
 
     const handleDown = () => {
       clicking.current = true;

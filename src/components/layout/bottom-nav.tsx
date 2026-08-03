@@ -1,4 +1,3 @@
-
 import { Link } from "@/lib/next-compat";
 import { usePathname } from "@/lib/next-compat";
 import { LayoutDashboard, Calculator, Star, Clock, Settings } from "lucide-react";
@@ -25,9 +24,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={`relative flex flex-col items-center gap-1 py-1.5 px-4 rounded-xl transition-all ${
-                active
-                  ? "text-accent-cyan"
-                  : "text-gray-600 hover:text-gray-400"
+                active ? "text-accent-cyan" : "text-gray-600 hover:text-gray-400"
               }`}
             >
               {active && (

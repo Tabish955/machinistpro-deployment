@@ -295,7 +295,13 @@ export const useCalculatorStore = create<CalculatorStore>()(
         const expression = error ? "" : get().expression;
 
         if (error) {
-          set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
+          set({
+            error: null,
+            expression: "",
+            displayExpression: "",
+            result: "0",
+            previousResult: "",
+          });
         }
 
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
@@ -316,7 +322,14 @@ export const useCalculatorStore = create<CalculatorStore>()(
 
         const expression = error ? "" : get().expression;
 
-        if (error) set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
+        if (error)
+          set({
+            error: null,
+            expression: "",
+            displayExpression: "",
+            result: "0",
+            previousResult: "",
+          });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
 
         if (currentNumberHasDecimal(expression)) return;
@@ -341,7 +354,14 @@ export const useCalculatorStore = create<CalculatorStore>()(
         const result = error ? "0" : state.result;
         set({ repeatOperation: null });
 
-        if (error) set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
+        if (error)
+          set({
+            error: null,
+            expression: "",
+            displayExpression: "",
+            result: "0",
+            previousResult: "",
+          });
 
         let newExpression = expression;
 
@@ -380,7 +400,14 @@ export const useCalculatorStore = create<CalculatorStore>()(
           (result && result !== "0" && result !== "Error" ? result.replace(/,/g, "") : "");
         set({ repeatOperation: null });
 
-        if (error) set({ error: null, expression: "", displayExpression: "", result: "0", previousResult: "" });
+        if (error)
+          set({
+            error: null,
+            expression: "",
+            displayExpression: "",
+            result: "0",
+            previousResult: "",
+          });
         if (expression.length >= MAX_EXPRESSION_LENGTH) return;
 
         const wrap = UNARY_WRAPPERS[fn];
@@ -586,8 +613,7 @@ export const useCalculatorStore = create<CalculatorStore>()(
         allowRepeat = false,
         calculatorMode = allowRepeat ? "standard" : "scientific",
       ) => {
-        const { expression, angleMode, history, lastAnswer, repeatOperation, undoStack } =
-          get();
+        const { expression, angleMode, history, lastAnswer, repeatOperation, undoStack } = get();
         const isRepeatedCalculation = !expression.trim();
         if (isRepeatedCalculation && (!allowRepeat || !repeatOperation || lastAnswer === null)) {
           return;

@@ -6,7 +6,8 @@ const unit = (catId: string, unitId: string): UnitDef => {
   const c = CATEGORY_MAP.get(catId);
   if (!c) throw new Error(`no category ${catId}`);
   const u = c.units.find((x) => x.id === unitId);
-  if (!u) throw new Error(`no unit ${unitId} in ${catId} (has: ${c.units.map((x) => x.id).join(", ")})`);
+  if (!u)
+    throw new Error(`no unit ${unitId} in ${catId} (has: ${c.units.map((x) => x.id).join(", ")})`);
   return u;
 };
 

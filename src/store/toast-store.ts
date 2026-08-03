@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 
 export type ToastType = "success" | "error" | "info" | "warning";
@@ -27,7 +26,7 @@ export const useToastStore = create<ToastState>((set) => ({
     set((state) => ({
       toasts: [...state.toasts, { ...toast, id }],
     }));
-    
+
     // Auto-remove after duration
     const duration = toast.duration ?? 5000;
     if (duration > 0) {

@@ -1,0 +1,15 @@
+# Force LF line endings in checkout. Stops CRLF churn that was breaking lint on Windows.
+* text=auto eol=lf
+
+# Binaries stay binary.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.lockb binary
+*.bin binary

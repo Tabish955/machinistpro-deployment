@@ -6,16 +6,26 @@
 
 // Diameter ranges [min, max) in mm
 const RANGES: [number, number][] = [
-  [0, 3], [3, 6], [6, 10], [10, 18], [18, 30], [30, 50],
-  [50, 80], [80, 120], [120, 180], [180, 250], [250, 315], [315, 400],
+  [0, 3],
+  [3, 6],
+  [6, 10],
+  [10, 18],
+  [18, 30],
+  [30, 50],
+  [50, 80],
+  [80, 120],
+  [120, 180],
+  [180, 250],
+  [250, 315],
+  [315, 400],
 ];
 
 // IT grades: tolerance values per range (μm)
 const IT: Record<number, number[]> = {
-  6:  [6, 8, 9, 11, 13, 16, 19, 22, 25, 29, 32, 36],
-  7:  [10, 12, 15, 18, 21, 25, 30, 35, 40, 46, 52, 57],
-  8:  [14, 18, 22, 27, 33, 39, 46, 54, 63, 72, 81, 89],
-  9:  [25, 30, 36, 43, 52, 62, 74, 87, 100, 115, 130, 140],
+  6: [6, 8, 9, 11, 13, 16, 19, 22, 25, 29, 32, 36],
+  7: [10, 12, 15, 18, 21, 25, 30, 35, 40, 46, 52, 57],
+  8: [14, 18, 22, 27, 33, 39, 46, 54, 63, 72, 81, 89],
+  9: [25, 30, 36, 43, 52, 62, 74, 87, 100, 115, 130, 140],
   11: [60, 75, 90, 110, 130, 160, 190, 220, 250, 290, 320, 360],
 };
 
@@ -62,14 +72,14 @@ export type FitType = "clearance" | "transition" | "interference";
 
 export interface FitResult {
   nominalDia: number;
-  holeUpper: number;   // μm
+  holeUpper: number; // μm
   holeLower: number;
   shaftUpper: number;
   shaftLower: number;
   maxClearance: number;
   minClearance: number; // negative = interference
   fitType: FitType;
-  holeMax: number;      // mm
+  holeMax: number; // mm
   holeMin: number;
   shaftMax: number;
   shaftMin: number;
@@ -83,10 +93,10 @@ export interface FitResult {
  */
 export function calcFit(
   diameter: number,
-  holeLetter: string,   // typically "H"
+  holeLetter: string, // typically "H"
   holeGrade: number,
   shaftLetter: string,
-  shaftGrade: number
+  shaftGrade: number,
 ): FitResult | null {
   if (diameter <= 0 || diameter > 400) return null;
 
@@ -133,9 +143,12 @@ export function calcFit(
 
   return {
     nominalDia: diameter,
-    holeUpper, holeLower,
-    shaftUpper, shaftLower,
-    maxClearance, minClearance,
+    holeUpper,
+    holeLower,
+    shaftUpper,
+    shaftLower,
+    maxClearance,
+    minClearance,
     fitType,
     holeMax: diameter + holeUpper / 1000,
     holeMin: diameter + holeLower / 1000,
@@ -147,17 +160,17 @@ export function calcFit(
 }
 
 export const COMMON_FITS = [
-  { label: "H7/h6",  hole: "H", hg: 7, shaft: "h", sg: 6, desc: "Sliding fit" },
-  { label: "H7/g6",  hole: "H", hg: 7, shaft: "g", sg: 6, desc: "Close running fit" },
-  { label: "H8/f7",  hole: "H", hg: 8, shaft: "f", sg: 7, desc: "Free running fit" },
-  { label: "H9/d9",  hole: "H", hg: 9, shaft: "d", sg: 9, desc: "Loose running fit" },
-  { label: "H11/c11",hole: "H", hg: 11,shaft: "c", sg: 11,desc: "Very loose fit" },
-  { label: "H7/k6",  hole: "H", hg: 7, shaft: "k", sg: 6, desc: "Transition fit (location)" },
-  { label: "H7/m6",  hole: "H", hg: 7, shaft: "m", sg: 6, desc: "Transition fit (tight)" },
-  { label: "H7/n6",  hole: "H", hg: 7, shaft: "n", sg: 6, desc: "Transition/light interference" },
-  { label: "H7/p6",  hole: "H", hg: 7, shaft: "p", sg: 6, desc: "Light press fit" },
-  { label: "H7/r6",  hole: "H", hg: 7, shaft: "r", sg: 6, desc: "Medium press fit" },
-  { label: "H7/s6",  hole: "H", hg: 7, shaft: "s", sg: 6, desc: "Heavy press fit" },
+  { label: "H7/h6", hole: "H", hg: 7, shaft: "h", sg: 6, desc: "Sliding fit" },
+  { label: "H7/g6", hole: "H", hg: 7, shaft: "g", sg: 6, desc: "Close running fit" },
+  { label: "H8/f7", hole: "H", hg: 8, shaft: "f", sg: 7, desc: "Free running fit" },
+  { label: "H9/d9", hole: "H", hg: 9, shaft: "d", sg: 9, desc: "Loose running fit" },
+  { label: "H11/c11", hole: "H", hg: 11, shaft: "c", sg: 11, desc: "Very loose fit" },
+  { label: "H7/k6", hole: "H", hg: 7, shaft: "k", sg: 6, desc: "Transition fit (location)" },
+  { label: "H7/m6", hole: "H", hg: 7, shaft: "m", sg: 6, desc: "Transition fit (tight)" },
+  { label: "H7/n6", hole: "H", hg: 7, shaft: "n", sg: 6, desc: "Transition/light interference" },
+  { label: "H7/p6", hole: "H", hg: 7, shaft: "p", sg: 6, desc: "Light press fit" },
+  { label: "H7/r6", hole: "H", hg: 7, shaft: "r", sg: 6, desc: "Medium press fit" },
+  { label: "H7/s6", hole: "H", hg: 7, shaft: "s", sg: 6, desc: "Heavy press fit" },
 ];
 
 export const SHAFT_LETTERS = Object.keys(SHAFT_UPPER_DEV);

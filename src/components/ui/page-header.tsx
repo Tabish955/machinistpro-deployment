@@ -1,4 +1,3 @@
-
 import type { ReactNode } from "react";
 import { Link } from "@/lib/next-compat";
 import { Button } from "@/components/ui/button";
@@ -28,22 +27,25 @@ const colorBgMap: Record<ModuleColor, string> = {
   orange: "bg-orange-500/10",
 };
 
-const statusBadge: Record<ModuleStatus, { color: "gray" | "green" | "purple" | "amber"; label: string }> = {
+const statusBadge: Record<
+  ModuleStatus,
+  { color: "gray" | "green" | "purple" | "amber"; label: string }
+> = {
   "coming-soon": { color: "gray", label: "Coming Soon" },
   available: { color: "green", label: "Available" },
   beta: { color: "purple", label: "Beta" },
   locked: { color: "amber", label: "Locked" },
 };
 
-export function PageHeader({ 
-  title, 
-  description, 
+export function PageHeader({
+  title,
+  description,
   icon,
   iconColor = "cyan",
   status,
   backHref = "/dashboard",
   actions,
-  className = "" 
+  className = "",
 }: PageHeaderProps) {
   return (
     <div className={`flex flex-col sm:flex-row sm:items-center gap-4 mb-6 ${className}`}>
@@ -53,34 +55,22 @@ export function PageHeader({
             Back
           </Button>
         </Link>
-        
+
         <div className="flex items-center gap-3">
-          {icon && (
-            <div className={`rounded-xl ${colorBgMap[iconColor]} p-2.5`}>
-              {icon}
-            </div>
-          )}
+          {icon && <div className={`rounded-xl ${colorBgMap[iconColor]} p-2.5`}>{icon}</div>}
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold text-white">{title}</h1>
               {status && (
-                <Badge color={statusBadge[status].color}>
-                  {statusBadge[status].label}
-                </Badge>
+                <Badge color={statusBadge[status].color}>{statusBadge[status].label}</Badge>
               )}
             </div>
-            {description && (
-              <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-            )}
+            {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
           </div>
         </div>
       </div>
-      
-      {actions && (
-        <div className="flex items-center gap-2">
-          {actions}
-        </div>
-      )}
+
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   );
 }

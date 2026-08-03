@@ -56,7 +56,11 @@ export function downloadBackup(): void {
 /**
  * Validate a backup file.
  */
-export function validateBackup(content: string): { valid: boolean; backup?: BackupData; error?: string } {
+export function validateBackup(content: string): {
+  valid: boolean;
+  backup?: BackupData;
+  error?: string;
+} {
   try {
     const parsed = JSON.parse(content);
 

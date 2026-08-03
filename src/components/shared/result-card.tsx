@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Copy, Check, ChevronRight, Info } from "lucide-react";
 import { formatMath } from "@/lib/core/math-symbols";
@@ -15,9 +14,7 @@ export function ResultRow({ label, value, unit, accent }: ResultRowProps) {
     <div className="flex justify-between py-2 border-b border-dark-700/50 last:border-0">
       <span className="text-xs text-gray-500">{label}</span>
       <span
-        className={`text-sm font-mono ${
-          accent ? "text-accent-cyan font-semibold" : "text-white"
-        }`}
+        className={`text-sm font-mono ${accent ? "text-accent-cyan font-semibold" : "text-white"}`}
       >
         {value}
         {unit && <span className="text-gray-600 text-xs ml-1">{unit}</span>}
@@ -66,10 +63,7 @@ export function FormulaDisplay({ formula, steps }: FormulaDisplayProps) {
       >
         <Info size={11} />
         <span>Formula</span>
-        <ChevronRight
-          size={10}
-          className={`transition-transform ${open ? "rotate-90" : ""}`}
-        />
+        <ChevronRight size={10} className={`transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
       {open && (
         <div className="mt-2 p-3 rounded-lg bg-dark-900/60 text-xs font-mono space-y-1 animate-fade-in">

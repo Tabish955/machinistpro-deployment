@@ -76,8 +76,16 @@ describe("ISO 1302 N grades", () => {
   it("maps each grade to the Ra the standard defines", () => {
     // A drawing says N7, not Ra 1.6, so the mapping has to be right to be useful.
     const expected: Record<string, number> = {
-      N12: 50, N11: 25, N10: 12.5, N9: 6.3, N8: 3.2,
-      N7: 1.6, N6: 0.8, N5: 0.4, N4: 0.2, N3: 0.1,
+      N12: 50,
+      N11: 25,
+      N10: 12.5,
+      N9: 6.3,
+      N8: 3.2,
+      N7: 1.6,
+      N6: 0.8,
+      N5: 0.4,
+      N4: 0.2,
+      N3: 0.1,
     };
     for (const f of SURFACE_FINISHES) {
       expect(Number(f.ra), `${f.n} should be Ra ${expected[f.n]}`).toBe(expected[f.n]);

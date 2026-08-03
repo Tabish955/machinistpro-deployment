@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 export function SplashLoader() {
@@ -48,21 +47,54 @@ export function SplashLoader() {
       <div className="absolute inset-0 overflow-hidden">
         {/* Radial gradient pulses */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-accent-cyan/[0.03] blur-[100px] animate-pulse" />
-        <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] rounded-full bg-accent-purple/[0.04] blur-[80px]" style={{ animation: "pulse-glow 3s ease-in-out infinite" }} />
-        <div className="absolute bottom-1/3 right-1/3 w-[300px] h-[300px] rounded-full bg-accent-blue/[0.03] blur-[60px]" style={{ animation: "pulse-glow 2.5s ease-in-out infinite 0.5s" }} />
+        <div
+          className="absolute top-1/3 left-1/3 w-[400px] h-[400px] rounded-full bg-accent-purple/[0.04] blur-[80px]"
+          style={{ animation: "pulse-glow 3s ease-in-out infinite" }}
+        />
+        <div
+          className="absolute bottom-1/3 right-1/3 w-[300px] h-[300px] rounded-full bg-accent-blue/[0.03] blur-[60px]"
+          style={{ animation: "pulse-glow 2.5s ease-in-out infinite 0.5s" }}
+        />
 
         {/* Grid pattern */}
         <div className="absolute inset-0 grid-pattern opacity-30" />
 
         {/* Rotating ring */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <svg width="280" height="280" viewBox="0 0 280 280" className="animate-rotate opacity-[0.08]">
-            <circle cx="140" cy="140" r="130" fill="none" stroke="#00d4ff" strokeWidth="0.5" strokeDasharray="8 12" />
+          <svg
+            width="280"
+            height="280"
+            viewBox="0 0 280 280"
+            className="animate-rotate opacity-[0.08]"
+          >
+            <circle
+              cx="140"
+              cy="140"
+              r="130"
+              fill="none"
+              stroke="#00d4ff"
+              strokeWidth="0.5"
+              strokeDasharray="8 12"
+            />
           </svg>
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <svg width="220" height="220" viewBox="0 0 220 220" style={{ animation: "rotate 12s linear infinite reverse" }}>
-            <circle cx="110" cy="110" r="100" fill="none" stroke="#8b5cf6" strokeWidth="0.5" strokeDasharray="4 16" className="opacity-[0.1]" />
+          <svg
+            width="220"
+            height="220"
+            viewBox="0 0 220 220"
+            style={{ animation: "rotate 12s linear infinite reverse" }}
+          >
+            <circle
+              cx="110"
+              cy="110"
+              r="100"
+              fill="none"
+              stroke="#8b5cf6"
+              strokeWidth="0.5"
+              strokeDasharray="4 16"
+              className="opacity-[0.1]"
+            />
           </svg>
         </div>
       </div>
@@ -76,10 +108,42 @@ export function SplashLoader() {
             <svg viewBox="0 0 40 40" width="40" height="40" fill="none">
               <circle cx="20" cy="18" r="10" stroke="#00d4ff" strokeWidth="2" />
               <circle cx="20" cy="18" r="2.5" fill="#00d4ff" />
-              <line x1="20" y1="8" x2="20" y2="10" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="20" y1="26" x2="20" y2="28" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="10" y1="18" x2="12" y2="18" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="28" y1="18" x2="30" y2="18" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round" />
+              <line
+                x1="20"
+                y1="8"
+                x2="20"
+                y2="10"
+                stroke="#00d4ff"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="20"
+                y1="26"
+                x2="20"
+                y2="28"
+                stroke="#00d4ff"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="10"
+                y1="18"
+                x2="12"
+                y2="18"
+                stroke="#00d4ff"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="28"
+                y1="18"
+                x2="30"
+                y2="18"
+                stroke="#00d4ff"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
               <rect x="12" y="32" width="16" height="3" rx="1.5" fill="#00d4ff" opacity="0.5" />
             </svg>
           </div>
@@ -87,12 +151,8 @@ export function SplashLoader() {
 
         {/* Brand name */}
         <div className="flex items-baseline gap-1 mb-2">
-          <span className="text-3xl font-extrabold tracking-tight text-white">
-            Machinist
-          </span>
-          <span className="text-3xl font-extrabold tracking-tight text-accent-cyan">
-            Pro
-          </span>
+          <span className="text-3xl font-extrabold tracking-tight text-white">Machinist</span>
+          <span className="text-3xl font-extrabold tracking-tight text-accent-cyan">Pro</span>
         </div>
 
         <p className="text-xs text-gray-500 mb-10 tracking-widest uppercase">
@@ -112,17 +172,15 @@ export function SplashLoader() {
           {progress < 30
             ? "Initializing engine…"
             : progress < 60
-            ? "Loading modules…"
-            : progress < 90
-            ? "Preparing workspace…"
-            : "Ready"}
+              ? "Loading modules…"
+              : progress < 90
+                ? "Preparing workspace…"
+                : "Ready"}
         </p>
       </div>
 
       {/* Bottom version */}
-      <div className="absolute bottom-8 text-[10px] text-gray-700">
-        v1.0.0-rc1
-      </div>
+      <div className="absolute bottom-8 text-[10px] text-gray-700">v1.0.0-rc1</div>
     </div>
   );
 }

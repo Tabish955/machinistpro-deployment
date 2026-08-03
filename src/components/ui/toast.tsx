@@ -1,4 +1,3 @@
-
 import { useToastStore, type ToastType } from "@/store/toast-store";
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
 
@@ -52,9 +51,7 @@ export function ToastContainer() {
               <Icon size={18} className={`shrink-0 mt-0.5 ${color.icon}`} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white">{toast.title}</p>
-                {toast.message && (
-                  <p className="text-xs text-gray-400 mt-0.5">{toast.message}</p>
-                )}
+                {toast.message && <p className="text-xs text-gray-400 mt-0.5">{toast.message}</p>}
               </div>
               <button
                 onClick={() => removeToast(toast.id)}

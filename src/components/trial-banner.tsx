@@ -31,13 +31,16 @@ export function TrialBanner() {
         const r = await check({ data: { signals } });
         if (cancelled) return;
         if (!r.hasTrial) setStatus({ state: "none" });
-        else if (r.active) setStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
+        else if (r.active)
+          setStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
         else setStatus({ state: "expired", expiresAt: r.expiresAt });
       } catch {
         if (!cancelled) setStatus({ state: "none" });
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [check, isPaid]);
 
   async function begin() {
@@ -59,10 +62,17 @@ export function TrialBanner() {
   const base = "mx-auto mb-4 max-w-6xl rounded-lg border px-4 py-3 text-sm";
   if (status.state === "none") {
     return (
-      <div className={`${base} border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between`}>
-        <span>Start your <strong>14-day free trial</strong> — one per device.</span>
-        <button onClick={begin} disabled={starting}
-          className="rounded-md bg-accent-cyan px-3 py-1.5 text-xs font-semibold text-dark-950 disabled:opacity-50">
+      <div
+        className={`${base} border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between`}
+      >
+        <span>
+          Start your <strong>14-day free trial</strong> — one per device.
+        </span>
+        <button
+          onClick={begin}
+          disabled={starting}
+          className="rounded-md bg-accent-cyan px-3 py-1.5 text-xs font-semibold text-dark-950 disabled:opacity-50"
+        >
           {starting ? "Starting…" : "Start Trial"}
         </button>
       </div>
@@ -83,8 +93,6 @@ export function TrialBanner() {
     );
   }
   return (
-    <div className={`${base} border-red-500/40 bg-red-500/10 text-red-400`}>
-      {status.reason}
-    </div>
+    <div className={`${base} border-red-500/40 bg-red-500/10 text-red-400`}>{status.reason}</div>
   );
 }

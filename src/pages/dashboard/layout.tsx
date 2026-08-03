@@ -1,4 +1,3 @@
-
 import type { ReactNode } from "react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { TrialBanner } from "@/components/trial-banner";

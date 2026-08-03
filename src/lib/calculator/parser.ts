@@ -248,9 +248,7 @@ export function evaluateRPN(rpn: RPNToken[], angleMode: AngleMode): number {
         const argCount = func.argCount;
         const provided = token.argCount ?? argCount;
         if (provided !== argCount) {
-          throw new Error(
-            `${token.value} takes ${argCount} number${argCount === 1 ? "" : "s"}`,
-          );
+          throw new Error(`${token.value} takes ${argCount} number${argCount === 1 ? "" : "s"}`);
         }
         if (stack.length < argCount) {
           throw new Error(`Not enough arguments for ${token.value}`);
