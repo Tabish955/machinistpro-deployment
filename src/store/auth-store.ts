@@ -5,6 +5,7 @@ export interface UserInfo {
   subscription: string;
   expiry: string;
   sessionToken: string;
+  isAdmin?: boolean;
 }
 
 export interface AuthState {
