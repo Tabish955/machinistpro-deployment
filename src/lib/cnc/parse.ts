@@ -48,6 +48,23 @@ const MOTION: Record<number, MotionKind> = {
   3: "arcCCW",
 };
 
+/**
+ * Cycles the control expands internally. None of them move the tool where their
+ * own words say — G76 X16.933 is where the thread finishes after twenty-odd
+ * passes, not a single move to that diameter.
+ */
+const CANNED_CYCLES: Record<number, string> = {
+  70: "finishing",
+  71: "OD roughing",
+  72: "facing",
+  73: "pattern repeat",
+  74: "peck drilling",
+  75: "grooving",
+  76: "threading",
+  92: "single-block threading",
+  94: "single-block facing",
+};
+
 export function parseGCode(source: string): ParseResult {
   const moves: GMove[] = [];
   const warnings: Array<{ line: number; message: string }> = [];
@@ -58,6 +75,7 @@ export function parseGCode(source: string): ParseResult {
   let z = 0;
   let feed: number | undefined;
   let incremental = false;
+  const cycleSeen = new Set<number>();
 
   source.split(/\r?\n/).forEach((rawLine, index) => {
     const line = index + 1;
@@ -74,6 +92,20 @@ export function parseGCode(source: string): ParseResult {
       if (g in MOTION) motion = MOTION[g];
     }
 
+    // A canned cycle is one block that the control expands into many passes.
+    // Drawing it as the single move its words describe would understate it by
+    // an entire cycle, so say so rather than quietly plotting a stub.
+    // Once per cycle, not once per block: G71 takes two lines and saying it
+    // twice is noise.
+    const canned = gWords.find((g) => g in CANNED_CYCLES && !cycleSeen.has(g));
+    if (canned !== undefined) {
+      cycleSeen.add(canned);
+      warnings.push({
+        line,
+        message: `G${canned} is a canned cycle — ${CANNED_CYCLES[canned]}. The control expands it into passes; this draws only the words as written. Use the simulation on that cycle's tab to see the passes.`,
+      });
+    }
+
     const f = word(block, "F");
     if (f !== undefined) feed = f;
 
@@ -85,8 +117,7 @@ export function parseGCode(source: string): ParseResult {
     const kw = word(block, "K");
     const rw = word(block, "R");
 
-    const hasTarget =
-      xw !== undefined || zw !== undefined || uw !== undefined || ww !== undefined;
+    const hasTarget = xw !== undefined || zw !== undefined || uw !== undefined || ww !== undefined;
     if (!hasTarget) return;
 
     if (motion === null) {
@@ -96,7 +127,8 @@ export function parseGCode(source: string): ParseResult {
 
     const previous = { x, z };
     // U and W are always incremental; X and Z follow G90/G91.
-    if (uw !== undefined) x += uw * 2; // U is a radius change, X a diameter
+    if (uw !== undefined)
+      x += uw * 2; // U is a radius change, X a diameter
     else if (xw !== undefined) x = incremental ? x + xw : xw;
     if (ww !== undefined) z += ww;
     else if (zw !== undefined) z = incremental ? z + zw : zw;
