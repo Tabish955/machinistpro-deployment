@@ -36,6 +36,7 @@ import { Route as DashboardFavoritesRouteImport } from './routes/dashboard/favor
 import { Route as DashboardEngineeringRouteImport } from './routes/dashboard/engineering'
 import { Route as DashboardConverterRouteImport } from './routes/dashboard/converter'
 import { Route as DashboardCncRouteImport } from './routes/dashboard/cnc'
+import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
@@ -177,6 +178,11 @@ const DashboardCncRoute = DashboardCncRouteImport.update({
   path: '/cnc',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const DashboardAdminRoute = DashboardAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/api/health': typeof ApiHealthRoute
+  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/api/health': typeof ApiHealthRoute
+  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/api/health': typeof ApiHealthRoute
+  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/api/health'
+    | '/dashboard/admin'
     | '/dashboard/cnc'
     | '/dashboard/converter'
     | '/dashboard/engineering'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/api/health'
+    | '/dashboard/admin'
     | '/dashboard/cnc'
     | '/dashboard/converter'
     | '/dashboard/engineering'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/api/health'
+    | '/dashboard/admin'
     | '/dashboard/cnc'
     | '/dashboard/converter'
     | '/dashboard/engineering'
@@ -616,6 +628,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCncRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/admin': {
+      id: '/dashboard/admin'
+      path: '/admin'
+      fullPath: '/dashboard/admin'
+      preLoaderRoute: typeof DashboardAdminRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -655,6 +674,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface DashboardRouteRouteChildren {
+  DashboardAdminRoute: typeof DashboardAdminRoute
   DashboardCncRoute: typeof DashboardCncRoute
   DashboardConverterRoute: typeof DashboardConverterRoute
   DashboardEngineeringRoute: typeof DashboardEngineeringRoute
@@ -677,6 +697,7 @@ interface DashboardRouteRouteChildren {
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
+  DashboardAdminRoute: DashboardAdminRoute,
   DashboardCncRoute: DashboardCncRoute,
   DashboardConverterRoute: DashboardConverterRoute,
   DashboardEngineeringRoute: DashboardEngineeringRoute,
