@@ -106,6 +106,9 @@ export const adminUpdateUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await requireAdmin(data.sessionToken);
+    type UserPatch = Parameters<
+      ReturnType<typeof supabaseAdmin.from<"app_users">>["update"]
+    >[0];
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (data.password) patch.password_hash = await hashPassword(data.password);
     if (data.subscription !== undefined) patch.subscription = data.subscription;
@@ -116,7 +119,7 @@ export const adminUpdateUser = createServerFn({ method: "POST" })
     if (data.allowMultiDevice !== undefined) patch.allow_multi_device = data.allowMultiDevice;
     if (data.resetHwid) patch.hwid = null;
 
-    const { error } = await supabaseAdmin.from("app_users").update(patch).eq("id", data.userId);
+    const { error } = await supabaseAdmin.from("app_users").update(patch as UserPatch).eq("id", data.userId);
     if (error) return { ok: false as const, error: error.message };
 
     // Password change, suspension, or a device reset must invalidate live sessions.
