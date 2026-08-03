@@ -1,4 +1,3 @@
-
 import { type ReactNode, type HTMLAttributes } from "react";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {

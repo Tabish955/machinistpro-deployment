@@ -11,10 +11,10 @@ export interface FormulaSearchResult {
  * Matches on: name, category, expression, variables, keywords, description.
  */
 export function searchFormulas(query: string, category?: FormulaCategory): FormulaSearchResult[] {
-  let pool = category ? FORMULAS.filter(f => f.category === category) : FORMULAS;
+  const pool = category ? FORMULAS.filter((f) => f.category === category) : FORMULAS;
 
   if (!query.trim()) {
-    return pool.map(f => ({ formula: f, score: 0 }));
+    return pool.map((f) => ({ formula: f, score: 0 }));
   }
 
   const q = query.toLowerCase().trim();
@@ -29,9 +29,11 @@ export function searchFormulas(query: string, category?: FormulaCategory): Formu
         formula.description,
         formula.category,
         ...formula.keywords,
-        ...formula.variables.map(v => `${v.name} ${v.symbol} ${v.unit || ""}`),
+        ...formula.variables.map((v) => `${v.name} ${v.symbol} ${v.unit || ""}`),
         formula.notes || "",
-      ].join(" ").toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
 
       // Exact name match
       if (formula.name.toLowerCase() === q) score += 200;
@@ -39,17 +41,17 @@ export function searchFormulas(query: string, category?: FormulaCategory): Formu
       else if (formula.name.toLowerCase().includes(q)) score += 60;
 
       // Keyword exact match
-      if (formula.keywords.some(k => k === q)) score += 80;
+      if (formula.keywords.some((k) => k === q)) score += 80;
 
       // Word-by-word matching
       for (const word of words) {
         if (blob.includes(word)) score += 15;
-        if (formula.keywords.some(k => k.includes(word))) score += 25;
+        if (formula.keywords.some((k) => k.includes(word))) score += 25;
       }
 
       return { formula, score };
     })
-    .filter(r => r.score > 0)
+    .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score);
 }
 

@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   ALL_CATEGORIES,
@@ -30,11 +29,7 @@ import {
    Category grid (selection screen)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-function CategoryGrid({
-  onSelect,
-}: {
-  onSelect: (cat: CategoryDef) => void;
-}) {
+function CategoryGrid({ onSelect }: { onSelect: (cat: CategoryDef) => void }) {
   const [filterText, setFilterText] = useState("");
   const { favoriteCategories, toggleFavoriteCategory } = useConverterStore();
 
@@ -48,8 +43,8 @@ function CategoryGrid({
               (u) =>
                 u.name.toLowerCase().includes(q) ||
                 u.symbol.toLowerCase().includes(q) ||
-                u.aliases.some((a) => a.toLowerCase().includes(q))
-            )
+                u.aliases.some((a) => a.toLowerCase().includes(q)),
+            ),
         )
       : ALL_CATEGORIES;
 
@@ -78,7 +73,10 @@ function CategoryGrid({
           className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-dark-800 border border-dark-600 text-sm text-white placeholder:text-gray-600 focus:border-accent-cyan/50 focus:outline-none"
         />
         {filterText && (
-          <button onClick={() => setFilterText("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white cursor-pointer">
+          <button
+            onClick={() => setFilterText("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white cursor-pointer"
+          >
             <X size={14} />
           </button>
         )}
@@ -87,7 +85,7 @@ function CategoryGrid({
       {Array.from(groups.entries()).map(([group, cats]) => (
         <div key={group}>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2 px-1">
-            {group === "favorites" ? "★ Favorites" : GROUP_LABELS[group] ?? group}
+            {group === "favorites" ? "★ Favorites" : (GROUP_LABELS[group] ?? group)}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {cats.map((cat) => (
@@ -99,12 +97,19 @@ function CategoryGrid({
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-semibold truncate">{cat.name}</span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); toggleFavoriteCategory(cat.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavoriteCategory(cat.id);
+                    }}
                     className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   >
                     <Star
                       size={12}
-                      className={favoriteCategories.includes(cat.id) ? "text-accent-amber fill-accent-amber" : "text-gray-600"}
+                      className={
+                        favoriteCategories.includes(cat.id)
+                          ? "text-accent-amber fill-accent-amber"
+                          : "text-gray-600"
+                      }
                     />
                   </button>
                 </div>
@@ -150,7 +155,7 @@ function UnitSelector({
         (u) =>
           u.name.toLowerCase().includes(filter.toLowerCase()) ||
           u.symbol.toLowerCase().includes(filter.toLowerCase()) ||
-          u.aliases.some((a) => a.toLowerCase().includes(filter.toLowerCase()))
+          u.aliases.some((a) => a.toLowerCase().includes(filter.toLowerCase())),
       )
     : units;
 
@@ -166,7 +171,10 @@ function UnitSelector({
         <span className="truncate">
           {selected.name} <span className="text-gray-500">({selected.symbol})</span>
         </span>
-        <ChevronDown size={16} className={`text-gray-500 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          size={16}
+          className={`text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
@@ -185,7 +193,11 @@ function UnitSelector({
             {filtered.map((u) => (
               <button
                 key={u.id}
-                onClick={() => { onSelect(u); setOpen(false); setFilter(""); }}
+                onClick={() => {
+                  onSelect(u);
+                  setOpen(false);
+                  setFilter("");
+                }}
                 className={`w-full text-left px-4 py-2.5 text-sm hover:bg-dark-700 transition-colors flex items-center justify-between cursor-pointer ${
                   u.id === selected.id ? "text-accent-cyan" : "text-gray-300"
                 }`}
@@ -208,15 +220,11 @@ function UnitSelector({
    Conversion view (shown when a category is selected)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-function ConversionView({
-  category,
-  onBack,
-}: {
-  category: CategoryDef;
-  onBack: () => void;
-}) {
+function ConversionView({ category, onBack }: { category: CategoryDef; onBack: () => void }) {
   const [fromUnit, setFromUnit] = useState<UnitDef>(category.units[0]);
-  const [toUnit, setToUnit] = useState<UnitDef>(category.units.length > 1 ? category.units[1] : category.units[0]);
+  const [toUnit, setToUnit] = useState<UnitDef>(
+    category.units.length > 1 ? category.units[1] : category.units[0],
+  );
   const [inputValue, setInputValue] = useState("1");
   const [copied, setCopied] = useState(false);
 
@@ -258,7 +266,9 @@ function ConversionView({
       addRecent(item);
     }, 1200);
 
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [result, inputValue, fromUnit, toUnit, category.id, addRecent]);
 
   const handleCopy = () => {
@@ -273,7 +283,10 @@ function ConversionView({
     <>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2">
-        <button onClick={onBack} className="text-xs text-gray-500 hover:text-white transition-colors cursor-pointer">
+        <button
+          onClick={onBack}
+          className="text-xs text-gray-500 hover:text-white transition-colors cursor-pointer"
+        >
           ← All Categories
         </button>
         <span className="text-gray-700">/</span>
@@ -287,7 +300,12 @@ function ConversionView({
         <div className="relative space-y-5">
           {/* From */}
           <div>
-            <UnitSelector units={category.units} selected={fromUnit} onSelect={setFromUnit} label="From" />
+            <UnitSelector
+              units={category.units}
+              selected={fromUnit}
+              onSelect={setFromUnit}
+              label="From"
+            />
             <input
               type="text"
               inputMode="decimal"
@@ -317,7 +335,12 @@ function ConversionView({
 
           {/* To */}
           <div>
-            <UnitSelector units={category.units} selected={toUnit} onSelect={setToUnit} label="To" />
+            <UnitSelector
+              units={category.units}
+              selected={toUnit}
+              onSelect={setToUnit}
+              label="To"
+            />
             <div className="relative mt-2 px-4 py-4 rounded-xl bg-dark-900/60 border border-dark-700 min-h-[68px] flex items-center">
               {result !== null ? (
                 <span className="text-2xl sm:text-3xl font-mono text-accent-cyan font-bold break-all">
@@ -393,7 +416,7 @@ function ConversionView({
 
 export default function ConverterPage() {
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
-  const selectedCat = selectedCatId ? CATEGORY_MAP.get(selectedCatId) ?? null : null;
+  const selectedCat = selectedCatId ? (CATEGORY_MAP.get(selectedCatId) ?? null) : null;
 
   const { recentConversions, clearRecent } = useConverterStore();
 
@@ -412,22 +435,30 @@ export default function ConverterPage() {
           {/* Recent conversions */}
           {recentConversions.length > 0 && (
             <div>
-              <SectionHeader title="Recent Conversions" action={{ label: "Clear", onClick: clearRecent }} />
+              <SectionHeader
+                title="Recent Conversions"
+                action={{ label: "Clear", onClick: clearRecent }}
+              />
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
                 {recentConversions.slice(0, 8).map((r) => {
                   const cat = CATEGORY_MAP.get(r.category);
                   return (
                     <button
                       key={r.id}
-                      onClick={() => { if (cat) setSelectedCatId(cat.id); }}
+                      onClick={() => {
+                        if (cat) setSelectedCatId(cat.id);
+                      }}
                       className="shrink-0 p-3 rounded-xl bg-dark-800/60 border border-dark-700 hover:border-dark-500 transition-all text-left min-w-[180px] cursor-pointer"
                     >
                       <div className="flex items-center gap-1.5 mb-1">
-                        <Badge color="gray" className="text-[8px]">{cat?.name ?? r.category}</Badge>
+                        <Badge color="gray" className="text-[8px]">
+                          {cat?.name ?? r.category}
+                        </Badge>
                       </div>
                       <p className="text-xs text-white font-mono">
                         {formatValue(r.fromValue)}{" "}
-                        <span className="text-gray-500">{r.fromUnit.symbol}</span>{" → "}
+                        <span className="text-gray-500">{r.fromUnit.symbol}</span>
+                        {" → "}
                         <span className="text-accent-cyan">{formatValue(r.toValue)}</span>{" "}
                         <span className="text-gray-500">{r.toUnit.symbol}</span>
                       </p>

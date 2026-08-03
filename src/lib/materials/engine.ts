@@ -1,4 +1,13 @@
-import type { Material, ShapeDef, DimUnit, WeightUnit, CostInputs, CostResult, CalcResult, DimensionField } from "./types";
+import type {
+  Material,
+  ShapeDef,
+  DimUnit,
+  WeightUnit,
+  CostInputs,
+  CostResult,
+  CalcResult,
+  DimensionField,
+} from "./types";
 import { DIM_TO_METRE, KG_FACTOR } from "./types";
 
 /**
@@ -7,9 +16,9 @@ import { DIM_TO_METRE, KG_FACTOR } from "./types";
 export function calculateWeight(
   shape: ShapeDef,
   material: Material,
-  dims: Record<string, number>,   // raw user values in dimUnit
+  dims: Record<string, number>, // raw user values in dimUnit
   dimUnit: DimUnit,
-  weightUnit: WeightUnit
+  weightUnit: WeightUnit,
 ): CalcResult | null {
   // Check all fields have valid positive values
   for (const field of shape.fields) {
@@ -36,10 +45,7 @@ export function calculateWeight(
 /**
  * Compute full cost breakdown.
  */
-export function calculateCost(
-  weightKg: number,
-  cost: CostInputs
-): CostResult {
+export function calculateCost(weightKg: number, cost: CostInputs): CostResult {
   const unitWeight = weightKg;
   const totalWeight = unitWeight * cost.quantity;
 

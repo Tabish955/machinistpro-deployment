@@ -33,6 +33,7 @@ import { Route as DashboardMaterialsRouteImport } from './routes/dashboard/mater
 import { Route as DashboardPricingRouteImport } from './routes/dashboard/pricing'
 import { Route as DashboardScientificRouteImport } from './routes/dashboard/scientific'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DashboardTapDrillRouteImport } from './routes/dashboard/tap-drill'
 import { Route as DashboardTolerancesRouteImport } from './routes/dashboard/tolerances'
 import { Route as DashboardWeightRouteImport } from './routes/dashboard/weight'
 import { Route as DashboardWorkspaceRouteImport } from './routes/dashboard/workspace'
@@ -160,6 +161,11 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const DashboardTapDrillRoute = DashboardTapDrillRouteImport.update({
+  id: '/tap-drill',
+  path: '/tap-drill',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 const DashboardTolerancesRoute = DashboardTolerancesRouteImport.update({
   id: '/tolerances',
   path: '/tolerances',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/pricing': typeof DashboardPricingRoute
   '/dashboard/scientific': typeof DashboardScientificRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/tap-drill': typeof DashboardTapDrillRoute
   '/dashboard/tolerances': typeof DashboardTolerancesRoute
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/dashboard/pricing': typeof DashboardPricingRoute
   '/dashboard/scientific': typeof DashboardScientificRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/tap-drill': typeof DashboardTapDrillRoute
   '/dashboard/tolerances': typeof DashboardTolerancesRoute
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/dashboard/pricing': typeof DashboardPricingRoute
   '/dashboard/scientific': typeof DashboardScientificRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/tap-drill': typeof DashboardTapDrillRoute
   '/dashboard/tolerances': typeof DashboardTolerancesRoute
   '/dashboard/weight': typeof DashboardWeightRoute
   '/dashboard/workspace': typeof DashboardWorkspaceRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/dashboard/pricing'
     | '/dashboard/scientific'
     | '/dashboard/settings'
+    | '/dashboard/tap-drill'
     | '/dashboard/tolerances'
     | '/dashboard/weight'
     | '/dashboard/workspace'
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/dashboard/pricing'
     | '/dashboard/scientific'
     | '/dashboard/settings'
+    | '/dashboard/tap-drill'
     | '/dashboard/tolerances'
     | '/dashboard/weight'
     | '/dashboard/workspace'
@@ -376,6 +387,7 @@ export interface FileRouteTypes {
     | '/dashboard/pricing'
     | '/dashboard/scientific'
     | '/dashboard/settings'
+    | '/dashboard/tap-drill'
     | '/dashboard/tolerances'
     | '/dashboard/weight'
     | '/dashboard/workspace'
@@ -570,6 +582,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSettingsRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/tap-drill': {
+      id: '/dashboard/tap-drill'
+      path: '/tap-drill'
+      fullPath: '/dashboard/tap-drill'
+      preLoaderRoute: typeof DashboardTapDrillRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/tolerances': {
       id: '/dashboard/tolerances'
       path: '/tolerances'
@@ -630,6 +649,7 @@ interface DashboardRouteRouteChildren {
   DashboardPricingRoute: typeof DashboardPricingRoute
   DashboardScientificRoute: typeof DashboardScientificRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardTapDrillRoute: typeof DashboardTapDrillRoute
   DashboardTolerancesRoute: typeof DashboardTolerancesRoute
   DashboardWeightRoute: typeof DashboardWeightRoute
   DashboardWorkspaceRoute: typeof DashboardWorkspaceRoute
@@ -651,6 +671,7 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardPricingRoute: DashboardPricingRoute,
   DashboardScientificRoute: DashboardScientificRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardTapDrillRoute: DashboardTapDrillRoute,
   DashboardTolerancesRoute: DashboardTolerancesRoute,
   DashboardWeightRoute: DashboardWeightRoute,
   DashboardWorkspaceRoute: DashboardWorkspaceRoute,

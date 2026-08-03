@@ -54,7 +54,7 @@ export interface FormulaDefinition {
     outputs: { id: string; label: string; value: number; unit: string }[];
     steps?: { description: string; expression: string; result: number }[];
   };
-  formulaText: string;  // human-readable formula string
+  formulaText: string; // human-readable formula string
   formatOptions?: FormatOptions;
 }
 
@@ -87,7 +87,7 @@ export function getAllFormulas(): FormulaDefinition[] {
  * Get formulas by category.
  */
 export function getFormulasByCategory(category: string): FormulaDefinition[] {
-  return Array.from(registry.values()).filter(f => f.category === category);
+  return Array.from(registry.values()).filter((f) => f.category === category);
 }
 
 // ─── Execution ──────────────────────────────────────────────────────────────
@@ -98,11 +98,14 @@ export function getFormulasByCategory(category: string): FormulaDefinition[] {
  */
 export function executeFormula(
   formulaId: string,
-  inputs: Record<string, number>
+  inputs: Record<string, number>,
 ): FormulaResult | FormulaError {
   const formula = registry.get(formulaId);
   if (!formula) {
-    return { success: false, errors: [{ field: "_formula", message: `Formula '${formulaId}' not found` }] };
+    return {
+      success: false,
+      errors: [{ field: "_formula", message: `Formula '${formulaId}' not found` }],
+    };
   }
 
   return executeFormulaDef(formula, inputs);
@@ -113,7 +116,7 @@ export function executeFormula(
  */
 export function executeFormulaDef(
   formula: FormulaDefinition,
-  inputs: Record<string, number>
+  inputs: Record<string, number>,
 ): FormulaResult | FormulaError {
   // Validate
   const errors = validate(inputs, formula.validationRules);
@@ -128,7 +131,7 @@ export function executeFormulaDef(
 
     return {
       success: true,
-      outputs: outputs.map(o => ({
+      outputs: outputs.map((o) => ({
         ...o,
         formatted: formatNumber(o.value, fmtOpts),
       })),

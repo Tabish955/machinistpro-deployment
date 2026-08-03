@@ -25,7 +25,7 @@ export interface ValidationRule {
  */
 export function validate(
   values: Record<string, number>,
-  rules: ValidationRule[]
+  rules: ValidationRule[],
 ): ValidationError[] | null {
   const errors: ValidationError[] = [];
 
@@ -88,7 +88,7 @@ export function validate(
  * Quick check: are all required fields filled with valid positive numbers?
  */
 export function allPositive(values: Record<string, number>, fields: string[]): boolean {
-  return fields.every(f => {
+  return fields.every((f) => {
     const v = values[f];
     return v !== undefined && !isNaN(v) && v > 0;
   });

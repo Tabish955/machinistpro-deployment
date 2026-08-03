@@ -8,12 +8,10 @@ export function convert(value: number, from: UnitDef, to: UnitDef): number {
   if (from.id === to.id) return value;
 
   // To base
-  const base =
-    typeof from.toBase === "function" ? from.toBase(value) : value * from.toBase;
+  const base = typeof from.toBase === "function" ? from.toBase(value) : value * from.toBase;
 
   // From base
-  const result =
-    typeof to.fromBase === "function" ? to.fromBase(base) : base * to.fromBase;
+  const result = typeof to.fromBase === "function" ? to.fromBase(base) : base * to.fromBase;
 
   return result;
 }

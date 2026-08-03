@@ -17,7 +17,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type ModuleColor = "cyan" | "blue" | "purple" | "green" | "amber" | "red" | "pink" | "orange";
+export type ModuleColor =
+  "cyan" | "blue" | "purple" | "green" | "amber" | "red" | "pink" | "orange";
 export type ModuleStatus = "available" | "coming-soon" | "locked" | "beta";
 export type ModuleCategory = "calculators" | "tools" | "reference" | "system";
 
@@ -51,13 +52,45 @@ export const calculatorModules: ModuleConfig[] = [
     status: "available",
     category: "calculators",
     keywords: [
-      "calculator", "scientific", "math", "trigonometry", "logarithm", "exponential",
-      "sin", "cos", "tan", "standard", "engineering", "si prefix", "notation",
-      "statistics", "regression", "mean", "median", "standard deviation",
-      "complex", "imaginary", "programmer", "binary", "hex", "octal", "bitwise",
-      "matrix", "determinant", "inverse", "linear algebra",
-      "equation", "quadratic", "cubic", "roots", "solve",
-      "graph", "graphing", "plot", "polar", "parametric",
+      "calculator",
+      "scientific",
+      "math",
+      "trigonometry",
+      "logarithm",
+      "exponential",
+      "sin",
+      "cos",
+      "tan",
+      "standard",
+      "engineering",
+      "si prefix",
+      "notation",
+      "statistics",
+      "regression",
+      "mean",
+      "median",
+      "standard deviation",
+      "complex",
+      "imaginary",
+      "programmer",
+      "binary",
+      "hex",
+      "octal",
+      "bitwise",
+      "matrix",
+      "determinant",
+      "inverse",
+      "linear algebra",
+      "equation",
+      "quadratic",
+      "cubic",
+      "roots",
+      "solve",
+      "graph",
+      "graphing",
+      "plot",
+      "polar",
+      "parametric",
     ],
     version: "1.0",
   },
@@ -71,7 +104,17 @@ export const calculatorModules: ModuleConfig[] = [
     color: "blue",
     status: "available",
     category: "calculators",
-    keywords: ["unit", "converter", "conversion", "metric", "imperial", "length", "mass", "volume", "temperature"],
+    keywords: [
+      "unit",
+      "converter",
+      "conversion",
+      "metric",
+      "imperial",
+      "length",
+      "mass",
+      "volume",
+      "temperature",
+    ],
     version: "1.0",
   },
   {
@@ -88,9 +131,31 @@ export const calculatorModules: ModuleConfig[] = [
     status: "available",
     category: "calculators",
     keywords: [
-      "weight", "material", "mass", "density", "steel", "aluminum", "copper", "metal", "alloy",
-      "cost", "price", "estimate", "budget", "quote", "pricing", "fabrication",
-      "bar", "tube", "pipe", "plate", "sheet", "beam", "angle", "channel", "hex",
+      "weight",
+      "material",
+      "mass",
+      "density",
+      "steel",
+      "aluminum",
+      "copper",
+      "metal",
+      "alloy",
+      "cost",
+      "price",
+      "estimate",
+      "budget",
+      "quote",
+      "pricing",
+      "fabrication",
+      "bar",
+      "tube",
+      "pipe",
+      "plate",
+      "sheet",
+      "beam",
+      "angle",
+      "channel",
+      "hex",
     ],
     version: "1.0",
   },
@@ -104,7 +169,17 @@ export const calculatorModules: ModuleConfig[] = [
     color: "amber",
     status: "available",
     category: "calculators",
-    keywords: ["geometry", "area", "volume", "perimeter", "circle", "rectangle", "triangle", "sphere", "cylinder"],
+    keywords: [
+      "geometry",
+      "area",
+      "volume",
+      "perimeter",
+      "circle",
+      "rectangle",
+      "triangle",
+      "sphere",
+      "cylinder",
+    ],
     version: "1.0",
   },
   {
@@ -117,7 +192,19 @@ export const calculatorModules: ModuleConfig[] = [
     color: "red",
     status: "available",
     category: "calculators",
-    keywords: ["machining", "cnc", "speeds", "feeds", "rpm", "cutting", "lathe", "mill", "drill", "thread", "tap"],
+    keywords: [
+      "machining",
+      "cnc",
+      "speeds",
+      "feeds",
+      "rpm",
+      "cutting",
+      "lathe",
+      "mill",
+      "drill",
+      "thread",
+      "tap",
+    ],
     version: "1.0",
   },
 
@@ -131,7 +218,18 @@ export const calculatorModules: ModuleConfig[] = [
     color: "purple",
     status: "available",
     category: "calculators",
-    keywords: ["cnc","canned cycle","g71","fanuc","lathe","roughing","turning","g-code","coordinates","profile"],
+    keywords: [
+      "cnc",
+      "canned cycle",
+      "g71",
+      "fanuc",
+      "lathe",
+      "roughing",
+      "turning",
+      "g-code",
+      "coordinates",
+      "profile",
+    ],
     version: "1.0",
   },
 
@@ -145,7 +243,19 @@ export const calculatorModules: ModuleConfig[] = [
     color: "green",
     status: "available",
     category: "calculators",
-    keywords: ["level","spirit level","inclinometer","tilt","angle","plumb","bubble","machine bed","vice","tram","slope"],
+    keywords: [
+      "level",
+      "spirit level",
+      "inclinometer",
+      "tilt",
+      "angle",
+      "plumb",
+      "bubble",
+      "machine bed",
+      "vice",
+      "tram",
+      "slope",
+    ],
     version: "1.0",
   },
   {
@@ -158,7 +268,16 @@ export const calculatorModules: ModuleConfig[] = [
     color: "pink",
     status: "available",
     category: "calculators",
-    keywords: ["engineering", "stress", "strain", "torque", "force", "mechanical", "structural", "load"],
+    keywords: [
+      "engineering",
+      "stress",
+      "strain",
+      "torque",
+      "force",
+      "mechanical",
+      "structural",
+      "load",
+    ],
     version: "1.0",
   },
   {
@@ -171,7 +290,18 @@ export const calculatorModules: ModuleConfig[] = [
     color: "green",
     status: "available",
     category: "calculators",
-    keywords: ["sheet metal", "welding", "hydraulic", "pneumatic", "pipe", "gear", "belt", "pulley", "industrial", "manufacturing"],
+    keywords: [
+      "sheet metal",
+      "welding",
+      "hydraulic",
+      "pneumatic",
+      "pipe",
+      "gear",
+      "belt",
+      "pulley",
+      "industrial",
+      "manufacturing",
+    ],
     version: "1.0",
   },
 ];
@@ -201,7 +331,18 @@ export const referenceModules: ModuleConfig[] = [
     color: "blue",
     status: "available",
     category: "reference",
-    keywords: ["tolerance", "fit", "gdt", "surface", "finish", "drawing", "ISO", "H7", "clearance", "interference"],
+    keywords: [
+      "tolerance",
+      "fit",
+      "gdt",
+      "surface",
+      "finish",
+      "drawing",
+      "ISO",
+      "H7",
+      "clearance",
+      "interference",
+    ],
     version: "1.0",
   },
 
@@ -216,6 +357,40 @@ export const referenceModules: ModuleConfig[] = [
     status: "available",
     category: "reference",
     keywords: ["material", "database", "properties", "steel", "aluminum", "specifications", "data"],
+    version: "1.0",
+  },
+  {
+    id: "tap-drill",
+    name: "Tap Drill Chart",
+    shortName: "Tap/Drill",
+    description:
+      "Tap drill, minor diameter and clearance drill for ISO metric, UNC, UNF, NPT and BSP threads",
+    icon: Wrench,
+    href: "/dashboard/tap-drill",
+    color: "amber",
+    status: "available",
+    category: "reference",
+    keywords: [
+      "tap",
+      "drill",
+      "thread",
+      "threading",
+      "clearance",
+      "minor diameter",
+      "iso",
+      "metric",
+      "unc",
+      "unf",
+      "npt",
+      "bsp",
+      "pipe",
+      "hole",
+      "M6",
+      "M8",
+      "M10",
+      "1/4-20",
+      "TPI",
+    ],
     version: "1.0",
   },
 ];
@@ -282,40 +457,46 @@ export const systemModules: ModuleConfig[] = [
 
 // Combined exports
 export const allCalculatorModules = [...calculatorModules, ...referenceModules];
-export const allModules = [...calculatorModules, ...referenceModules, ...workspaceModules, ...systemModules];
+export const allModules = [
+  ...calculatorModules,
+  ...referenceModules,
+  ...workspaceModules,
+  ...systemModules,
+];
 
 // Module registry for searching
 export function searchModules(query: string): ModuleConfig[] {
   if (!query.trim()) return [];
-  
+
   const normalizedQuery = query.toLowerCase().trim();
   const words = normalizedQuery.split(/\s+/);
-  
+
   return allModules
     .map((module) => {
       let score = 0;
-      const searchText = `${module.name} ${module.shortName || ""} ${module.description} ${module.keywords.join(" ")}`.toLowerCase();
-      
+      const searchText =
+        `${module.name} ${module.shortName || ""} ${module.description} ${module.keywords.join(" ")}`.toLowerCase();
+
       // Exact name match gets highest score
       if (module.name.toLowerCase().includes(normalizedQuery)) {
         score += 100;
       }
-      
+
       // Short name match
       if (module.shortName?.toLowerCase().includes(normalizedQuery)) {
         score += 80;
       }
-      
+
       // Keyword matches
       for (const word of words) {
-        if (module.keywords.some(k => k.includes(word))) {
+        if (module.keywords.some((k) => k.includes(word))) {
           score += 50;
         }
         if (searchText.includes(word)) {
           score += 10;
         }
       }
-      
+
       return { module, score };
     })
     .filter(({ score }) => score > 0)
@@ -325,16 +506,19 @@ export function searchModules(query: string): ModuleConfig[] {
 
 // Get module by ID
 export function getModuleById(id: string): ModuleConfig | undefined {
-  return allModules.find(m => m.id === id);
+  return allModules.find((m) => m.id === id);
 }
 
 // Get modules by category
 export function getModulesByCategory(category: ModuleCategory): ModuleConfig[] {
-  return allModules.filter(m => m.category === category);
+  return allModules.filter((m) => m.category === category);
 }
 
 // Color mappings for consistent styling
-export const moduleColors: Record<ModuleColor, { bg: string; border: string; text: string; glow: string }> = {
+export const moduleColors: Record<
+  ModuleColor,
+  { bg: string; border: string; text: string; glow: string }
+> = {
   cyan: {
     bg: "bg-accent-cyan/10",
     border: "border-accent-cyan/20",

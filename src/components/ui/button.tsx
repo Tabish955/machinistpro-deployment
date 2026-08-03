@@ -1,4 +1,3 @@
-
 import { type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -17,10 +16,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     "bg-gradient-to-r from-accent-cyan to-accent-blue text-dark-950 font-semibold hover:brightness-110 active:brightness-95 shadow-lg shadow-accent-cyan/10",
   secondary:
     "bg-dark-600 text-white border border-dark-400 hover:bg-dark-500 hover:border-dark-300",
-  ghost:
-    "bg-transparent text-gray-300 hover:bg-dark-700 hover:text-white",
-  danger:
-    "bg-accent-red/10 text-accent-red border border-accent-red/20 hover:bg-accent-red/20",
+  ghost: "bg-transparent text-gray-300 hover:bg-dark-700 hover:text-white",
+  danger: "bg-accent-red/10 text-accent-red border border-accent-red/20 hover:bg-accent-red/20",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -46,11 +43,7 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <svg
-          className="h-4 w-4 animate-spin"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
+        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
           <circle
             className="opacity-25"
             cx="12"

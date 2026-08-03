@@ -129,7 +129,10 @@ describe("stock removal", () => {
       let bestDist = Infinity;
       stock.zs.forEach((sz, i) => {
         const d = Math.abs(sz - z);
-        if (d < bestDist) { bestDist = d; best = stock.radii[i]; }
+        if (d < bestDist) {
+          bestDist = d;
+          best = stock.radii[i];
+        }
       });
       return best;
     };

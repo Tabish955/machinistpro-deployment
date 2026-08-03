@@ -1,7 +1,15 @@
 const PI = Math.PI;
 
-export interface Field { id: string; label: string; ph?: string }
-export interface GeoResult { label: string; value: number; unit: string }
+export interface Field {
+  id: string;
+  label: string;
+  ph?: string;
+}
+export interface GeoResult {
+  label: string;
+  value: number;
+  unit: string;
+}
 
 export interface Shape2D {
   id: string;
@@ -45,7 +53,9 @@ const poly = (points: string) =>
 export const SHAPES_2D: Shape2D[] = [
   // ═══ BASIC ════════════════════════════════════════════════════════════════
   {
-    id: "square", name: "Square", group: "basic",
+    id: "square",
+    name: "Square",
+    group: "basic",
     fields: [f("a", "Side Length", "e.g. 10")],
     calc: ({ a }) => [
       r("Area", a * a),
@@ -62,7 +72,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(100, 100, "90°", "middle", "#888")}`,
   },
   {
-    id: "rectangle", name: "Rectangle", group: "basic",
+    id: "rectangle",
+    name: "Rectangle",
+    group: "basic",
     fields: [f("w", "Width"), f("h", "Height")],
     calc: ({ w, h }) => [
       r("Area", w * h),
@@ -78,7 +90,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(184, 104, n(v.h, "h"), "end")}`,
   },
   {
-    id: "parallelogram", name: "Parallelogram", group: "basic",
+    id: "parallelogram",
+    name: "Parallelogram",
+    group: "basic",
     fields: [f("b", "Base"), f("h", "Height"), f("s", "Side")],
     calc: ({ b, h, s }) => [
       r("Area", b * h),
@@ -94,7 +108,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(178, 100, n(v.s, "s"), "start")}`,
   },
   {
-    id: "trapezium", name: "Trapezium", group: "basic",
+    id: "trapezium",
+    name: "Trapezium",
+    group: "basic",
     fields: [f("a", "Side a (top)"), f("b", "Side b (bottom)"), f("h", "Height")],
     calc: ({ a, b, h }) => [
       r("Area", 0.5 * (a + b) * h),
@@ -110,7 +126,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(66, 104, n(v.h, "h"), "start")}`,
   },
   {
-    id: "rhombus", name: "Rhombus", group: "basic",
+    id: "rhombus",
+    name: "Rhombus",
+    group: "basic",
     fields: [f("d1", "Diagonal 1"), f("d2", "Diagonal 2")],
     calc: ({ d1, d2 }) => {
       const side = Math.sqrt((d1 / 2) ** 2 + (d2 / 2) ** 2);
@@ -140,7 +158,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(106, 145, n(v.d2, "d₂"), "start")}`,
   },
   {
-    id: "kite", name: "Kite", group: "basic",
+    id: "kite",
+    name: "Kite",
+    group: "basic",
     fields: [f("d1", "Diagonal 1"), f("d2", "Diagonal 2")],
     calc: ({ d1, d2 }) => [r("Area", 0.5 * d1 * d2), r("Sum of Interior Angles", 360, "°")],
     formula: "A = ½×d₁×d₂",
@@ -153,7 +173,9 @@ export const SHAPES_2D: Shape2D[] = [
 
   // ═══ TRIANGLE ═════════════════════════════════════════════════════════════
   {
-    id: "triangle", name: "Triangle (base × height)", group: "triangle",
+    id: "triangle",
+    name: "Triangle (base × height)",
+    group: "triangle",
     fields: [f("b", "Base"), f("h", "Height")],
     calc: ({ b, h }) => [r("Area", 0.5 * b * h), r("Sum of Interior Angles", 180, "°")],
     formula: "A = ½×b×h",
@@ -164,7 +186,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(106, 110, n(v.h, "h"), "start")}`,
   },
   {
-    id: "right_triangle", name: "Right Triangle", group: "triangle",
+    id: "right_triangle",
+    name: "Right Triangle",
+    group: "triangle",
     fields: [f("a", "Side a"), f("b", "Side b")],
     calc: ({ a, b }) => {
       const c = Math.sqrt(a * a + b * b);
@@ -184,7 +208,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(112, 96, "c", "start", "#00d4ff")}`,
   },
   {
-    id: "equilateral", name: "Equilateral Triangle", group: "triangle",
+    id: "equilateral",
+    name: "Equilateral Triangle",
+    group: "triangle",
     fields: [f("a", "Side")],
     calc: ({ a }) => [
       r("Area", (Math.sqrt(3) / 4) * a * a),
@@ -199,7 +225,9 @@ export const SHAPES_2D: Shape2D[] = [
       ${label(150, 100, "60°", "middle", "#888")}`,
   },
   {
-    id: "scalene", name: "Triangle (3 sides – Heron)", group: "triangle",
+    id: "scalene",
+    name: "Triangle (3 sides – Heron)",
+    group: "triangle",
     fields: [f("a", "Side a"), f("b", "Side b"), f("c", "Side c")],
     calc: ({ a, b, c }) => {
       // Any side longer than the other two combined cannot close. Heron then takes
@@ -232,7 +260,9 @@ export const SHAPES_2D: Shape2D[] = [
 
   // ═══ CIRCLE ═══════════════════════════════════════════════════════════════
   {
-    id: "circle", name: "Circle", group: "circle",
+    id: "circle",
+    name: "Circle",
+    group: "circle",
     fields: [f("r", "Radius")],
     calc: ({ r: rad }) => [
       r("Area", PI * rad * rad),
@@ -240,28 +270,40 @@ export const SHAPES_2D: Shape2D[] = [
       r("Diameter", 2 * rad, "u"),
     ],
     formula: "A = πr² · C = 2πr",
-    svg: (v) => `<circle cx="100" cy="100" r="78" fill="rgba(0,212,255,0.06)" stroke="${STROKE}" stroke-width="2"/>
+    svg: (
+      v,
+    ) => `<circle cx="100" cy="100" r="78" fill="rgba(0,212,255,0.06)" stroke="${STROKE}" stroke-width="2"/>
       ${dimLine(100, 100, 178, 100)}
       ${label(140, 94, n(v.r, "r"))}
       <circle cx="100" cy="100" r="2.5" fill="${DIMC}"/>`,
   },
   {
-    id: "ellipse", name: "Ellipse", group: "circle",
+    id: "ellipse",
+    name: "Ellipse",
+    group: "circle",
     fields: [f("a", "Semi-major axis"), f("b", "Semi-minor axis")],
     calc: ({ a, b }) => [
       r("Area", PI * a * b),
       r("Circumference ≈", PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b))), "u"),
-      r("Eccentricity", a >= b ? Math.sqrt(1 - (b * b) / (a * a)) : Math.sqrt(1 - (a * a) / (b * b)), ""),
+      r(
+        "Eccentricity",
+        a >= b ? Math.sqrt(1 - (b * b) / (a * a)) : Math.sqrt(1 - (a * a) / (b * b)),
+        "",
+      ),
     ],
     formula: "A = πab · C ≈ π[3(a+b)−√((3a+b)(a+3b))]",
-    svg: (v) => `<ellipse cx="100" cy="100" rx="85" ry="52" fill="rgba(0,212,255,0.06)" stroke="${STROKE}" stroke-width="2"/>
+    svg: (
+      v,
+    ) => `<ellipse cx="100" cy="100" rx="85" ry="52" fill="rgba(0,212,255,0.06)" stroke="${STROKE}" stroke-width="2"/>
       ${dimLine(100, 100, 185, 100)}
       ${label(146, 94, n(v.a, "a"))}
       ${dimLine(100, 100, 100, 48)}
       ${label(106, 70, n(v.b, "b"), "start")}`,
   },
   {
-    id: "arc", name: "Arc / Sector", group: "circle",
+    id: "arc",
+    name: "Arc / Sector",
+    group: "circle",
     fields: [f("r", "Radius"), f("deg", "Angle (°)")],
     calc: ({ r: rad, deg }) => {
       const theta = (deg * PI) / 180;
@@ -277,7 +319,10 @@ export const SHAPES_2D: Shape2D[] = [
     svg: (v) => {
       const deg = Number.isFinite(v.deg) ? Math.max(1, Math.min(359, v.deg)) : 60;
       const rad = 78;
-      const end = { x: 100 + rad * Math.cos((-deg * PI) / 180), y: 100 + rad * Math.sin((-deg * PI) / 180) };
+      const end = {
+        x: 100 + rad * Math.cos((-deg * PI) / 180),
+        y: 100 + rad * Math.sin((-deg * PI) / 180),
+      };
       const large = deg > 180 ? 1 : 0;
       return `<circle cx="100" cy="100" r="${rad}" fill="none" stroke="#2a2a3d" stroke-width="1"/>
         <path d="M100,100 L178,100 A${rad},${rad} 0 ${large},0 ${end.x.toFixed(1)},${end.y.toFixed(1)} Z"
@@ -296,7 +341,9 @@ export const SHAPES_2D: Shape2D[] = [
     { id: "nonagon", name: "Nonagon", n: 9 },
     { id: "decagon", name: "Decagon", n: 10 },
   ].map<Shape2D>(({ id, name, n: sides }) => ({
-    id, name, group: "polygon",
+    id,
+    name,
+    group: "polygon",
     fields: [f("a", "Side")],
     calc: ({ a }) => {
       const area = (sides * a * a) / (4 * Math.tan(PI / sides));
@@ -323,7 +370,9 @@ export const SHAPES_2D: Shape2D[] = [
     },
   })),
   {
-    id: "polygon_n", name: "Regular Polygon (n sides)", group: "polygon",
+    id: "polygon_n",
+    name: "Regular Polygon (n sides)",
+    group: "polygon",
     fields: [f("n", "Number of Sides"), f("a", "Side Length")],
     calc: ({ n: sides, a }) => {
       if (sides < 3) return [r("Error", NaN, "need n ≥ 3")];

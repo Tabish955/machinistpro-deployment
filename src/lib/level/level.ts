@@ -27,7 +27,7 @@ export const NO_CALIBRATION: LevelCalibration = { pitch: 0, roll: 0 };
  * 181° meaning one degree past upright rather than a jump to -179.
  */
 export function normaliseAngle(angle: number): number {
-  let a = ((angle + 180) % 360 + 360) % 360 - 180;
+  let a = ((((angle + 180) % 360) + 360) % 360) - 180;
   if (a > 90) a = 180 - a;
   if (a < -90) a = -180 - a;
   return a;
@@ -193,8 +193,12 @@ export function plumbAngle(g: Gravity): number {
 export function gravityToTilt(g: Gravity): Tilt {
   const magnitude = Math.hypot(g.x, g.y, g.z) || 1;
   return {
-    pitch: Number((Math.asin(Math.max(-1, Math.min(1, -g.y / magnitude))) * (180 / Math.PI)).toFixed(4)),
-    roll: Number((Math.asin(Math.max(-1, Math.min(1, g.x / magnitude))) * (180 / Math.PI)).toFixed(4)),
+    pitch: Number(
+      (Math.asin(Math.max(-1, Math.min(1, -g.y / magnitude))) * (180 / Math.PI)).toFixed(4),
+    ),
+    roll: Number(
+      (Math.asin(Math.max(-1, Math.min(1, g.x / magnitude))) * (180 / Math.PI)).toFixed(4),
+    ),
   };
 }
 

@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import {
   MATERIALS,
@@ -23,15 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
 import { formatMath } from "@/lib/core/math-symbols";
-import {
-  Weight,
-  ChevronDown,
-  Info,
-  DollarSign,
-  Copy,
-  Check,
-  ChevronRight,
-} from "lucide-react";
+import { Weight, ChevronDown, Info, DollarSign, Copy, Check, ChevronRight } from "lucide-react";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -163,8 +154,7 @@ export default function WeightPage() {
 
   // ── Dimension values (strings for input) ──
   const [dims, setDims] = useState<Record<string, string>>({});
-  const setDimValue = (key: string, val: string) =>
-    setDims((prev) => ({ ...prev, [key]: val }));
+  const setDimValue = (key: string, val: string) => setDims((prev) => ({ ...prev, [key]: val }));
 
   // ── Cost inputs ──
   const [showCost, setShowCost] = useState(false);
@@ -194,7 +184,10 @@ export default function WeightPage() {
   // longer a tube — and the reason is more use than a silently wrong weight.
   const { result, calcError } = useMemo(() => {
     try {
-      return { result: calculateWeight(shape, material, parsedDims, dimUnit, weightUnit), calcError: "" };
+      return {
+        result: calculateWeight(shape, material, parsedDims, dimUnit, weightUnit),
+        calcError: "",
+      };
     } catch (cause) {
       return {
         result: null,
@@ -281,8 +274,12 @@ export default function WeightPage() {
                 </div>
               ))}
               <p className="text-[10px] text-gray-600">
-                Density: <span className="text-gray-400 font-mono">{material.density.toLocaleString()} kg/m³</span>
-                {" · "}{material.description}
+                Density:{" "}
+                <span className="text-gray-400 font-mono">
+                  {material.density.toLocaleString()} kg/m³
+                </span>
+                {" · "}
+                {material.description}
               </p>
             </div>
           </Card>
@@ -295,7 +292,9 @@ export default function WeightPage() {
                 const shapes = SHAPES.filter((s) => s.group === g.key);
                 return (
                   <div key={g.key}>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1.5">{g.label}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1.5">
+                      {g.label}
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {shapes.map((s) => (
                         <button
@@ -348,17 +347,30 @@ export default function WeightPage() {
                 <DollarSign size={16} className="text-accent-green" />
                 <span className="text-sm font-semibold text-white">Cost Estimator</span>
               </div>
-              <ChevronDown size={16} className={`text-gray-500 transition-transform ${showCost ? "rotate-180" : ""}`} />
+              <ChevronDown
+                size={16}
+                className={`text-gray-500 transition-transform ${showCost ? "rotate-180" : ""}`}
+              />
             </button>
 
             {showCost && (
               <div className="mt-4 space-y-3 animate-fade-in">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <NumInput label="Price per kg" value={pricePerKg} onChange={setPricePerKg} suffix="$/kg" />
+                  <NumInput
+                    label="Price per kg"
+                    value={pricePerKg}
+                    onChange={setPricePerKg}
+                    suffix="$/kg"
+                  />
                   <NumInput label="Quantity" value={quantity} onChange={setQuantity} suffix="pcs" />
                   <NumInput label="Waste %" value={wastePct} onChange={setWastePct} suffix="%" />
                   <NumInput label="Tax %" value={taxPct} onChange={setTaxPct} suffix="%" />
-                  <NumInput label="Discount %" value={discountPct} onChange={setDiscountPct} suffix="%" />
+                  <NumInput
+                    label="Discount %"
+                    value={discountPct}
+                    onChange={setDiscountPct}
+                    suffix="%"
+                  />
                 </div>
               </div>
             )}
@@ -391,7 +403,9 @@ export default function WeightPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between py-1.5 border-b border-dark-700">
                       <span className="text-gray-500">Volume</span>
-                      <span className="text-gray-300 font-mono">{fmt(result.volume_m3 * 1e9)} mm³</span>
+                      <span className="text-gray-300 font-mono">
+                        {fmt(result.volume_m3 * 1e9)} mm³
+                      </span>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-dark-700">
                       <span className="text-gray-500">Weight (kg)</span>
@@ -403,7 +417,9 @@ export default function WeightPage() {
                     </div>
                     <div className="flex justify-between py-1.5">
                       <span className="text-gray-500">Density</span>
-                      <span className="text-gray-300 font-mono">{material.density.toLocaleString()} kg/m³</span>
+                      <span className="text-gray-300 font-mono">
+                        {material.density.toLocaleString()} kg/m³
+                      </span>
                     </div>
                   </div>
 
@@ -450,18 +466,24 @@ export default function WeightPage() {
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-dark-700">
                   <span className="text-gray-500">Material cost</span>
-                  <span className="text-gray-300 font-mono">${fmtCurrency(costResult.materialCost)}</span>
+                  <span className="text-gray-300 font-mono">
+                    ${fmtCurrency(costResult.materialCost)}
+                  </span>
                 </div>
                 {costResult.wasteCost > 0 && (
                   <div className="flex justify-between py-1.5 border-b border-dark-700">
                     <span className="text-gray-500">Waste ({wastePct}%)</span>
-                    <span className="text-accent-amber font-mono">${fmtCurrency(costResult.wasteCost)}</span>
+                    <span className="text-accent-amber font-mono">
+                      ${fmtCurrency(costResult.wasteCost)}
+                    </span>
                   </div>
                 )}
                 {costResult.discount > 0 && (
                   <div className="flex justify-between py-1.5 border-b border-dark-700">
                     <span className="text-gray-500">Discount ({discountPct}%)</span>
-                    <span className="text-accent-green font-mono">−${fmtCurrency(costResult.discount)}</span>
+                    <span className="text-accent-green font-mono">
+                      −${fmtCurrency(costResult.discount)}
+                    </span>
                   </div>
                 )}
                 {costResult.tax > 0 && (
@@ -472,12 +494,16 @@ export default function WeightPage() {
                 )}
                 <div className="flex justify-between py-2 text-base font-semibold">
                   <span className="text-white">Grand Total</span>
-                  <span className="text-accent-green font-mono">${fmtCurrency(costResult.grandTotal)}</span>
+                  <span className="text-accent-green font-mono">
+                    ${fmtCurrency(costResult.grandTotal)}
+                  </span>
                 </div>
                 {(parseInt(quantity) || 1) > 1 && (
                   <div className="flex justify-between py-1.5 text-xs">
                     <span className="text-gray-600">Cost per item</span>
-                    <span className="text-gray-400 font-mono">${fmtCurrency(costResult.costPerItem)}</span>
+                    <span className="text-gray-400 font-mono">
+                      ${fmtCurrency(costResult.costPerItem)}
+                    </span>
                   </div>
                 )}
               </div>
@@ -494,7 +520,10 @@ export default function WeightPage() {
                 <Info size={14} className="text-gray-500" />
                 <span className="text-xs font-semibold text-gray-400">Formula & Steps</span>
               </div>
-              <ChevronRight size={14} className={`text-gray-600 transition-transform ${showFormula ? "rotate-90" : ""}`} />
+              <ChevronRight
+                size={14}
+                className={`text-gray-600 transition-transform ${showFormula ? "rotate-90" : ""}`}
+              />
             </button>
 
             {showFormula && (

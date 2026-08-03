@@ -1,4 +1,3 @@
-
 import { InfoPage } from "@/components/layout/info-page";
 import { Mail, MessageSquare, Clock, Globe } from "lucide-react";
 
@@ -41,7 +40,13 @@ export default function ContactPage() {
 
       <h2 className="text-lg font-semibold text-white pt-6">Before You Contact Us</h2>
       <ul className="list-disc list-inside space-y-1">
-        <li>Check the <a href="/faq" className="text-accent-cyan hover:underline">FAQ page</a> for common answers</li>
+        <li>
+          Check the{" "}
+          <a href="/faq" className="text-accent-cyan hover:underline">
+            FAQ page
+          </a>{" "}
+          for common answers
+        </li>
         <li>Include your MachinistPro version (found in Settings)</li>
         <li>Describe the issue with as much detail as possible</li>
         <li>Include screenshots if reporting a visual issue</li>

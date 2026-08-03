@@ -76,7 +76,9 @@ describe("formula reference", () => {
       const title = f.name.toLowerCase();
       return words.every((w) => title.includes(w));
     }).map((f) => f.id);
-    expect(lazy.length, `entries whose keywords only echo the title: ${lazy.slice(0, 8).join(", ")}`)
-      .toBeLessThan(FORMULAS.length * 0.25);
+    expect(
+      lazy.length,
+      `entries whose keywords only echo the title: ${lazy.slice(0, 8).join(", ")}`,
+    ).toBeLessThan(FORMULAS.length * 0.25);
   });
 });

@@ -1,19 +1,11 @@
-
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useCalculatorStore } from "@/store/calculator-store";
 import { evaluate, autoCloseParens } from "@/lib/calculator/engine";
 import { Copy, Check } from "lucide-react";
 
 export function PremiumDisplay() {
-  const {
-    expression,
-    displayExpression,
-    previousResult,
-    result,
-    error,
-    angleMode,
-    copyResult,
-  } = useCalculatorStore();
+  const { expression, displayExpression, previousResult, result, error, angleMode, copyResult } =
+    useCalculatorStore();
 
   // Running value of the expression being typed. Without this a half-entered
   // expression reads as a solid "0", which looks like an answer of zero.
@@ -57,9 +49,9 @@ export function PremiumDisplay() {
       {/* Ambient glow */}
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-accent-cyan/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-accent-blue/5 rounded-full blur-2xl pointer-events-none" />
-      
+
       {/* Expression line */}
-      <div 
+      <div
         ref={expressionRef}
         className="relative h-7 sm:h-8 mb-2 overflow-x-auto overflow-y-hidden scrollbar-none"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
@@ -82,7 +74,7 @@ export function PremiumDisplay() {
 
       {/* Result line */}
       <div className="flex items-end justify-between gap-3">
-        <div 
+        <div
           ref={resultRef}
           className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden scrollbar-none"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
@@ -102,14 +94,14 @@ export function PremiumDisplay() {
             </p>
           )}
         </div>
-        
+
         {/* Copy button */}
         {result && result !== "0" && result !== "Error" && !error && (
           <button
             onClick={handleCopy}
             className={`shrink-0 p-2.5 rounded-xl transition-all active:scale-95 ${
-              copied 
-                ? "bg-accent-green/20 text-accent-green" 
+              copied
+                ? "bg-accent-green/20 text-accent-green"
                 : "bg-dark-700/50 text-gray-500 hover:text-white hover:bg-dark-700"
             }`}
             title={copied ? "Copied!" : "Copy result"}

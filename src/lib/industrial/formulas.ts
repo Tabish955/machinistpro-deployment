@@ -38,16 +38,17 @@ export const filletWeldVolume = (legSize: number, length: number) =>
   0.5 * legSize * legSize * length;
 
 /** Weld metal weight: W = V × ρ / 10⁹ (kg, V in mm³, ρ in kg/m³) */
-export const weldWeight = (volume_mm3: number, density: number) =>
-  (volume_mm3 * density) / 1e9;
+export const weldWeight = (volume_mm3: number, density: number) => (volume_mm3 * density) / 1e9;
 
 /** Electrode consumption: rods = weld_weight / (rod_weight × efficiency) */
-export const electrodeConsumption = (weldWeightKg: number, rodWeightKg: number, efficiency: number) =>
-  weldWeightKg / (rodWeightKg * efficiency);
+export const electrodeConsumption = (
+  weldWeightKg: number,
+  rodWeightKg: number,
+  efficiency: number,
+) => weldWeightKg / (rodWeightKg * efficiency);
 
 /** Gas consumption: gas_flow × arc_time */
-export const gasConsumption = (flowRate: number, arcTimeMin: number) =>
-  flowRate * arcTimeMin;
+export const gasConsumption = (flowRate: number, arcTimeMin: number) => flowRate * arcTimeMin;
 
 // ═══ HYDRAULICS ═════════════════════════════════════════════════════════════
 /** Cylinder force: F = P × A    P in Pa, A in m² → N */
@@ -115,7 +116,7 @@ export const gearRatio = (Z2: number, Z1: number) => Z2 / Z1;
 // ═══ BELTS & PULLEYS ════════════════════════════════════════════════════════
 /** Belt length (open): L = 2C + π(D1+D2)/2 + (D2−D1)²/(4C) */
 export const beltLength = (C: number, D1: number, D2: number) =>
-  2 * C + (PI * (D1 + D2)) / 2 + ((D2 - D1) ** 2) / (4 * C);
+  2 * C + (PI * (D1 + D2)) / 2 + (D2 - D1) ** 2 / (4 * C);
 
 /** Pulley speed ratio: n1/n2 = D2/D1 */
 export const pulleySpeedRatio = (D2: number, D1: number) => D2 / D1;
@@ -124,8 +125,7 @@ export const pulleySpeedRatio = (D2: number, D1: number) => D2 / D1;
 export const beltSpeed = (D: number, n: number) => (PI * D * n) / 60000;
 
 /** Center distance from belt length: approx C = (L − π(D1+D2)/2) / 2 */
-export const centerFromBelt = (L: number, D1: number, D2: number) =>
-  (L - (PI * (D1 + D2)) / 2) / 2;
+export const centerFromBelt = (L: number, D1: number, D2: number) => (L - (PI * (D1 + D2)) / 2) / 2;
 
 // ═══ FORMAT ═════════════════════════════════════════════════════════════════
 export function fmt(n: number, d = 4): string {

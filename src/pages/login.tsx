@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
@@ -7,7 +6,18 @@ import { toast } from "@/store/toast-store";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { ToastContainer } from "@/components/ui/toast";
-import { User, Lock, Eye, EyeOff, LogIn, Shield, Zap, Cpu, AlertCircle, Sparkles } from "lucide-react";
+import {
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  LogIn,
+  Shield,
+  Zap,
+  Cpu,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
 import { collectSignals } from "@/lib/fingerprint";
 import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
 
@@ -25,7 +35,7 @@ interface LoginResponse {
 export default function LoginPage() {
   const router = useRouter();
   const { status, user, setUser, setError, clearError } = useAuthStore();
-  
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -55,13 +65,16 @@ export default function LoginPage() {
         const r = await checkTrial({ data: { signals } });
         if (cancelled) return;
         if (!r.hasTrial) setTrialStatus({ state: "none" });
-        else if (r.active) setTrialStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
+        else if (r.active)
+          setTrialStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
         else setTrialStatus({ state: "expired" });
       } catch {
         if (!cancelled) setTrialStatus({ state: "none" });
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [checkTrial]);
 
   const handleStartTrial = useCallback(async () => {
@@ -69,29 +82,34 @@ export default function LoginPage() {
     try {
       const signals = await collectSignals();
       const r = await startTrial({ data: { signals } });
-      if (r.ok) {
+      if (r.ok && r.sessionToken) {
         const expiryDate = new Date(r.expiresAt).toLocaleDateString();
-        const trialToken = `trial_${crypto.randomUUID().replace(/-/g, "")}`;
         const subscription = `Trial (${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} left)`;
-        localStorage.setItem("mp_session", trialToken);
+        // The server now issues trials — token is validated by /api/auth/session.
+        localStorage.setItem("mp_session", r.sessionToken);
         localStorage.setItem("mp_trial", "1");
-        localStorage.setItem("mp_user", JSON.stringify({
-          username: "Trial User",
-          subscription,
-          expiry: expiryDate,
-          isTrial: true,
-        }));
+        localStorage.setItem(
+          "mp_user",
+          JSON.stringify({
+            username: "Trial User",
+            subscription,
+            expiry: expiryDate,
+            isTrial: true,
+          }),
+        );
         setUser({
           username: "Trial User",
           subscription,
           expiry: expiryDate,
-          sessionToken: trialToken,
+          sessionToken: r.sessionToken,
         });
         toast.success(
           r.resumed ? "Trial resumed" : "Trial started",
           `${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} remaining · expires ${expiryDate}`,
         );
         router.push("/dashboard");
+      } else if (r.ok) {
+        toast.error("Trial unavailable", "Server did not issue a session token.");
       } else {
         setTrialStatus({ state: "blocked", reason: r.reason });
         toast.error("Trial unavailable", r.reason);
@@ -127,7 +145,11 @@ export default function LoginPage() {
     }
 
     try {
-      const userData = JSON.parse(storedUser) as { username: string; subscription: string; expiry: string };
+      const userData = JSON.parse(storedUser) as {
+        username: string;
+        subscription: string;
+        expiry: string;
+      };
       setUser({
         username: userData.username || "User",
         subscription: userData.subscription || "Standard",
@@ -145,15 +167,15 @@ export default function LoginPage() {
 
   const validateForm = (): boolean => {
     const errors: { username?: string; password?: string } = {};
-    
+
     if (!username.trim()) {
       errors.username = "Username is required";
     }
-    
+
     if (!password) {
       errors.password = "Password is required";
     }
-    
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -163,7 +185,7 @@ export default function LoginPage() {
       e.preventDefault();
       clearError();
       setServerError(null);
-      
+
       if (!validateForm()) return;
 
       setIsLoading(true);
@@ -180,11 +202,14 @@ export default function LoginPage() {
         if (data.success && data.sessionToken) {
           localStorage.setItem("mp_session", data.sessionToken);
           localStorage.removeItem("mp_trial");
-          localStorage.setItem("mp_user", JSON.stringify({
-            username: data.username || username.trim(),
-            subscription: data.subscription || "Standard",
-            expiry: data.expiry || "",
-          }));
+          localStorage.setItem(
+            "mp_user",
+            JSON.stringify({
+              username: data.username || username.trim(),
+              subscription: data.subscription || "Standard",
+              expiry: data.expiry || "",
+            }),
+          );
           setUser({
             username: data.username || username.trim(),
             subscription: data.subscription || "Standard",
@@ -208,7 +233,7 @@ export default function LoginPage() {
         setIsLoading(false);
       }
     },
-    [username, password, rememberMe, setUser, setError, clearError, router]
+    [username, password, rememberMe, setUser, setError, clearError, router],
   );
 
   // Show loading if checking existing session
@@ -219,8 +244,19 @@ export default function LoginPage() {
           <Logo size="lg" />
           <div className="flex items-center gap-3 mt-6">
             <svg className="h-5 w-5 animate-spin text-accent-cyan" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
             </svg>
             <span className="text-sm text-gray-400">Checking session…</span>
           </div>
@@ -232,17 +268,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex bg-dark-950">
       <ToastContainer />
-      
+
       {/* Left panel - Branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative overflow-hidden">
         {/* Background effects */}
         <div className="absolute inset-0 gradient-bg grid-pattern" />
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-cyan/10 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent-purple/10 rounded-full blur-3xl" />
-        
+
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20">
           <Logo size="lg" />
-          
+
           <h1 className="text-4xl xl:text-5xl font-bold text-white mt-8 leading-tight">
             Precision tools for
             <br />
@@ -250,10 +286,10 @@ export default function LoginPage() {
               modern machinists
             </span>
           </h1>
-          
+
           <p className="text-gray-400 mt-4 max-w-md leading-relaxed">
-            Access your premium engineering calculator suite. Scientific calculations,
-            unit conversions, material databases, and more.
+            Access your premium engineering calculator suite. Scientific calculations, unit
+            conversions, material databases, and more.
           </p>
 
           {/* Feature highlights */}
@@ -372,7 +408,9 @@ export default function LoginPage() {
                 <div className="rounded-lg bg-accent-red/10 border border-accent-red/20 p-3 animate-fade-in">
                   <div className="flex items-start gap-2">
                     <AlertCircle size={16} className="text-accent-red mt-0.5 shrink-0" />
-                    <p className="text-sm font-medium text-accent-red flex-1">{serverError.error}</p>
+                    <p className="text-sm font-medium text-accent-red flex-1">
+                      {serverError.error}
+                    </p>
                   </div>
                 </div>
               )}
@@ -439,8 +477,12 @@ export default function LoginPage() {
                 <div className="flex items-start gap-2 mb-3">
                   <Sparkles size={16} className="text-accent-cyan mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-white">Try MachinistPro free for 14 days</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">No credit card. One trial per device.</p>
+                    <p className="text-sm font-semibold text-white">
+                      Try MachinistPro free for 14 days
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      No credit card. One trial per device.
+                    </p>
                   </div>
                 </div>
                 <Button
@@ -459,7 +501,8 @@ export default function LoginPage() {
               <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-4">
                 <p className="text-sm text-white font-semibold mb-1">Trial active</p>
                 <p className="text-[11px] text-gray-400 mb-3">
-                  {trialStatus.daysLeft} day{trialStatus.daysLeft === 1 ? "" : "s"} left · expires {new Date(trialStatus.expiresAt).toLocaleDateString()}
+                  {trialStatus.daysLeft} day{trialStatus.daysLeft === 1 ? "" : "s"} left · expires{" "}
+                  {new Date(trialStatus.expiresAt).toLocaleDateString()}
                 </p>
                 <Button
                   type="button"
@@ -483,13 +526,12 @@ export default function LoginPage() {
               </div>
             )}
 
-
             {/* Info */}
             <div className="flex items-start gap-2 rounded-lg bg-dark-700/50 p-3">
               <Shield size={14} className="text-accent-cyan mt-0.5 shrink-0" />
               <p className="text-[11px] text-gray-500 leading-relaxed">
-                Your credentials are encrypted and verified through our secure authentication server.
-                Contact support if you need assistance accessing your account.
+                Your credentials are encrypted and verified through our secure authentication
+                server. Contact support if you need assistance accessing your account.
               </p>
             </div>
           </div>

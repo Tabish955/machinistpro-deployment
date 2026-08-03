@@ -85,8 +85,7 @@ export function parseGCode(source: string): ParseResult {
     const kw = word(block, "K");
     const rw = word(block, "R");
 
-    const hasTarget =
-      xw !== undefined || zw !== undefined || uw !== undefined || ww !== undefined;
+    const hasTarget = xw !== undefined || zw !== undefined || uw !== undefined || ww !== undefined;
     if (!hasTarget) return;
 
     if (motion === null) {
@@ -96,7 +95,8 @@ export function parseGCode(source: string): ParseResult {
 
     const previous = { x, z };
     // U and W are always incremental; X and Z follow G90/G91.
-    if (uw !== undefined) x += uw * 2; // U is a radius change, X a diameter
+    if (uw !== undefined)
+      x += uw * 2; // U is a radius change, X a diameter
     else if (xw !== undefined) x = incremental ? x + xw : xw;
     if (ww !== undefined) z += ww;
     else if (zw !== undefined) z = incremental ? z + zw : zw;

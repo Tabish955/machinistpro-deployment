@@ -11,6 +11,7 @@ You picked Option 1: rebuild MachinistPro on Lovable's stack (TanStack Start + L
 ## Phases
 
 ### Phase 1 — Port shell (no feature freeze exceptions)
+
 - Recreate route tree under `src/routes/` matching the Next.js pages: home, calculators index, each calculator route, auth pages, dashboard.
 - Port shared UI (layout, header, footer, calculator card components) to TanStack + Tailwind v4 tokens defined in `src/styles.css`.
 - Copy static assets from `public/` in the repo into this project's `public/`.
@@ -18,6 +19,7 @@ You picked Option 1: rebuild MachinistPro on Lovable's stack (TanStack Start + L
 - No calculations wired yet — routes render placeholder shells.
 
 ### Phase 2 — Security (P0 #1, #2, #3, P2 #14, #15)
+
 - Enable Lovable Cloud.
 - Email/password + Google sign-in via Supabase Auth. Sessions are server-validated (httpOnly cookie via the integration's auth flow; no `mp_session` in localStorage).
 - Protected dashboard lives under `src/routes/_authenticated/` — server-gated by the integration-managed layout, not a client `ProtectedRoute`.
@@ -26,6 +28,7 @@ You picked Option 1: rebuild MachinistPro on Lovable's stack (TanStack Start + L
 - If KeyAuth is still required: wrap in a server function using POST with credentials in the JSON body; never in the URL. Confirm which path you want.
 
 ### Phase 3 — Calculation engine + tests (P0 #4, P1 #6, #7, #9, #10, #11)
+
 - Pure TypeScript calculation modules in `src/lib/calc/` — one file per domain (rpm, surfaceSpeed, feed, milling, turning, drilling, threads, machiningTime, materialWeight, units).
 - Each function returns a discriminated result: `{ valid: true, value, unit } | { valid: false, error }`. No more silent `0`.
 - Domain-specific input validation (integer flutes/teeth/passes, bounded RPM, positive dimensions, bounded percentages, valid thread pitch).
@@ -34,32 +37,38 @@ You picked Option 1: rebuild MachinistPro on Lovable's stack (TanStack Start + L
 - Every formula/data row carries `{ source, standard, edition, page, conditions, limitations, verifiedOn }` metadata surfaced in the UI as a "Source" tooltip/expander.
 
 ### Phase 4 — Material data (P1 #8)
+
 - Replace broad presets with specific grades: AISI 1018, 1045, 4140; SS 304, 316; Al 6061, 7075; Grey Cast Iron; Tool Steel D2.
 - Each entry keyed by `{grade, toolMaterial (HSS|Carbide), operation (mill|turn|drill), regime (rough|finish)}` with recommended range + citation.
 - Values sourced from Machinery's Handbook / manufacturer data; each entry cites its source. I'll flag any values I can't cite and mark those Beta.
 
 ### Phase 5 — Credibility pass (P1 #12, #13, P2 #18)
+
 - Remove "Always accurate", soften marketing copy to the wording you provided.
 - Module badges: Verified / Beta / Experimental / Coming Soon.
 - Global assumptions + safety disclaimer visible on every calculator page.
 - Dynamic `© {currentYear}`; version read from `package.json` at build time. Distinguish RC / Beta / Production in the footer.
 
 ### Phase 6 — Deploy + report
+
 - Publish via Lovable hosting.
 - Report: build status, list of compatibility fixes applied, env vars required (Supabase URL/keys are auto-injected by Lovable Cloud; KeyAuth key if kept), any deps that couldn't be installed, live URL.
 
 ## What I am NOT doing in this plan
+
 - No pilot-testing coordination (P5) — that's a human process on your side; I'll ship the app in a state ready for it.
 - No new calculators beyond the "Verified" list above until you approve.
 - No commit-message policy enforcement (P2 #17) — commits here are managed by Lovable's system.
 
 ## Technical notes (skim if non-technical)
+
 - Stack: TanStack Start v1 (React 19 + Vite 7) on Cloudflare Workers. No Node `pg`, no `next/*`, no Drizzle migrations — Lovable Cloud (Supabase) replaces Postgres/Drizzle.
 - Auth: integration-managed `_authenticated` layout, `requireSupabaseAuth` middleware, bearer attacher already wired in `src/start.ts`.
 - CSP: applied via `Response` headers from a request middleware in `src/start.ts`.
 - Tests: `vitest` run with `bunx vitest run`. Pure calc modules — no DOM/network needed.
 
 ## Ask before I start
+
 1. Confirm **Lovable Cloud** for auth (recommended) or insist on KeyAuth-in-POST.
 2. Confirm the initial "Verified" calculator list above, or edit it.
 3. Any calculators from the original site you want removed entirely (vs marked Coming Soon)?

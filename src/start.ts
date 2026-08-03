@@ -21,7 +21,12 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
   const res = await next();
   const r = res as unknown as { response?: Response } & Response;
   const target = r.response ?? (res as unknown as Response);
-  if (target && typeof target === "object" && "headers" in target && target.headers instanceof Headers) {
+  if (
+    target &&
+    typeof target === "object" &&
+    "headers" in target &&
+    target.headers instanceof Headers
+  ) {
     target.headers.set("Content-Security-Policy", CSP);
     target.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     target.headers.set("X-Content-Type-Options", "nosniff");

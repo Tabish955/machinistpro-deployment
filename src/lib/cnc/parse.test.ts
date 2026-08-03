@@ -4,12 +4,14 @@ import { parseGCode, centreFromRadius, pathBounds } from "./parse";
 describe("reading a lathe program", () => {
   it("carries the motion mode forward between blocks", () => {
     // G01 stays in force, so the later blocks are feeds without repeating it.
-    const { moves } = parseGCode(`
+    const { moves } = parseGCode(
+      `
       G00 X50 Z2
       G01 Z-20 F0.２
       X60
       Z-40
-    `.replace("F0.２", "F0.2"));
+    `.replace("F0.２", "F0.2"),
+    );
     expect(moves.map((m) => m.kind)).toEqual(["rapid", "feed", "feed", "feed"]);
   });
 

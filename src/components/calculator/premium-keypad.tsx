@@ -229,11 +229,7 @@ export function PremiumKeypad({ scientific = true }: { scientific?: boolean }) {
       {/* Scientific functions row 2 */}
       {scientific && (
         <div className="grid h-10 shrink-0 grid-cols-5 gap-1 sm:gap-1.5">
-          <CalcButton
-            onClick={() => inputFunction("sqrt")}
-            variant="function"
-            label="Square root"
-          >
+          <CalcButton onClick={() => inputFunction("sqrt")} variant="function" label="Square root">
             √
           </CalcButton>
           <CalcButton onClick={() => inputFunction("square")} variant="function" label="Square">

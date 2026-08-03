@@ -3,7 +3,7 @@
 export interface Material {
   id: string;
   name: string;
-  density: number;       // kg/m³
+  density: number; // kg/m³
   category: MaterialCategory;
   description: string;
 }
@@ -19,17 +19,29 @@ export const MATERIAL_CATEGORY_LABELS: Record<MaterialCategory, string> = {
 // ── Shape types ─────────────────────────────────────────────────────────────
 
 export type ShapeId =
-  | "round_bar" | "square_bar" | "hex_bar" | "flat_bar"
-  | "plate" | "block" | "cylinder" | "sphere"
-  | "pipe" | "tube" | "hollow_square" | "hollow_rect"
-  | "angle" | "channel" | "i_beam" | "t_section"
+  | "round_bar"
+  | "square_bar"
+  | "hex_bar"
+  | "flat_bar"
+  | "plate"
+  | "block"
+  | "cylinder"
+  | "sphere"
+  | "pipe"
+  | "tube"
+  | "hollow_square"
+  | "hollow_rect"
+  | "angle"
+  | "channel"
+  | "i_beam"
+  | "t_section"
   | "sheet";
 
 export interface DimensionField {
   id: string;
   label: string;
   placeholder: string;
-  unit: "length";        // always a length dimension
+  unit: "length"; // always a length dimension
 }
 
 export type ShapeGroup = "solid" | "hollow" | "structural" | "sheet";
@@ -76,8 +88,8 @@ export interface CostInputs {
 }
 
 export interface CostResult {
-  unitWeight: number;       // kg
-  totalWeight: number;      // kg
+  unitWeight: number; // kg
+  totalWeight: number; // kg
   materialCost: number;
   wasteCost: number;
   subtotal: number;

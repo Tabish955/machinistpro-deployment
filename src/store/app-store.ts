@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 
 interface AppState {
@@ -16,8 +15,7 @@ export const useAppStore = create<AppState>((set) => ({
   mobileSidebarOpen: false,
   activeModule: "dashboard",
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-  toggleMobileSidebar: () =>
-    set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
+  toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
   closeMobileSidebar: () => set({ mobileSidebarOpen: false }),
   setActiveModule: (module) => set({ activeModule: module }),
 }));

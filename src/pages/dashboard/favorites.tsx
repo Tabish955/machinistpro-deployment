@@ -1,4 +1,3 @@
-
 import { useHistoryStore } from "@/store/history-store";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,7 +11,7 @@ import { relativeTime } from "@/lib/core/history";
 export default function FavoritesPage() {
   const { entries, getFavorites, toggleFavorite, remove } = useHistoryStore();
   const favorites = getFavorites();
-  const suggestedModules = allCalculatorModules.filter(m => m.status === "available").slice(0, 4);
+  const suggestedModules = allCalculatorModules.filter((m) => m.status === "available").slice(0, 4);
 
   return (
     <div className="space-y-5 animate-fade-in max-w-4xl mx-auto">
@@ -28,15 +27,21 @@ export default function FavoritesPage() {
         <div>
           <SectionHeader title={`Starred Calculations (${favorites.length})`} />
           <div className="space-y-1.5">
-            {favorites.map(f => (
+            {favorites.map((f) => (
               <Card key={f.id} variant="solid" padding="md" className="border-dark-600">
                 <div className="flex items-center gap-4">
                   <Star size={14} className="text-accent-amber fill-accent-amber shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white truncate">{f.title}</p>
-                    <p className="text-[10px] text-gray-600">{f.moduleLabel} · {relativeTime(f.timestamp)}</p>
+                    <p className="text-[10px] text-gray-600">
+                      {f.moduleLabel} · {relativeTime(f.timestamp)}
+                    </p>
                   </div>
-                  <button onClick={() => toggleFavorite(f.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-accent-red hover:bg-accent-red/10 cursor-pointer transition-all" title="Remove">
+                  <button
+                    onClick={() => toggleFavorite(f.id)}
+                    className="p-1.5 rounded-lg text-gray-600 hover:text-accent-red hover:bg-accent-red/10 cursor-pointer transition-all"
+                    title="Remove"
+                  >
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -66,7 +71,9 @@ export default function FavoritesPage() {
       {/* Suggested */}
       <SectionHeader title="Suggested Tools" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {suggestedModules.map(m => <ModuleCard key={m.id} module={m} />)}
+        {suggestedModules.map((m) => (
+          <ModuleCard key={m.id} module={m} />
+        ))}
       </div>
     </div>
   );

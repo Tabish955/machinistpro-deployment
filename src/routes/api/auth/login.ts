@@ -1,9 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { randomBytes } from "crypto";
+import { issueSession } from "@/lib/session-server";
 
-interface MughalInitResponse { success: boolean; sessionid?: string; message?: string }
+// Mughal auth still needs `randomBytes` for HWID. Server session uses `issueSession`.
+
+interface MughalInitResponse {
+  success: boolean;
+  sessionid?: string;
+  message?: string;
+}
 interface MughalLoginResponse {
-  success: boolean; message?: string;
+  success: boolean;
+  message?: string;
   info?: { username: string; subscriptions?: Array<{ subscription: string; expiry: string }> };
 }
 
@@ -13,19 +21,29 @@ async function mughalInit() {
   const name = process.env.MUGHAL_APP_NAME || "MachinistPro";
   const ownerId = process.env.MUGHAL_OWNER_ID;
   const version = process.env.MUGHAL_VERSION || "1.0";
-  if (!ownerId) return { success: false as const, error: "Server configuration error: Missing MUGHAL_OWNER_ID" };
+  if (!ownerId)
+    return {
+      success: false as const,
+      error: "Server configuration error: Missing MUGHAL_OWNER_ID",
+    };
   try {
     const params = new URLSearchParams({ type: "init", ver: version, name, ownerid: ownerId });
     const res = await fetch(`${API_URL}?${params.toString()}`, {
-      method: "GET", headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
+      method: "GET",
+      headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
     });
     const text = await res.text();
     let data: MughalInitResponse;
-    try { data = JSON.parse(text) as MughalInitResponse; }
-    catch { return { success: false as const, error: "Invalid response from authentication server" }; }
+    try {
+      data = JSON.parse(text) as MughalInitResponse;
+    } catch {
+      return { success: false as const, error: "Invalid response from authentication server" };
+    }
     if (data.success) return { success: true as const, sessionId: data.sessionid };
     return { success: false as const, error: data.message || "Initialization failed" };
-  } catch { return { success: false as const, error: "Failed to connect to authentication server" }; }
+  } catch {
+    return { success: false as const, error: "Failed to connect to authentication server" };
+  }
 }
 
 async function mughalLogin(sessionId: string, username: string, password: string) {
@@ -36,15 +54,25 @@ async function mughalLogin(sessionId: string, username: string, password: string
   const hwid = randomBytes(16).toString("hex"); // 32 chars
   try {
     const params = new URLSearchParams({
-      type: "login", username, pass: password, sessionid: sessionId, name, ownerid: ownerId, hwid,
+      type: "login",
+      username,
+      pass: password,
+      sessionid: sessionId,
+      name,
+      ownerid: ownerId,
+      hwid,
     });
     const res = await fetch(`${API_URL}?${params.toString()}`, {
-      method: "GET", headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
+      method: "GET",
+      headers: { "User-Agent": "MachinistPro/1.0", Accept: "application/json" },
     });
     const text = await res.text();
     let data: MughalLoginResponse;
-    try { data = JSON.parse(text) as MughalLoginResponse; }
-    catch { return { success: false as const, error: "Invalid response from authentication server" }; }
+    try {
+      data = JSON.parse(text) as MughalLoginResponse;
+    } catch {
+      return { success: false as const, error: "Invalid response from authentication server" };
+    }
     if (data.success && data.info) {
       const sub = data.info.subscriptions?.[0];
       return {
@@ -55,7 +83,9 @@ async function mughalLogin(sessionId: string, username: string, password: string
       };
     }
     return { success: false as const, error: data.message || "Invalid username or password" };
-  } catch { return { success: false as const, error: "Authentication request failed. Please try again." }; }
+  } catch {
+    return { success: false as const, error: "Authentication request failed. Please try again." };
+  }
 }
 
 export const Route = createFileRoute("/api/auth/login")({
@@ -63,27 +93,58 @@ export const Route = createFileRoute("/api/auth/login")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const body = (await request.json()) as { username?: string; password?: string };
-          const { username, password } = body;
-          if (!username?.trim()) return Response.json({ success: false, error: "Username is required" }, { status: 400 });
-          if (!password) return Response.json({ success: false, error: "Password is required" }, { status: 400 });
+          const body = (await request.json()) as {
+            username?: string;
+            password?: string;
+            rememberMe?: boolean;
+          };
+          const { username, password, rememberMe } = body;
+          if (!username?.trim())
+            return Response.json(
+              { success: false, error: "Username is required" },
+              { status: 400 },
+            );
+          if (!password)
+            return Response.json(
+              { success: false, error: "Password is required" },
+              { status: 400 },
+            );
           const init = await mughalInit();
           if (!init.success || !init.sessionId) {
-            return Response.json({ success: false, error: init.error || "Authentication server unavailable" }, { status: 503 });
+            return Response.json(
+              { success: false, error: "Authentication server unavailable" },
+              { status: 503 },
+            );
           }
           const login = await mughalLogin(init.sessionId, username.trim(), password);
           if (!login.success) {
-            return Response.json({ success: false, error: login.error || "Invalid credentials" }, { status: 401 });
+            return Response.json(
+              { success: false, error: "Invalid username or password" },
+              { status: 401 },
+            );
           }
-          const sessionToken = randomBytes(32).toString("hex");
+          // Issue a server-persisted session token. Without this, session.ts can't
+          // distinguish a real login from localStorage forgery.
+          const issued = await issueSession({
+            username: login.username || username.trim(),
+            subscription: login.subscription || "Standard",
+            expiryDate: login.expiry || "",
+            rememberMe: rememberMe ?? false,
+          });
           return Response.json({
-            success: true, sessionToken,
+            success: true,
+            sessionToken: issued.token,
+            sessionExpiresAt: issued.expiresAt,
             username: login.username || username.trim(),
             subscription: login.subscription || "Standard",
             expiry: login.expiry || "",
           });
-        } catch {
-          return Response.json({ success: false, error: "An unexpected error occurred. Please try again." }, { status: 500 });
+        } catch (err) {
+          console.error("[/api/auth/login] failed:", err);
+          return Response.json(
+            { success: false, error: "An unexpected error occurred. Please try again." },
+            { status: 500 },
+          );
         }
       },
     },

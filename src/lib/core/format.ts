@@ -3,10 +3,10 @@
  */
 
 export interface FormatOptions {
-  precision?: number;         // significant digits (default 8)
-  fixed?: number;             // fixed decimal places (overrides precision)
+  precision?: number; // significant digits (default 8)
+  fixed?: number; // fixed decimal places (overrides precision)
   notation?: "auto" | "scientific" | "engineering" | "compact";
-  thousandsSep?: boolean;     // default true
+  thousandsSep?: boolean; // default true
 }
 
 const DEFAULT_PRECISION = 8;
@@ -18,12 +18,7 @@ export function formatNumber(n: number, opts: FormatOptions = {}): string {
   if (!isFinite(n)) return isNaN(n) ? "NaN" : n > 0 ? "∞" : "-∞";
   if (n === 0) return "0";
 
-  const {
-    precision = DEFAULT_PRECISION,
-    fixed,
-    notation = "auto",
-    thousandsSep = true,
-  } = opts;
+  const { precision = DEFAULT_PRECISION, fixed, notation = "auto", thousandsSep = true } = opts;
 
   // Force scientific
   if (notation === "scientific") {

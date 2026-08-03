@@ -1,17 +1,15 @@
-
 import { Link } from "@/lib/next-compat";
 import { usePathname } from "@/lib/next-compat";
 import { useAppStore } from "@/store/app-store";
 import { Logo } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
-import { calculatorModules, referenceModules, workspaceModules, systemModules } from "@/config/modules";
 import {
-  LayoutDashboard,
-  PanelLeftClose,
-  PanelLeft,
-  X,
-  ChevronDown,
-} from "lucide-react";
+  calculatorModules,
+  referenceModules,
+  workspaceModules,
+  systemModules,
+} from "@/config/modules";
+import { LayoutDashboard, PanelLeftClose, PanelLeft, X, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 interface NavSection {
@@ -22,9 +20,8 @@ interface NavSection {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { sidebarOpen, mobileSidebarOpen, toggleSidebar, closeMobileSidebar } =
-    useAppStore();
-  
+  const { sidebarOpen, mobileSidebarOpen, toggleSidebar, closeMobileSidebar } = useAppStore();
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     calculators: true,
     reference: true,
@@ -90,19 +87,19 @@ export function Sidebar() {
                 className="flex items-center justify-between w-full px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-dark-300 hover:text-gray-400 transition-colors cursor-pointer"
               >
                 {section.title}
-                <ChevronDown 
-                  size={12} 
+                <ChevronDown
+                  size={12}
                   className={`transition-transform ${openSections[section.title.toLowerCase()] ? "" : "-rotate-90"}`}
                 />
               </button>
             )}
-            
+
             {(openSections[section.title.toLowerCase()] || !sidebarOpen) && (
               <div className="space-y-0.5">
                 {section.items.map((mod) => {
                   const Icon = mod.icon;
                   const active = isActive(mod.href);
-                  
+
                   return (
                     <Link
                       key={mod.id}
@@ -119,10 +116,14 @@ export function Sidebar() {
                         <>
                           <span className="flex-1 truncate">{mod.shortName || mod.name}</span>
                           {mod.status === "coming-soon" && (
-                            <Badge color="gray" className="text-[8px] px-1.5">Soon</Badge>
+                            <Badge color="gray" className="text-[8px] px-1.5">
+                              Soon
+                            </Badge>
                           )}
                           {mod.status === "beta" && (
-                            <Badge color="purple" className="text-[8px] px-1.5">Beta</Badge>
+                            <Badge color="purple" className="text-[8px] px-1.5">
+                              Beta
+                            </Badge>
                           )}
                         </>
                       )}
@@ -139,9 +140,7 @@ export function Sidebar() {
       {sidebarOpen && (
         <div className="px-4 py-4 border-t border-dark-700/50">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] text-gray-700">
-              MachinistPro v1.0.0-rc1
-            </p>
+            <p className="text-[10px] text-gray-700">MachinistPro v1.0.0-rc1</p>
             <div className="w-2 h-2 rounded-full bg-accent-green animate-pulse" title="Online" />
           </div>
         </div>

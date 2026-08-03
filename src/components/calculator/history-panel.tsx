@@ -160,7 +160,9 @@ export function HistoryPanel({ onLoadItem }: { onLoadItem?: (item: CalculationRe
                       : "Load calculation"
                   }
                 >
-                  <p className="text-xs text-gray-500 font-mono truncate mb-1">{formatMath(item.expression)}</p>
+                  <p className="text-xs text-gray-500 font-mono truncate mb-1">
+                    {formatMath(item.expression)}
+                  </p>
                   <p className="text-xl font-bold text-white font-mono">= {item.displayResult}</p>
                 </button>
 

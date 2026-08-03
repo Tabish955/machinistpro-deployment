@@ -50,9 +50,7 @@ export function searchUnits(query: string, limit = 30): SearchResult[] {
     }
   }
 
-  return results
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  return results.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 /**
@@ -69,7 +67,7 @@ export function searchCategories(query: string): CategoryDef[] {
         (u) =>
           u.name.toLowerCase().includes(q) ||
           u.symbol.toLowerCase().includes(q) ||
-          u.aliases.some((a) => a.toLowerCase().includes(q))
-      )
+          u.aliases.some((a) => a.toLowerCase().includes(q)),
+      ),
   );
 }

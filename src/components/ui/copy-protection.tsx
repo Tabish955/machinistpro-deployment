@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 
 /**
@@ -23,11 +22,7 @@ export function CopyProtection() {
 
     const handleCopy = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
         return;
       }
       e.preventDefault();
@@ -36,9 +31,7 @@ export function CopyProtection() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isInput =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable;
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 
       // Block Ctrl+C / Ctrl+A on non-input elements
       if (!isInput && (e.ctrlKey || e.metaKey)) {

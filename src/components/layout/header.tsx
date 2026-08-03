@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
@@ -16,8 +15,9 @@ export function Header() {
   const { toggleMobileSidebar } = useAppStore();
   const { theme, toggleTheme, hydrate } = useThemeStore();
 
-  useEffect(() => { hydrate(); }, [hydrate]);
-
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   const [confirmTrialSignOut, setConfirmTrialSignOut] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -32,8 +32,7 @@ export function Header() {
   };
 
   const handleLogout = () => {
-    const isTrial =
-      typeof window !== "undefined" && localStorage.getItem("mp_trial") === "1";
+    const isTrial = typeof window !== "undefined" && localStorage.getItem("mp_trial") === "1";
     if (isTrial) {
       setAcknowledged(false);
       setConfirmTrialSignOut(true);
@@ -55,10 +54,7 @@ export function Header() {
 
         {/* Center: Search */}
         <div className="flex-1 max-w-md hidden sm:block">
-          <GlobalSearch 
-            placeholder="Search modules..."
-            className="w-full"
-          />
+          <GlobalSearch placeholder="Search modules..." className="w-full" />
         </div>
 
         {/* Mobile search icon */}
@@ -80,7 +76,7 @@ export function Header() {
 
           {/* Notifications */}
 
-          <button 
+          <button
             className="relative flex items-center justify-center w-9 h-9 rounded-lg text-gray-500 hover:text-white hover:bg-dark-700 transition-colors cursor-pointer"
             title="Notifications"
           >
@@ -107,12 +103,8 @@ export function Header() {
                 <User size={14} className="text-dark-950" />
               </div>
               <div className="hidden md:block">
-                <p className="text-xs font-medium text-white leading-none">
-                  {user.username}
-                </p>
-                <p className="text-[10px] text-gray-600 leading-none mt-0.5">
-                  {user.subscription}
-                </p>
+                <p className="text-xs font-medium text-white leading-none">{user.username}</p>
+                <p className="text-[10px] text-gray-600 leading-none mt-0.5">{user.subscription}</p>
               </div>
             </div>
           )}
@@ -137,9 +129,9 @@ export function Header() {
           <div className="w-full max-w-sm rounded-xl border border-dark-600 bg-dark-900 p-5">
             <h2 className="text-base font-semibold text-white">Sign out of your trial?</h2>
             <p className="mt-2 text-xs text-gray-400">
-              Your 14-day trial is tied to this device and keeps counting down while you are
-              signed out. When you sign back in you will get only the days that are left — the
-              trial is never restarted.
+              Your 14-day trial is tied to this device and keeps counting down while you are signed
+              out. When you sign back in you will get only the days that are left — the trial is
+              never restarted.
             </p>
             <label className="mt-4 flex items-start gap-2 text-xs text-gray-300">
               <input

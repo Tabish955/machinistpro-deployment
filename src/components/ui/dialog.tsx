@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback, type ReactNode } from "react";
 import { X } from "lucide-react";
 
@@ -19,17 +18,13 @@ const sizeClasses = {
   full: "max-w-4xl",
 };
 
-export function Dialog({ 
-  open, 
-  onClose, 
-  children, 
-  title, 
-  description,
-  size = "md" 
-}: DialogProps) {
-  const handleEscape = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
+export function Dialog({ open, onClose, children, title, description, size = "md" }: DialogProps) {
+  const handleEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    },
+    [onClose],
+  );
 
   useEffect(() => {
     if (open) {
@@ -47,13 +42,13 @@ export function Dialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-      
+
       {/* Dialog */}
-      <div 
+      <div
         className={`relative w-full ${sizeClasses[size]} rounded-2xl border border-dark-600 bg-dark-800 shadow-2xl animate-scale-in`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -61,12 +56,8 @@ export function Dialog({
         {(title || description) && (
           <div className="flex items-start justify-between p-6 pb-0">
             <div>
-              {title && (
-                <h2 className="text-lg font-semibold text-white">{title}</h2>
-              )}
-              {description && (
-                <p className="text-sm text-gray-500 mt-1">{description}</p>
-              )}
+              {title && <h2 className="text-lg font-semibold text-white">{title}</h2>}
+              {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
             </div>
             <button
               onClick={onClose}
@@ -76,11 +67,9 @@ export function Dialog({
             </button>
           </div>
         )}
-        
+
         {/* Content */}
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
@@ -93,7 +82,9 @@ interface DialogFooterProps {
 
 export function DialogFooter({ children, className = "" }: DialogFooterProps) {
   return (
-    <div className={`flex items-center justify-end gap-3 pt-4 border-t border-dark-600 mt-4 ${className}`}>
+    <div
+      className={`flex items-center justify-end gap-3 pt-4 border-t border-dark-600 mt-4 ${className}`}
+    >
       {children}
     </div>
   );

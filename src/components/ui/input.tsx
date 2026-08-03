@@ -1,4 +1,3 @@
-
 import { type InputHTMLAttributes, type ReactNode, forwardRef } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -18,9 +17,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <div className="relative">
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-              {icon}
-            </div>
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{icon}</div>
           )}
           <input
             ref={ref}
@@ -31,7 +28,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {error && <p className="text-xs text-accent-red">{error}</p>}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = "Input";

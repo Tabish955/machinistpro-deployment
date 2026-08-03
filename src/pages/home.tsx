@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { Logo } from "@/components/ui/logo";
@@ -73,7 +72,11 @@ export default function LandingPage() {
     if (!token || !storedUser) return;
 
     try {
-      const userData = JSON.parse(storedUser) as { username: string; subscription: string; expiry: string };
+      const userData = JSON.parse(storedUser) as {
+        username: string;
+        subscription: string;
+        expiry: string;
+      };
       setUser({
         username: userData.username || "User",
         subscription: userData.subscription || "Standard",
@@ -129,9 +132,8 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-base lg:text-lg text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-          A premium engineering calculator suite built for fabrication shops,
-          CNC operators, mechanical engineers, and technical students.
-          Every tool you need, in one place.
+          A premium engineering calculator suite built for fabrication shops, CNC operators,
+          mechanical engineers, and technical students. Every tool you need, in one place.
         </p>
 
         <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -173,16 +175,9 @@ export default function LandingPage() {
                 key={stat.label}
                 className="rounded-xl border border-dark-600 bg-dark-800/40 p-4 lg:p-6 text-center"
               >
-                <Icon
-                  size={20}
-                  className="text-accent-cyan mx-auto mb-2"
-                />
-                <p className="text-xl lg:text-2xl font-bold text-white mb-0.5">
-                  {stat.value}
-                </p>
-                <p className="text-[11px] text-gray-500 uppercase tracking-wider">
-                  {stat.label}
-                </p>
+                <Icon size={20} className="text-accent-cyan mx-auto mb-2" />
+                <p className="text-xl lg:text-2xl font-bold text-white mb-0.5">{stat.value}</p>
+                <p className="text-[11px] text-gray-500 uppercase tracking-wider">{stat.label}</p>
               </div>
             );
           })}
@@ -209,9 +204,7 @@ export default function LandingPage() {
                 <div className={`rounded-lg ${f.bg} p-2.5 w-fit mb-3`}>
                   <Icon size={20} className={f.color} />
                 </div>
-                <h3 className="text-sm font-semibold text-white mb-1">
-                  {f.title}
-                </h3>
+                <h3 className="text-sm font-semibold text-white mb-1">{f.title}</h3>
                 <p className="text-xs text-gray-500">{f.desc}</p>
               </div>
             );
@@ -219,9 +212,7 @@ export default function LandingPage() {
 
           {/* Additional tools */}
           <div className="rounded-xl border border-dashed border-dark-500 bg-dark-800/20 p-5 flex items-center justify-center">
-            <p className="text-xs text-gray-600 text-center">
-              And more engineering tools inside
-            </p>
+            <p className="text-xs text-gray-600 text-center">And more engineering tools inside</p>
           </div>
         </div>
       </section>
@@ -231,14 +222,14 @@ export default function LandingPage() {
         <div className="rounded-2xl border border-dark-600 bg-dark-800/50 p-8 lg:p-12 text-center relative overflow-hidden">
           <div className="absolute top-0 left-1/4 w-64 h-64 bg-accent-cyan/5 rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-accent-purple/5 rounded-full blur-3xl" />
-          
+
           <div className="relative">
             <h2 className="text-2xl lg:text-3xl font-bold text-white mb-3">
               Ready to get started?
             </h2>
             <p className="text-gray-500 max-w-md mx-auto mb-6">
-              Sign in with your account credentials to access the full suite of
-              precision engineering tools.
+              Sign in with your account credentials to access the full suite of precision
+              engineering tools.
             </p>
             {isAuthenticated ? (
               <Link href="/dashboard">
@@ -260,11 +251,21 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-dark-700/50 py-8">
         <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-700 mb-3">
-          <Link href="/about" className="hover:text-gray-400 transition-colors">About</Link>
-          <Link href="/faq" className="hover:text-gray-400 transition-colors">FAQ</Link>
-          <Link href="/privacy" className="hover:text-gray-400 transition-colors">Privacy Policy</Link>
-          <Link href="/terms" className="hover:text-gray-400 transition-colors">Terms & Conditions</Link>
-          <Link href="/contact" className="hover:text-gray-400 transition-colors">Contact</Link>
+          <Link href="/about" className="hover:text-gray-400 transition-colors">
+            About
+          </Link>
+          <Link href="/faq" className="hover:text-gray-400 transition-colors">
+            FAQ
+          </Link>
+          <Link href="/privacy" className="hover:text-gray-400 transition-colors">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-gray-400 transition-colors">
+            Terms & Conditions
+          </Link>
+          <Link href="/contact" className="hover:text-gray-400 transition-colors">
+            Contact
+          </Link>
         </div>
         <p className="text-[11px] text-gray-700 text-center">
           © 2025 MachinistPro · Precision Engineering Tools · v1.0.0-rc1

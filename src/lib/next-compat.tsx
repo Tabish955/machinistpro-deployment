@@ -30,7 +30,12 @@ export const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(function Link
     );
   }
   return (
-    <TSLink ref={ref} to={target as string} replace={replace} {...(rest as Record<string, unknown>)}>
+    <TSLink
+      ref={ref}
+      to={target as string}
+      replace={replace}
+      {...(rest as Record<string, unknown>)}
+    >
       {children}
     </TSLink>
   );

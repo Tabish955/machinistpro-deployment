@@ -36,7 +36,7 @@ describe("3D shapes", () => {
     expect(calc("pyramid", { a: 6, h: 4 })["Volume"]).toBe(48);
     expect(calc("torus", { R: 5, r: 2 })["Volume"]).toBeCloseTo(2 * Math.PI ** 2 * 5 * 4, 9);
     expect(calc("frustum", { R: 4, r: 2, h: 6 })["Volume"]).toBeCloseTo(
-      (Math.PI * 6 / 3) * (16 + 8 + 4),
+      ((Math.PI * 6) / 3) * (16 + 8 + 4),
       9,
     );
   });

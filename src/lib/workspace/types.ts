@@ -10,13 +10,13 @@ export interface Project {
   isPinned: boolean;
   isArchived: boolean;
   calculations: SavedCalc[];
-  notes: string;        // markdown-like plain text
+  notes: string; // markdown-like plain text
   variables: ProjectVar[];
 }
 
 export interface SavedCalc {
   id: string;
-  module: string;       // e.g. "scientific", "weight", "machining"
+  module: string; // e.g. "scientific", "weight", "machining"
   moduleLabel: string;
   title: string;
   inputs: Record<string, string>;
@@ -42,17 +42,22 @@ export interface ProjectTemplate {
 
 export const TEMPLATES: ProjectTemplate[] = [
   {
-    id: "cnc_job", name: "CNC Job", description: "CNC machining job with material and cutting parameters",
+    id: "cnc_job",
+    name: "CNC Job",
+    description: "CNC machining job with material and cutting parameters",
     tags: ["cnc", "machining"],
     variables: [
       { id: "v1", name: "Material", value: "Aluminum 6061", unit: "" },
       { id: "v2", name: "Stock Size", value: "", unit: "mm" },
       { id: "v3", name: "Quantity", value: "1", unit: "pcs" },
     ],
-    notes: "# CNC Job Notes\n\n- [ ] Material ordered\n- [ ] Program verified\n- [ ] First article approved\n- [ ] Production run complete",
+    notes:
+      "# CNC Job Notes\n\n- [ ] Material ordered\n- [ ] Program verified\n- [ ] First article approved\n- [ ] Production run complete",
   },
   {
-    id: "fab_estimate", name: "Fabrication Estimate", description: "Material cost and fabrication estimate",
+    id: "fab_estimate",
+    name: "Fabrication Estimate",
+    description: "Material cost and fabrication estimate",
     tags: ["fabrication", "estimate"],
     variables: [
       { id: "v1", name: "Material", value: "", unit: "" },
@@ -63,7 +68,9 @@ export const TEMPLATES: ProjectTemplate[] = [
     notes: "# Fabrication Estimate\n\n## Materials\n\n## Labor\n\n## Total",
   },
   {
-    id: "mech_design", name: "Mechanical Design", description: "Stress analysis and component design",
+    id: "mech_design",
+    name: "Mechanical Design",
+    description: "Stress analysis and component design",
     tags: ["mechanical", "design", "stress"],
     variables: [
       { id: "v1", name: "Material", value: "", unit: "" },
@@ -73,7 +80,9 @@ export const TEMPLATES: ProjectTemplate[] = [
     notes: "# Mechanical Design\n\n## Requirements\n\n## Analysis\n\n## Results",
   },
   {
-    id: "material_est", name: "Material Estimate", description: "Material weight and cost estimation",
+    id: "material_est",
+    name: "Material Estimate",
+    description: "Material weight and cost estimation",
     tags: ["material", "weight", "cost"],
     variables: [
       { id: "v1", name: "Material", value: "Mild Steel", unit: "" },
@@ -82,7 +91,9 @@ export const TEMPLATES: ProjectTemplate[] = [
     notes: "# Material Estimate\n\n## Items\n\n## Summary",
   },
   {
-    id: "sheet_metal", name: "Sheet Metal Project", description: "Sheet metal bending and layout",
+    id: "sheet_metal",
+    name: "Sheet Metal Project",
+    description: "Sheet metal bending and layout",
     tags: ["sheet metal", "bending"],
     variables: [
       { id: "v1", name: "Material", value: "", unit: "" },

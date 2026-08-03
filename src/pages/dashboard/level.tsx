@@ -73,12 +73,11 @@ export default function LevelPage() {
         return;
       }
     }
-    const motionRequest = (
+    const motionRequest =
       typeof DeviceMotionEvent !== "undefined"
         ? (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> })
             .requestPermission
-        : undefined
-    );
+        : undefined;
     if (typeof motionRequest === "function") {
       // A refusal here only costs the automatic mode switch, so it is not fatal.
       try {
@@ -161,8 +160,8 @@ export default function LevelPage() {
         <Card variant="solid" padding="md" className="border-dark-600 text-center py-10">
           {status === "unsupported" ? (
             <p className="text-sm text-gray-400">
-              This device has no tilt sensor, or the browser does not expose one. The level needs
-              a phone or tablet.
+              This device has no tilt sensor, or the browser does not expose one. The level needs a
+              phone or tablet.
             </p>
           ) : status === "denied" ? (
             <p className="text-sm text-gray-400">
@@ -173,7 +172,10 @@ export default function LevelPage() {
               <p className="text-sm text-gray-400 mb-4">
                 Lay the phone on the surface you want to check.
               </p>
-              <button onClick={start} className="rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-5 py-2.5 text-sm font-semibold text-accent-cyan hover:bg-accent-cyan/20">
+              <button
+                onClick={start}
+                className="rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-5 py-2.5 text-sm font-semibold text-accent-cyan hover:bg-accent-cyan/20"
+              >
                 Start level
               </button>
               <p className="mt-4 text-[10px] text-gray-600">
@@ -190,7 +192,9 @@ export default function LevelPage() {
                 <div className="flex flex-col items-center py-2">
                   <div
                     className={`relative h-56 w-56 rounded-full border-2 transition-colors ${
-                      level ? "border-accent-green/70 bg-accent-green/[0.06]" : "border-dark-600 bg-dark-900/60"
+                      level
+                        ? "border-accent-green/70 bg-accent-green/[0.06]"
+                        : "border-dark-600 bg-dark-900/60"
                     }`}
                   >
                     <div className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dark-500" />
@@ -200,10 +204,14 @@ export default function LevelPage() {
                       className={`absolute left-1/2 top-1/2 h-12 w-12 rounded-full transition-transform ${
                         level ? "bg-accent-green/70" : "bg-accent-cyan/70"
                       }`}
-                      style={{ transform: `translate(calc(-50% + ${bubbleX}%), calc(-50% + ${bubbleY}%))` }}
+                      style={{
+                        transform: `translate(calc(-50% + ${bubbleX}%), calc(-50% + ${bubbleY}%))`,
+                      }}
                     />
                   </div>
-                  <p className={`mt-5 font-mono text-4xl ${level ? "text-accent-green" : "text-white"}`}>
+                  <p
+                    className={`mt-5 font-mono text-4xl ${level ? "text-accent-green" : "text-white"}`}
+                  >
                     {formatSlope(total, unit)}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
@@ -214,11 +222,15 @@ export default function LevelPage() {
 
                 <div className="mt-4 grid grid-cols-2 gap-3 border-t border-dark-700 pt-4">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Front · back</p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      Front · back
+                    </p>
                     <p className="font-mono text-lg text-white">{formatSlope(tilt.pitch, unit)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Left · right</p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      Left · right
+                    </p>
                     <p className="font-mono text-lg text-white">{formatSlope(tilt.roll, unit)}</p>
                   </div>
                 </div>
@@ -228,25 +240,43 @@ export default function LevelPage() {
                 {/* Stood on an edge, only the angle in the screen plane means anything,
                     so a seesaw beam replaces the bubble. */}
                 <div className="flex flex-col items-center py-4">
-                  <svg viewBox="0 0 240 150" className="w-full max-w-sm" role="img"
-                    aria-label="Edge level beam">
-                    <line x1="14" y1="118" x2="226" y2="118" stroke="#8b93a7" strokeWidth="1"
-                      strokeDasharray="6 4" />
+                  <svg
+                    viewBox="0 0 240 150"
+                    className="w-full max-w-sm"
+                    role="img"
+                    aria-label="Edge level beam"
+                  >
+                    <line
+                      x1="14"
+                      y1="118"
+                      x2="226"
+                      y2="118"
+                      stroke="#8b93a7"
+                      strokeWidth="1"
+                      strokeDasharray="6 4"
+                    />
                     <g transform={`rotate(${Math.max(-35, Math.min(35, edgeShown))} 120 92)`}>
-                      <rect x="26" y="84" width="188" height="16" rx="8"
+                      <rect
+                        x="26"
+                        y="84"
+                        width="188"
+                        height="16"
+                        rx="8"
                         fill={edgeLevel ? "rgba(34,197,94,0.22)" : "rgba(0,212,255,0.18)"}
-                        stroke={edgeLevel ? "#22c55e" : "#00d4ff"} strokeWidth="2" />
+                        stroke={edgeLevel ? "#22c55e" : "#00d4ff"}
+                        strokeWidth="2"
+                      />
                       <circle cx="120" cy="92" r="5" fill={edgeLevel ? "#22c55e" : "#00d4ff"} />
                     </g>
                     <polygon points="120,92 134,124 106,124" fill="#8b93a7" opacity="0.5" />
                   </svg>
-                  <p className={`mt-4 font-mono text-4xl ${edgeLevel ? "text-accent-green" : "text-white"}`}>
+                  <p
+                    className={`mt-4 font-mono text-4xl ${edgeLevel ? "text-accent-green" : "text-white"}`}
+                  >
                     {formatSlope(Math.abs(edgeShown), unit)}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    {edgeLevel
-                      ? "Level"
-                      : `${edgeShown > 0 ? "right" : "left"} side low`}
+                    {edgeLevel ? "Level" : `${edgeShown > 0 ? "right" : "left"} side low`}
                     {" · on its "}
                     {heldOn === "portrait" ? "short edge" : "long edge"}
                     {heldEdge !== null && " · held"}
@@ -297,7 +327,11 @@ export default function LevelPage() {
                 }}
                 className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:text-white"
               >
-                {(mode === "edge" ? heldEdge !== null : held !== null) ? <Play size={13} /> : <Pause size={13} />}
+                {(mode === "edge" ? heldEdge !== null : held !== null) ? (
+                  <Play size={13} />
+                ) : (
+                  <Pause size={13} />
+                )}
                 {(mode === "edge" ? heldEdge !== null : held !== null) ? "Resume" : "Hold reading"}
               </button>
               <button

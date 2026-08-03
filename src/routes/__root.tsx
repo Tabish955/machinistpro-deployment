@@ -96,9 +96,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "MachinistPro — Engineering Calculator Suite" },
-      { name: "twitter:description", content: "Premium engineering calculator suite for machinists, CNC operators, fabrication shops, mechanical engineers, and students." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a5b92dbf-3c9b-49ea-b550-a289703ca6aa" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a5b92dbf-3c9b-49ea-b550-a289703ca6aa" },
+      {
+        name: "twitter:description",
+        content:
+          "Premium engineering calculator suite for machinists, CNC operators, fabrication shops, mechanical engineers, and students.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a5b92dbf-3c9b-49ea-b550-a289703ca6aa",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a5b92dbf-3c9b-49ea-b550-a289703ca6aa",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

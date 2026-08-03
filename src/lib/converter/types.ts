@@ -2,18 +2,19 @@ export interface UnitDef {
   id: string;
   name: string;
   symbol: string;
-  aliases: string[];            // search synonyms
-  toBase: number | ((v: number) => number);   // multiply to convert TO base
+  aliases: string[]; // search synonyms
+  toBase: number | ((v: number) => number); // multiply to convert TO base
   fromBase: number | ((v: number) => number); // multiply to convert FROM base
 }
 
 export interface CategoryDef {
   id: string;
   name: string;
-  icon: string;           // lucide icon name
-  baseUnit: string;       // id of the base unit
+  icon: string; // lucide icon name
+  baseUnit: string; // id of the base unit
   units: UnitDef[];
-  group: "basic" | "engineering" | "electrical" | "computing" | "fluid" | "chemistry" | "construction";
+  group:
+    "basic" | "engineering" | "electrical" | "computing" | "fluid" | "chemistry" | "construction";
 }
 
 export interface ConversionResult {
