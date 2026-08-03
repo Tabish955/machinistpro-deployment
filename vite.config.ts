@@ -12,4 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    // Vercel output preset — TanStack Start will emit .vercel/output/* on `vite build`.
+    // Set NITRO_PRESET=cloudflare to override if you ever deploy there.
+    preset: process.env.NITRO_PRESET || "vercel",
+  },
 });
