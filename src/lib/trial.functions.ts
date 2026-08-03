@@ -4,64 +4,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { createHash } from "node:crypto";
 import { issueSession } from "./session-server";
+import {
+  clientSignalsSchema,
+  hashFingerprint,
+  hashIp,
+  extractIp,
+  type ClientSignals,
+} from "./device-server";
 
 const TRIAL_DAYS = 14;
 const MAX_TRIALS_PER_IP = 3;
-
-const clientSignalsSchema = z.object({
-  screen: z.string().max(64),
-  tz: z.string().max(64),
-  lang: z.string().max(32),
-  platform: z.string().max(64),
-  hardware: z.string().max(64),
-  canvas: z.string().max(256),
-  webgl: z.string().max(256),
-  fonts: z.string().max(256),
-});
-type ClientSignals = z.infer<typeof clientSignalsSchema>;
-
-function pepper() {
-  // Stable across deployments: prefer an explicit app secret so moving the app
-  // to another host (Vercel, self-host) does not reset every device hash.
-  return (
-    process.env.TRIAL_PEPPER ||
-    process.env.MUGHAL_APP_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 32) ||
-    "mp-fallback-pepper-v1"
-  );
-}
-function sha256(s: string) {
-  return createHash("sha256").update(s).digest("hex");
-}
-function hashFingerprint(sig: ClientSignals, ua: string, ipHash: string) {
-  const canonical = [
-    sig.screen,
-    sig.tz,
-    sig.lang,
-    sig.platform,
-    sig.hardware,
-    sig.canvas,
-    sig.webgl,
-    sig.fonts,
-    ua,
-    ipHash,
-  ].join("|");
-  return sha256(pepper() + "::" + canonical);
-}
-function hashIp(ip: string) {
-  return sha256(pepper() + "::ip::" + ip);
-}
-function extractIp(req: Request): string {
-  const h = req.headers;
-  return (
-    h.get("cf-connecting-ip") ||
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    h.get("x-real-ip") ||
-    "0.0.0.0"
-  );
-}
 
 async function loadContext(signals: ClientSignals) {
   const req = getRequest();

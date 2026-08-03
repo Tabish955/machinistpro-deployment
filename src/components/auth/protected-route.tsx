@@ -14,6 +14,7 @@ interface SessionValidateResponse {
     subscription: string;
     expiry: string;
     isTrial?: boolean;
+    isAdmin?: boolean;
   };
 }
 
@@ -69,6 +70,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           subscription: body.user.subscription,
           expiry: body.user.expiry,
           sessionToken: token,
+          isAdmin: body.user.isAdmin ?? false,
         });
       } catch {
         if (cancelled) return;
