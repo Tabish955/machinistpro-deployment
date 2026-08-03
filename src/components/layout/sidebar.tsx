@@ -9,7 +9,8 @@ import {
   workspaceModules,
   systemModules,
 } from "@/config/modules";
-import { LayoutDashboard, PanelLeftClose, PanelLeft, X, ChevronDown } from "lucide-react";
+import { LayoutDashboard, PanelLeftClose, PanelLeft, X, ChevronDown, ShieldCheck } from "lucide-react";
+import { useAuthStore } from "@/store/auth-store";
 import { useState } from "react";
 
 interface NavSection {
@@ -21,6 +22,7 @@ interface NavSection {
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, mobileSidebarOpen, toggleSidebar, closeMobileSidebar } = useAppStore();
+  const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false);
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     calculators: true,
@@ -77,6 +79,21 @@ export function Sidebar() {
           <LayoutDashboard size={18} />
           {sidebarOpen && <span>Dashboard</span>}
         </Link>
+
+        {isAdmin && (
+          <Link
+            href="/dashboard/admin"
+            onClick={closeMobileSidebar}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+              isActive("/dashboard/admin")
+                ? "bg-gradient-to-r from-accent-purple/20 to-accent-purple/5 text-accent-purple border border-accent-purple/20"
+                : "text-gray-400 hover:text-white hover:bg-dark-700"
+            }`}
+          >
+            <ShieldCheck size={18} />
+            {sidebarOpen && <span>Admin Panel</span>}
+          </Link>
+        )}
 
         {/* Sections */}
         {sections.map((section) => (

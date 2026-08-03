@@ -14,6 +14,7 @@ interface SessionValidateResponse {
     subscription: string;
     expiry: string;
     isTrial?: boolean;
+    isAdmin?: boolean;
   };
 }
 
@@ -32,8 +33,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (checkedRef.current) return;
     checkedRef.current = true;
 
-    let cancelled = false;
-    (async () => {
+    void (async () => {
       const token = localStorage.getItem("mp_session");
       if (!token) {
         setCheckFailed(true);
@@ -46,7 +46,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionToken: token }),
         });
-        if (cancelled) return;
         if (res.status !== 200) {
           localStorage.removeItem("mp_session");
           localStorage.removeItem("mp_user");
@@ -69,17 +68,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           subscription: body.user.subscription,
           expiry: body.user.expiry,
           sessionToken: token,
+          isAdmin: body.user.isAdmin ?? false,
         });
       } catch {
-        if (cancelled) return;
         // Network should not silently log the user out, but it cannot grant access either.
         setCheckFailed(true);
         router.replace("/login");
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [router, setUser, status, user]);
 
   if (status === "loading" || (status === "idle" && !user && !checkFailed)) {

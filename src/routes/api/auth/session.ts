@@ -30,6 +30,7 @@ export const Route = createFileRoute("/api/auth/session")({
               subscription: session.subscription,
               expiry: session.expiry,
               isTrial: session.isTrial,
+              isAdmin: session.isAdmin,
             },
             expiresAt: session.expiresAt,
           });

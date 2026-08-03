@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ClientProviders } from "@/components/ui/client-providers";
 import { ToastContainer } from "@/components/ui/toast";
+import { AnnouncementBanner } from "@/components/site-notice";
 
 function NotFoundComponent() {
   return (
@@ -151,6 +152,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ClientProviders />
+      <AnnouncementBanner />
       <Outlet />
       <ToastContainer />
     </QueryClientProvider>
