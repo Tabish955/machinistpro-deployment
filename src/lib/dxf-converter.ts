@@ -615,7 +615,10 @@ export function traceRasterContours(
     // staircase spikes it was meant to remove.
     const smoothed = destaircase(points, Math.max(1, Math.round(step * 1.5)));
     const corners = detectCorners(smoothed, Math.max(2, Math.round(step * 2)), 0.7);
-    const epsilon = step * 0.45;
+    // Well under half a sample. The staircase is already gone by this point, so
+    // anything deleted here is real shape: at 0.45 the chords between surviving
+    // points were visible in CAD as flats on what should be a smooth curve.
+    const epsilon = step * 0.12;
     const simplified = simplifyBetweenCorners(smoothed, corners, epsilon);
     // Three points is the smallest closed shape there is. Requiring five threw
     // away every traced rectangle — a square simplifies to its four corners.
