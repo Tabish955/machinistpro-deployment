@@ -1151,8 +1151,12 @@ export function toSvgPathData(paths: DxfPath[], tolerance = 0.8): string[] {
       if (primitive.type === "line") {
         parts.push(`M${xy(primitive.start)} L${xy(primitive.end)}`);
       } else if (primitive.type === "arc") {
-        // DXF angles are measured anticlockwise with y running up; the preview
-        // runs y down, which turns the same sweep into a clockwise one.
+        // A DXF arc runs anticlockwise from its start angle, and those angles
+        // were measured in CAD's y-up frame. Mapping an angle back to this
+        // y-down frame subtracts the sine, which leaves the traversal turning
+        // anticlockwise on screen as well — so the SVG sweep flag is 0.
+        // Writing 1 draws every arc mirrored about its own chord, which turned
+        // traced lettering into a ring of inward spikes.
         const radians = (degrees: number) => (degrees * Math.PI) / 180;
         const on = (degrees: number) => ({
           x: primitive.center.x + Math.cos(radians(degrees)) * primitive.radius,
@@ -1161,7 +1165,7 @@ export function toSvgPathData(paths: DxfPath[], tolerance = 0.8): string[] {
         const swept = (((primitive.endAngle - primitive.startAngle) % 360) + 360) % 360;
         const r = primitive.radius.toFixed(3);
         parts.push(
-          `M${xy(on(primitive.startAngle))} A${r},${r} 0 ${swept > 180 ? 1 : 0} 1 ${xy(on(primitive.endAngle))}`,
+          `M${xy(on(primitive.startAngle))} A${r},${r} 0 ${swept > 180 ? 1 : 0} 0 ${xy(on(primitive.endAngle))}`,
         );
       } else {
         const [first, ...rest] = primitive.controls;

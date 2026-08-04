@@ -74,6 +74,41 @@ function strayFrom(points: DxfPoint[], outline: DxfPoint[]): number {
   return worst;
 }
 
+/**
+ * The midpoint of every elliptical arc in some SVG path data.
+ *
+ * An "A" command does not say where its centre is; the centre is implied by the
+ * endpoints together with the large-arc and sweep flags, and getting either flag
+ * wrong silently swaps in a different arc through the same two points. So the
+ * only way to test what an "A" actually draws is to do the endpoint-to-centre
+ * conversion from the SVG specification and look at the curve it names.
+ */
+function arcMidpoints(data: string): DxfPoint[] {
+  const pattern =
+    /M\s*(-?[\d.]+),(-?[\d.]+)\s*A\s*(-?[\d.]+),(-?[\d.]+)\s+0\s+([01])\s+([01])\s+(-?[\d.]+),(-?[\d.]+)/g;
+  const midpoints: DxfPoint[] = [];
+  for (const match of data.matchAll(pattern)) {
+    const [x1, y1, radius, , large, sweep, x2, y2] = match.slice(1).map(Number);
+    const halfX = (x1 - x2) / 2;
+    const halfY = (y1 - y2) / 2;
+    const squared = halfX * halfX + halfY * halfY;
+    const factor = Math.sqrt(Math.max(0, radius * radius - squared) / squared);
+    const sign = large !== sweep ? 1 : -1;
+    const cx = sign * factor * halfY + (x1 + x2) / 2;
+    const cy = sign * factor * -halfX + (y1 + y2) / 2;
+
+    const from = Math.atan2(y1 - cy, x1 - cx);
+    const to = Math.atan2(y2 - cy, x2 - cx);
+    // sweep 1 travels in the direction of increasing angle, sweep 0 against it.
+    let delta = to - from;
+    if (sweep) while (delta < 0) delta += Math.PI * 2;
+    else while (delta > 0) delta -= Math.PI * 2;
+    const middle = from + delta / 2;
+    midpoints.push({ x: cx + Math.cos(middle) * radius, y: cy + Math.sin(middle) * radius });
+  }
+  return midpoints;
+}
+
 function raster(width: number, height: number, inside: (x: number, y: number) => boolean) {
   const pixels = new Uint8ClampedArray(width * height * 4).fill(255);
   for (let y = 0; y < height; y++)
@@ -491,6 +526,17 @@ describe("curves export as splines", () => {
     const circle = raster(600, 600, (x, y) => Math.hypot(x - 300, y - 300) <= 200);
     const [round] = traceRasterContours(circle, 600, 600, 128, false);
     expect(toSvgPathData([round], 0.8)[0]).toContain("A");
+
+    // Every arc the preview draws has to curve the way the outline curves. The
+    // sweep flag was 1 where it should have been 0, which mirrored each arc
+    // about its own chord: traced lettering came out as a ring of inward spikes
+    // while the DXF beside it was correct. Asserting the path data merely
+    // contained an "A" said nothing about which arc that "A" named.
+    for (const shape of [round, wavyContour]) {
+      const midpoints = arcMidpoints(toSvgPathData([shape], 0.8)[0]);
+      expect(midpoints.length).toBeGreaterThan(0);
+      expect(strayFrom(midpoints, shape.points)).toBeLessThan(1.2);
+    }
 
     // Vector geometry is not fitted, so it previews as the polyline it is.
     const drawn = toSvgPathData(
