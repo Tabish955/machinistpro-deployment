@@ -543,16 +543,32 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
           consistent = false;
         sweep += delta;
       }
+      // A nearly straight run of points fits a colossal circle almost perfectly:
+      // three points a hair off collinear give a radius of hundreds of units and
+      // pass the radial test easily. Exported, those became 500 mm arcs bulging
+      // across a drawing whose real features were fifty. An arc has to be
+      // genuinely curved relative to its own span to be worth calling an arc.
+      const chord = Math.hypot(points[end].x - points[index].x, points[end].y - points[index].y);
+      // Sagitta: how far the arc departs from its own chord. Below the fitting
+      // tolerance there is no curve here worth keeping — it is a line.
+      const sagitta = circle.radius * (1 - Math.cos(Math.abs(sweep) / 2));
+      const plausibleRadius = circle.radius <= chord * 12;
+
       if (
         radialError <= tolerance &&
         consistent &&
         Math.abs(sweep) >= 0.12 &&
-        Math.abs(sweep) < Math.PI * 1.95
+        Math.abs(sweep) < Math.PI * 1.95 &&
+        sagitta > tolerance &&
+        plausibleRadius
       )
         bestArc = { end, circle, sweep };
     }
 
-    if (bestArc && bestArc.end - index >= bestLineEnd - index) {
+    // Ties go to the line. An arc has to cover strictly more points than a
+    // straight fit to earn its place, or a straight run gets exported as a huge
+    // shallow arc that only looks straight until the machine follows it.
+    if (bestArc && bestArc.end > bestLineEnd) {
       const start = points[index];
       const end = points[bestArc.end];
       let startAngle =

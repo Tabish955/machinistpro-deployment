@@ -132,6 +132,39 @@ describe("bugs found reviewing the first version", () => {
     expect(applyMatrix(parseTransform(""), { x: 3, y: 4 })).toEqual({ x: 3, y: 4 });
   });
 
+  it("does not turn a nearly straight run into a colossal arc", () => {
+    // From a real export: a puzzle outline 1050 units across came out with arcs
+    // of radius 340, 363, 539. Three points a hair off collinear fit an enormous
+    // circle almost perfectly, and it passed the radial test every time.
+    const almostStraight = {
+      points: Array.from({ length: 40 }, (_, i) => ({
+        x: i * 10,
+        y: Math.sin(i / 39) * 0.3, // wanders well under a millimetre
+      })),
+      layer: "TRACE",
+    };
+    const dxf = createDxf([almostStraight], 1, "mm", 1);
+    const radii = [...dxf.matchAll(/\r\n40\r\n([\d.]+)/g)].map((m) => Number(m[1]));
+    const span = 390;
+    for (const radius of radii) {
+      expect(radius).toBeLessThan(span * 12);
+    }
+  });
+
+  it("still fits a genuine circle as arcs", () => {
+    // The guard must not throw away real curvature.
+    const circle = {
+      points: Array.from({ length: 64 }, (_, i) => {
+        const a = (i / 64) * Math.PI * 2;
+        return { x: 100 + Math.cos(a) * 50, y: 100 + Math.sin(a) * 50 };
+      }),
+      closed: true,
+      layer: "TRACE",
+    };
+    const stats = analyzeCadGeometry([circle], 1);
+    expect(stats.arcs).toBeGreaterThan(0);
+  });
+
   it("refuses to measure nothing instead of writing NaN", () => {
     // Math.min of an empty list is Infinity, which put NaN at every coordinate.
     expect(() => getBounds([])).toThrow("no geometry");
