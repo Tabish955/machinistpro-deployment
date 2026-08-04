@@ -138,15 +138,14 @@ describe("issueSession", () => {
     expect(inserted[0].is_trial).toBe(true);
   });
 
-  it("degrades gracefully when the insert fails (still returns a token)", async () => {
+  it("throws when the insert fails so the caller never hands out an unvalidatable token", async () => {
     mocks.insertFn.mockResolvedValueOnce({ error: { message: "db down" } });
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { token, expiresAt } = await issueSession({ username: "u" });
-    expect(token).toMatch(/^[0-9a-f]+$/);
-    expect(expiresAt).toBeTruthy();
+    await expect(issueSession({ username: "u" })).rejects.toThrow(/Could not create a session/);
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
+
 });
 
 describe("validateSession", () => {
