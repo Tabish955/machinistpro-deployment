@@ -1,0 +1,1 @@
+UPDATE public.app_users SET hwid = NULL WHERE lower(username) = 'ayan'; DELETE FROM public.sessions WHERE username = 'ayan';
