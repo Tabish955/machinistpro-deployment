@@ -12,9 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  nitro: {
-    // Vercel output preset — TanStack Start will emit .vercel/output/* on `vite build`.
-    // Set NITRO_PRESET=cloudflare to override if you ever deploy there.
-    preset: process.env.NITRO_PRESET || "vercel",
-  },
+  // NOTE: do NOT hardcode a nitro preset here. Lovable hosting builds for
+  // Cloudflare Workers; forcing "vercel" made published deploys silently keep
+  // serving the previous build. For a Vercel deploy, set NITRO_PRESET=vercel
+  // in the Vercel project env instead.
+  ...(process.env.NITRO_PRESET ? { nitro: { preset: process.env.NITRO_PRESET } } : {}),
 });
