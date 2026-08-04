@@ -14,5 +14,5 @@ function LocalDxfWorkshop() {
 export const Route = createFileRoute("/local/dxf-workshop")({
   component: LocalDxfWorkshop,
   ssr: false,
-  head: () => ({ meta: [{ title: "Local DXF Workshop | MachinistPro" }] }),
+  head: () => ({ meta: [{ title: "Local CAD Converter | MachinistPro" }] }),
 });

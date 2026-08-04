@@ -34,6 +34,25 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     checkedRef.current = true;
 
     void (async () => {
+      // Development only, and opt-in even then.
+      //
+      // `import.meta.env.DEV` is replaced with the literal false when the app
+      // is built, so the bundler removes this whole branch from production
+      // output. It cannot be switched on by anyone running the shipped app —
+      // setting the flag there does nothing, because there is nothing left to
+      // read it. It exists because a local machine has no Supabase to
+      // authenticate against, so there is no way to reach the dashboard at all.
+      if (import.meta.env.DEV && localStorage.getItem("mp_dev_bypass") === "1") {
+        setUser({
+          username: "dev",
+          subscription: "dev",
+          expiry: new Date(Date.now() + 864e5).toISOString(),
+          sessionToken: "dev",
+          isAdmin: true,
+        });
+        return;
+      }
+
       const token = localStorage.getItem("mp_session");
       if (!token) {
         setCheckFailed(true);
