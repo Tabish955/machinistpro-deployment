@@ -8,6 +8,7 @@ import {
   getBounds,
   parseCoordinateText,
   parseSvg,
+  toSvgPathData,
   traceRasterContours,
   type DxfPath,
 } from "@/lib/dxf-converter";
@@ -37,6 +38,12 @@ export default function DxfConverterPage() {
   const bounds = useMemo(() => (paths.length ? getBounds(paths) : null), [paths]);
   const geometryStats = useMemo(
     () => analyzeCadGeometry(paths, fitTolerance),
+    [paths, fitTolerance],
+  );
+  // What the DXF will contain, not what was traced. Those are not the same
+  // drawing, and only one of them is what the user takes to the machine.
+  const preview = useMemo(
+    () => (paths.length ? toSvgPathData(paths, fitTolerance) : []),
     [paths, fitTolerance],
   );
   const viewBox = bounds
@@ -300,6 +307,9 @@ export default function DxfConverterPage() {
             </div>
             {bounds && (
               <div className="flex flex-wrap gap-2">
+                {geometryStats.splines > 0 && (
+                  <Badge color="cyan">{geometryStats.splines.toLocaleString()} splines</Badge>
+                )}
                 <Badge color="purple">{geometryStats.arcs.toLocaleString()} arcs</Badge>
                 <Badge color="gray">{geometryStats.lines.toLocaleString()} lines</Badge>
                 {geometryStats.polylines > 0 && (
@@ -332,10 +342,10 @@ export default function DxfConverterPage() {
                   strokeWidth={Math.max(bounds!.width, bounds!.height) / 900}
                   vectorEffect="non-scaling-stroke"
                 >
-                  {paths.map((path, index) => (
-                    <polyline
+                  {preview.map((data, index) => (
+                    <path
                       key={index}
-                      points={path.points.map((point) => `${point.x},${point.y}`).join(" ")}
+                      d={data}
                       fill="none"
                       strokeLinecap="round"
                       strokeLinejoin="round"

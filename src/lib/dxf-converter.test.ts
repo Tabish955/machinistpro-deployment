@@ -2,14 +2,90 @@
 import {
   analyzeCadGeometry,
   createDxf,
+  fitPrimitives,
   getBounds,
   otsuThreshold,
   parseCoordinateText,
   parseTransform,
   applyMatrix,
   multiply,
+  toSvgPathData,
   traceRasterContours,
+  type DxfPath,
+  type DxfPoint,
 } from "./dxf-converter";
+
+/** Dense points along the geometry that will actually be written to the DXF. */
+function flattenExport(path: DxfPath, tolerance: number): DxfPoint[] {
+  const out: DxfPoint[] = [];
+  const between = (a: DxfPoint, b: DxfPoint) => {
+    for (let step = 0; step <= 12; step++)
+      out.push({ x: a.x + ((b.x - a.x) * step) / 12, y: a.y + ((b.y - a.y) * step) / 12 });
+  };
+  for (const primitive of fitPrimitives(path, tolerance)) {
+    if (primitive.type === "line") between(primitive.start, primitive.end);
+    else if (primitive.type === "arc") {
+      const sweep = (((primitive.endAngle - primitive.startAngle) % 360) + 360) % 360;
+      const steps = Math.max(8, Math.ceil(sweep / 2));
+      for (let step = 0; step <= steps; step++) {
+        const angle = ((primitive.startAngle + (sweep * step) / steps) * Math.PI) / 180;
+        // The exporter flips y, so the sample has to flip back to source space.
+        out.push({
+          x: primitive.center.x + Math.cos(angle) * primitive.radius,
+          y: primitive.center.y - Math.sin(angle) * primitive.radius,
+        });
+      }
+    } else {
+      const c = primitive.controls;
+      for (let base = 0; base + 3 < c.length; base += 3)
+        for (let step = 0; step <= 16; step++) {
+          const t = step / 16;
+          const mt = 1 - t;
+          const [w0, w1, w2, w3] = [mt ** 3, 3 * mt ** 2 * t, 3 * mt * t ** 2, t ** 3];
+          out.push({
+            x: w0 * c[base].x + w1 * c[base + 1].x + w2 * c[base + 2].x + w3 * c[base + 3].x,
+            y: w0 * c[base].y + w1 * c[base + 1].y + w2 * c[base + 2].y + w3 * c[base + 3].y,
+          });
+        }
+    }
+  }
+  return out;
+}
+
+function distanceToSegment(p: DxfPoint, a: DxfPoint, b: DxfPoint): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = dx * dx + dy * dy;
+  if (length < 1e-18) return Math.hypot(p.x - a.x, p.y - a.y);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/** How far the worst point of `points` sits from the outline. */
+function strayFrom(points: DxfPoint[], outline: DxfPoint[]): number {
+  const loop = [...outline, outline[0]];
+  let worst = 0;
+  for (const point of points) {
+    let nearest = Infinity;
+    for (let i = 0; i + 1 < loop.length; i++)
+      nearest = Math.min(nearest, distanceToSegment(point, loop[i], loop[i + 1]));
+    worst = Math.max(worst, nearest);
+  }
+  return worst;
+}
+
+function raster(width: number, height: number, inside: (x: number, y: number) => boolean) {
+  const pixels = new Uint8ClampedArray(width * height * 4).fill(255);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) {
+      if (!inside(x, y)) continue;
+      const offset = (y * width + x) * 4;
+      pixels[offset] = 0;
+      pixels[offset + 1] = 0;
+      pixels[offset + 2] = 0;
+    }
+  return pixels;
+}
 
 describe("DXF converter", () => {
   it("parses comma and whitespace coordinate files", () => {
@@ -43,7 +119,7 @@ describe("DXF converter", () => {
     });
   });
 
-  it("exports an ASCII DXF R12 polyline with scale and units", () => {
+  it("exports an ASCII DXF R2000 polyline with scale and units", () => {
     const dxf = createDxf(
       [
         {
@@ -57,12 +133,46 @@ describe("DXF converter", () => {
       2,
       "mm",
     );
-    expect(dxf).toContain("AC1009");
+    // R12 has no SPLINE entity, so the exporter moved up to R2000 when traced
+    // curves stopped being chains of chords.
+    expect(dxf).toContain("AC1015");
     expect(dxf).toContain("$INSUNITS\r\n70\r\n4");
-    expect(dxf).toContain("POLYLINE");
+    expect(dxf).toContain("LWPOLYLINE");
     expect(dxf).toContain("CUT");
     expect(dxf).toContain("10.000000");
     expect(dxf.endsWith("EOF\r\n")).toBe(true);
+  });
+
+  it("writes the sections and handles R2000 requires", () => {
+    const dxf = createDxf(
+      [
+        {
+          points: [
+            { x: 0, y: 0 },
+            { x: 9, y: 4 },
+          ],
+          layer: "CUT",
+        },
+      ],
+      1,
+      "mm",
+    );
+    for (const section of ["HEADER", "TABLES", "BLOCKS", "ENTITIES", "OBJECTS"])
+      expect(dxf).toContain(`\r\nSECTION\r\n2\r\n${section}\r\n`);
+    // R12 tolerated a file with nothing but entities; R2000 wants the tables and
+    // blocks they refer to, and a handle on every record.
+    for (const table of ["VPORT", "LTYPE", "LAYER", "APPID", "BLOCK_RECORD"])
+      expect(dxf).toContain(`\r\nTABLE\r\n2\r\n${table}\r\n`);
+    expect(dxf).toContain("*Model_Space");
+    expect(dxf).toContain("\r\nCUT\r\n");
+
+    // Every handle in the file must be distinct, and $HANDSEED above all of them.
+    const body = dxf.slice(dxf.indexOf("\r\nTABLES\r\n"));
+    const handles = [...body.matchAll(/\r\n(?:5|105)\r\n([0-9A-F]+)\r\n/g)].map((m) => m[1]);
+    expect(handles.length).toBeGreaterThan(10);
+    expect(new Set(handles).size).toBe(handles.length);
+    const seed = Number.parseInt(dxf.match(/\$HANDSEED\r\n5\r\n([0-9A-F]+)/)![1], 16);
+    for (const value of handles) expect(Number.parseInt(value, 16)).toBeLessThan(seed);
   });
 
   it("joins raster pixels into closed contours and fits real CAD arcs", () => {
@@ -266,6 +376,142 @@ describe("bugs found reviewing the first version", () => {
     expect(() => createDxf(drawn, 1, "mm", 0.8, { scaleWasSet: false })).not.toThrow();
   });
 
+  it("keeps the exported geometry on the outline it was traced from", () => {
+    // The bug this guards: a traced 280-unit square exported as arcs that bowed
+    // 57 units off its own straight edges. Simplification had already deleted
+    // every point along the middle of each edge, so a circle could pass through
+    // the handful of survivors within tolerance and invent the rest. Fitting was
+    // checked at the sample points, and the sample points were almost nowhere.
+    const size = 400;
+    const pixels = raster(size, size, (x, y) => x >= 60 && x < 340 && y >= 60 && y < 340);
+    const [contour] = traceRasterContours(pixels, size, size, 128, false);
+    const tolerance = 0.8;
+    expect(strayFrom(flattenExport(contour, tolerance), contour.points)).toBeLessThan(
+      tolerance * 1.5,
+    );
+    // And a square is four straight edges — not one arc of any radius.
+    expect(analyzeCadGeometry([contour], tolerance)).toMatchObject({
+      lines: 4,
+      arcs: 0,
+      splines: 0,
+    });
+  });
+
+  it("keeps a rounded rectangle's straight edges straight and its fillets round", () => {
+    const size = 600;
+    const radius = 60;
+    const pixels = raster(size, size, (x, y) => {
+      if (x < 80 - radius || x > 520 + radius || y < 140 - radius || y > 460 + radius) return false;
+      return Math.hypot(Math.max(80 - x, 0, x - 520), Math.max(140 - y, 0, y - 460)) <= radius;
+    });
+    const [contour] = traceRasterContours(pixels, size, size, 128, false);
+    const stats = analyzeCadGeometry([contour], 0.8);
+    // Four edges and four fillets, however each is subdivided. A straight edge
+    // must never leave here as a curve, or the part is no longer flat.
+    expect(stats.lines).toBeGreaterThanOrEqual(4);
+    expect(stats.arcs).toBeGreaterThanOrEqual(4);
+    expect(strayFrom(flattenExport(contour, 0.8), contour.points)).toBeLessThan(1.2);
+  });
+});
+
+describe("curves export as splines", () => {
+  /** A shape whose curvature never settles, so no circle describes it for long. */
+  const wavy = () =>
+    raster(600, 600, (x, y) => {
+      const angle = Math.atan2(y - 300, x - 300);
+      return (
+        Math.hypot(x - 300, y - 300) <= 180 + 55 * Math.sin(3 * angle) + 25 * Math.cos(5 * angle)
+      );
+    });
+
+  it("writes SPLINE entities for curvature no arc can hold", () => {
+    const [contour] = traceRasterContours(wavy(), 600, 600, 128, false);
+    const stats = analyzeCadGeometry([contour], 0.8);
+    expect(stats.splines).toBeGreaterThan(0);
+    // The point of the change: a flowing outline is curves, not a run of chords.
+    expect(stats.lines).toBeLessThan(stats.arcs + stats.splines);
+
+    const dxf = createDxf([contour], 1, "mm", 0.8, { scaleWasSet: true });
+    expect(dxf).toContain("\r\nSPLINE\r\n");
+    expect(dxf).toContain("AcDbSpline");
+  });
+
+  it("gives every spline a knot vector its control points agree with", () => {
+    const [contour] = traceRasterContours(wavy(), 600, 600, 128, false);
+    const dxf = createDxf([contour], 1, "mm", 0.8, { scaleWasSet: true });
+    // Group code 0 starts a record, but "0" is also a perfectly good value —
+    // group 74 carries it — so an entity boundary is a 0 followed by a name.
+    const blocks = dxf.split(/\r\n0\r\n(?=[A-Z])/).filter((e) => e.startsWith("SPLINE\r\n"));
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const block of blocks) {
+      const degree = Number(block.match(/\r\n71\r\n(\d+)/)![1]);
+      const knotCount = Number(block.match(/\r\n72\r\n(\d+)/)![1]);
+      const controlCount = Number(block.match(/\r\n73\r\n(\d+)/)![1]);
+      // A B-spline has exactly control points + degree + 1 knots. Get this wrong
+      // and CAD either refuses the file or draws a different curve.
+      expect(knotCount).toBe(controlCount + degree + 1);
+      expect((controlCount - 1) % 3).toBe(0);
+      const knots = [...block.matchAll(/\r\n40\r\n([-\d.]+)/g)].map((m) => Number(m[1]));
+      expect(knots).toHaveLength(knotCount);
+      for (let i = 1; i < knots.length; i++) expect(knots[i]).toBeGreaterThanOrEqual(knots[i - 1]);
+    }
+  });
+
+  it("never smooths a curve through a corner", () => {
+    // Two curved arms meeting at a sharp point. Fitting a curve across the join
+    // would round the point off, which on a real part is a feature quietly
+    // becoming a different feature.
+    const points: DxfPoint[] = [];
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      points.push({ x: 100 - 100 * t, y: 100 - 40 * Math.sin(t * Math.PI * 0.9) });
+    }
+    const corner = points.length - 1;
+    for (let i = 1; i <= 40; i++) {
+      const t = i / 40;
+      points.push({ x: 100 * t, y: 100 - 40 * Math.sin(t * Math.PI * 0.9) });
+    }
+    const path: DxfPath = { points, closed: true, layer: "TRACE", corners: [0, corner] };
+    const exported = flattenExport(path, 0.8);
+    let nearest = Infinity;
+    for (const point of exported)
+      nearest = Math.min(
+        nearest,
+        Math.hypot(point.x - points[corner].x, point.y - points[corner].y),
+      );
+    expect(nearest).toBeLessThan(0.05);
+  });
+
+  it("previews the geometry it is going to export, not the points it traced", () => {
+    // The preview drew the raw contour, so it looked right whatever the exporter
+    // did with it. That is how a square 57 units out of place looked perfect.
+    const [wavyContour] = traceRasterContours(wavy(), 600, 600, 128, false);
+    expect(toSvgPathData([wavyContour], 0.8)[0]).toContain("C");
+
+    const circle = raster(600, 600, (x, y) => Math.hypot(x - 300, y - 300) <= 200);
+    const [round] = traceRasterContours(circle, 600, 600, 128, false);
+    expect(toSvgPathData([round], 0.8)[0]).toContain("A");
+
+    // Vector geometry is not fitted, so it previews as the polyline it is.
+    const drawn = toSvgPathData(
+      [
+        {
+          points: [
+            { x: 0, y: 0 },
+            { x: 5, y: 0 },
+            { x: 5, y: 5 },
+          ],
+          closed: true,
+          layer: "CUT",
+        },
+      ],
+      0.8,
+    )[0];
+    expect(drawn).toBe("M0.000,0.000 L5.000,0.000 L5.000,5.000 Z");
+  });
+});
+
+describe("more bugs found reviewing the first version", () => {
   it("refuses a scale that is not a positive number", () => {
     const drawn = [
       {

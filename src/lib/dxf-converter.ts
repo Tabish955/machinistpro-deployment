@@ -7,6 +7,12 @@ export interface DxfPath {
   points: DxfPoint[];
   closed?: boolean;
   layer?: string;
+  /**
+   * Indices into `points` where the outline genuinely turns a corner. Curve
+   * fitting is cut at these and never allowed to run through one, so a corner
+   * cannot be rounded off by the smoothing that a curve needs.
+   */
+  corners?: number[];
 }
 
 export interface DrawingBounds {
@@ -21,6 +27,7 @@ export interface DrawingBounds {
 export interface CadGeometryStats {
   lines: number;
   arcs: number;
+  splines: number;
   polylines: number;
 }
 
@@ -38,7 +45,18 @@ interface ArcPrimitive {
   endAngle: number;
 }
 
-type CadPrimitive = LinePrimitive | ArcPrimitive;
+/**
+ * A chain of cubic béziers, held as 3n+1 points: an on-curve point, then two
+ * control points and the next on-curve point, and so on. This is the form a
+ * DXF SPLINE wants, and the form SVG's C command wants, so it is what both the
+ * exporter and the preview read.
+ */
+interface SplinePrimitive {
+  type: "spline";
+  controls: DxfPoint[];
+}
+
+type CadPrimitive = LinePrimitive | ArcPrimitive | SplinePrimitive;
 
 const numberPattern = /[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g;
 
@@ -478,22 +496,26 @@ function simplifyBetweenCorners(
   points: DxfPoint[],
   corners: Set<number>,
   epsilon: number,
-): DxfPoint[] {
+): { points: DxfPoint[]; corners: number[] } {
   const marks = [...corners].sort((a, b) => a - b);
   // No corners at all means the whole thing is one curve.
-  if (marks.length < 2) return simplifyClosed(points, epsilon);
+  if (marks.length < 2) return { points: simplifyClosed(points, epsilon), corners: [] };
 
   const result: DxfPoint[] = [];
+  // Where each corner ended up after simplification. Fitting reads these, so
+  // losing them here would let a curve fit run straight through a corner.
+  const kept: number[] = [];
   for (let i = 0; i < marks.length; i++) {
     const from = marks[i];
     const to = marks[(i + 1) % marks.length];
     const span =
       to > from ? points.slice(from, to + 1) : [...points.slice(from), ...points.slice(0, to + 1)];
     const simplified = simplifyOpen(span, epsilon);
+    kept.push(result.length);
     // Drop the last point of each span; the next span starts on it.
     result.push(...simplified.slice(0, -1));
   }
-  return result;
+  return { points: result, corners: kept };
 }
 
 function smoothClosed(points: DxfPoint[], iterations: number): DxfPoint[] {
@@ -622,7 +644,13 @@ export function traceRasterContours(
     const simplified = simplifyBetweenCorners(smoothed, corners, epsilon);
     // Three points is the smallest closed shape there is. Requiring five threw
     // away every traced rectangle — a square simplifies to its four corners.
-    if (simplified.length >= 3) paths.push({ points: simplified, closed: true, layer: "TRACE" });
+    if (simplified.points.length >= 3)
+      paths.push({
+        points: simplified.points,
+        closed: true,
+        layer: "TRACE",
+        corners: simplified.corners,
+      });
   }
   if (!paths.length)
     throw new Error("No outline was detected. Adjust the threshold or invert the image.");
@@ -679,10 +707,256 @@ function circleThrough(a: DxfPoint, b: DxfPoint, c: DxfPoint) {
   return { center, radius: Math.hypot(a.x - center.x, a.y - center.y) };
 }
 
-function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
-  const points = path.closed ? [...path.points, path.points[0]] : path.points;
+/* ── Cubic bézier fitting ──────────────────────────────────────────────────────
+ * A traced curve that is neither a straight line nor a circular arc used to
+ * leave the exporter as a chain of short chords. In CAD those read as flats:
+ * the outline is visibly a polygon, and a cutter following it leaves facets on
+ * a surface that should be smooth.
+ *
+ * Schneider's algorithm (Graphics Gems, 1990) fits one cubic bézier to a run of
+ * points by least squares, pulls the parameterisation onto the curve with a few
+ * Newton-Raphson steps, and splits at the worst point when the fit is still
+ * outside tolerance. The result is a bézier chain, which is what a DXF SPLINE
+ * holds.
+ */
+
+const subtract = (a: DxfPoint, b: DxfPoint): DxfPoint => ({ x: a.x - b.x, y: a.y - b.y });
+const scaleVector = (v: DxfPoint, k: number): DxfPoint => ({ x: v.x * k, y: v.y * k });
+const dot = (a: DxfPoint, b: DxfPoint) => a.x * b.x + a.y * b.y;
+const separation = (a: DxfPoint, b: DxfPoint) => Math.hypot(a.x - b.x, a.y - b.y);
+
+function unitVector(v: DxfPoint): DxfPoint {
+  const length = Math.hypot(v.x, v.y);
+  return length < 1e-12 ? { x: 0, y: 0 } : { x: v.x / length, y: v.y / length };
+}
+
+function bezierAt(bezier: DxfPoint[], t: number): DxfPoint {
+  const mt = 1 - t;
+  const [w0, w1, w2, w3] = [mt ** 3, 3 * mt ** 2 * t, 3 * mt * t ** 2, t ** 3];
+  return {
+    x: w0 * bezier[0].x + w1 * bezier[1].x + w2 * bezier[2].x + w3 * bezier[3].x,
+    y: w0 * bezier[0].y + w1 * bezier[1].y + w2 * bezier[2].y + w3 * bezier[3].y,
+  };
+}
+
+/** Distance along the points, normalised to 0..1 — the starting guess for where
+ *  on the curve each point sits. */
+function chordLengthParameters(points: DxfPoint[]): number[] {
+  const u = [0];
+  for (let index = 1; index < points.length; index++)
+    u.push(u[index - 1] + separation(points[index], points[index - 1]));
+  const total = u[u.length - 1];
+  return total < 1e-12 ? u.map((_, index) => index / (points.length - 1)) : u.map((v) => v / total);
+}
+
+/** The least-squares cubic through the run, with its end points and end
+ *  tangent directions fixed and only the two handle lengths free. */
+function generateBezier(
+  points: DxfPoint[],
+  u: number[],
+  leftTangent: DxfPoint,
+  rightTangent: DxfPoint,
+): DxfPoint[] {
+  const first = points[0];
+  const last = points[points.length - 1];
+  let c00 = 0;
+  let c01 = 0;
+  let c11 = 0;
+  let x0 = 0;
+  let x1 = 0;
+
+  for (let index = 0; index < points.length; index++) {
+    const t = u[index];
+    const mt = 1 - t;
+    const a0 = scaleVector(leftTangent, 3 * t * mt * mt);
+    const a1 = scaleVector(rightTangent, 3 * t * t * mt);
+    c00 += dot(a0, a0);
+    c01 += dot(a0, a1);
+    c11 += dot(a1, a1);
+    // The part of the point not already explained by the fixed end points.
+    const base = {
+      x: first.x * (mt ** 3 + 3 * mt * mt * t) + last.x * (3 * mt * t * t + t ** 3),
+      y: first.y * (mt ** 3 + 3 * mt * mt * t) + last.y * (3 * mt * t * t + t ** 3),
+    };
+    const residual = subtract(points[index], base);
+    x0 += dot(a0, residual);
+    x1 += dot(a1, residual);
+  }
+
+  const determinant = c00 * c11 - c01 * c01;
+  let alphaLeft = determinant === 0 ? 0 : (x0 * c11 - x1 * c01) / determinant;
+  let alphaRight = determinant === 0 ? 0 : (c00 * x1 - c01 * x0) / determinant;
+
+  // A negative or vanishing handle folds the curve back on itself. Wu and
+  // Barsky's fallback — a third of the chord each side — is what Schneider uses.
+  const chord = separation(first, last);
+  if (alphaLeft < chord * 1e-6 || alphaRight < chord * 1e-6) {
+    alphaLeft = chord / 3;
+    alphaRight = chord / 3;
+  }
+
+  return [
+    first,
+    { x: first.x + leftTangent.x * alphaLeft, y: first.y + leftTangent.y * alphaLeft },
+    { x: last.x + rightTangent.x * alphaRight, y: last.y + rightTangent.y * alphaRight },
+    last,
+  ];
+}
+
+/** One Newton-Raphson step towards the parameter whose point on the curve is
+ *  closest to this sample. */
+function refineParameter(bezier: DxfPoint[], point: DxfPoint, t: number): number {
+  const d1 = [
+    scaleVector(subtract(bezier[1], bezier[0]), 3),
+    scaleVector(subtract(bezier[2], bezier[1]), 3),
+    scaleVector(subtract(bezier[3], bezier[2]), 3),
+  ];
+  const d2 = [scaleVector(subtract(d1[1], d1[0]), 2), scaleVector(subtract(d1[2], d1[1]), 2)];
+  const mt = 1 - t;
+  const offset = subtract(bezierAt(bezier, t), point);
+  const slope = {
+    x: d1[0].x * mt * mt + d1[1].x * 2 * mt * t + d1[2].x * t * t,
+    y: d1[0].y * mt * mt + d1[1].y * 2 * mt * t + d1[2].y * t * t,
+  };
+  const curvature = { x: d2[0].x * mt + d2[1].x * t, y: d2[0].y * mt + d2[1].y * t };
+  const denominator = dot(slope, slope) + dot(offset, curvature);
+  if (Math.abs(denominator) < 1e-12) return t;
+  const next = t - dot(offset, slope) / denominator;
+  return Number.isFinite(next) ? Math.min(1, Math.max(0, next)) : t;
+}
+
+function worstFit(points: DxfPoint[], bezier: DxfPoint[], u: number[]) {
+  let error = 0;
+  let index = Math.floor(points.length / 2);
+  for (let i = 1; i < points.length - 1; i++) {
+    const gap = separation(bezierAt(bezier, u[i]), points[i]);
+    if (gap > error) {
+      error = gap;
+      index = i;
+    }
+  }
+  return { error, index };
+}
+
+/**
+ * How far a fitted curve strays from the outline *between* its samples.
+ *
+ * Simplification has already thrown away every point that lay on a chord, so a
+ * fit validated only at the surviving points is validated almost nowhere: on a
+ * traced square, three points clustered at each corner left a 277-unit gap in
+ * which a circle could bulge 28 units and still pass. Whatever is fitted has to
+ * stay near the chords too.
+ */
+function departureBetweenSamples(bezier: DxfPoint[], run: DxfPoint[], u: number[]): number {
+  let worst = 0;
+  for (let index = 0; index + 1 < run.length; index++) {
+    for (let step = 1; step < 4; step++) {
+      const t = u[index] + ((u[index + 1] - u[index]) * step) / 4;
+      worst = Math.max(worst, distanceToLine(bezierAt(bezier, t), run[index], run[index + 1]));
+    }
+  }
+  return worst;
+}
+
+/** One cubic across points[from..to], or null if a single cubic cannot hold the
+ *  tolerance there. `entryTangent` carries the direction the previous curve
+ *  left on, so a chain of these joins smoothly instead of kinking. */
+function tryCubic(
+  points: DxfPoint[],
+  from: number,
+  to: number,
+  tolerance: number,
+  entryTangent: DxfPoint | null,
+): DxfPoint[] | null {
+  const run = points.slice(from, to + 1);
+  if (run.length < 3) return null;
+  const leftTangent = entryTangent ?? unitVector(subtract(run[1], run[0]));
+  const rightTangent = unitVector(subtract(run[run.length - 2], run[run.length - 1]));
+  if (!leftTangent.x && !leftTangent.y) return null;
+  if (!rightTangent.x && !rightTangent.y) return null;
+
+  let u = chordLengthParameters(run);
+  let bezier = generateBezier(run, u, leftTangent, rightTangent);
+  let { error } = worstFit(run, bezier, u);
+  // Pulling each sample onto its true nearest point on the curve turns a rough
+  // least-squares fit into a tight one, and usually converges in two passes.
+  for (let attempt = 0; attempt < 4 && error > tolerance; attempt++) {
+    u = run.map((point, index) => refineParameter(bezier, point, u[index]));
+    bezier = generateBezier(run, u, leftTangent, rightTangent);
+    ({ error } = worstFit(run, bezier, u));
+  }
+  if (error > tolerance) return null;
+  if (departureBetweenSamples(bezier, run, u) > tolerance) return null;
+  return bezier;
+}
+
+/**
+ * The furthest a single cubic reaches from `from`, given that it is only worth
+ * having if it beats `floor` — the reach the line and arc fits already managed.
+ * Starting the search there means that where a straight edge or a real arc
+ * already describes the outline, this costs one rejected fit and stops.
+ */
+function longestCubic(
+  points: DxfPoint[],
+  from: number,
+  floor: number,
+  tolerance: number,
+  entryTangent: DxfPoint | null,
+): { end: number; bezier: DxfPoint[] } | null {
+  const limit = Math.min(points.length - 1, from + 320);
+  let best: { end: number; bezier: DxfPoint[] } | null = null;
+  let end = floor + 1;
+  let failed = limit + 1;
+
+  while (end <= limit) {
+    const bezier = tryCubic(points, from, end, tolerance, entryTangent);
+    if (!bezier) {
+      failed = end;
+      break;
+    }
+    best = { end, bezier };
+    if (end === limit) break;
+    // Grow by half the span already covered rather than one point at a time.
+    end = Math.min(limit, end + Math.max(1, Math.floor((end - from) / 2)));
+  }
+  if (!best) return null;
+
+  // The growth step can overshoot the true reach; recover the difference.
+  let low = best.end;
+  let high = failed;
+  for (let refine = 0; refine < 5 && high - low > 1; refine++) {
+    const middle = Math.floor((low + high) / 2);
+    const bezier = tryCubic(points, from, middle, tolerance, entryTangent);
+    if (bezier) {
+      best = { end: middle, bezier };
+      low = middle;
+    } else high = middle;
+  }
+  return best;
+}
+
+/** The direction a bézier leaves on, for joining the next one onto it. */
+function exitTangent(bezier: DxfPoint[]): DxfPoint {
+  const handle = subtract(bezier[3], bezier[2]);
+  return handle.x || handle.y ? unitVector(handle) : unitVector(subtract(bezier[3], bezier[0]));
+}
+
+/**
+ * Fit one span of outline, taking at each step whichever primitive reaches
+ * furthest along it.
+ *
+ * Ties go to the simpler entity — line, then arc, then curve. That ordering is
+ * what keeps a machined part machinable: a straight edge leaves here as a LINE
+ * and a bored hole as an ARC, however well a spline could also have described
+ * them. A spline is used only where it genuinely covers ground that neither can,
+ * which is exactly the varying curvature that used to be shipped as a chain of
+ * chords.
+ */
+function fitSpan(points: DxfPoint[], tolerance: number): CadPrimitive[] {
   const result: CadPrimitive[] = [];
   let index = 0;
+  let entryTangent: DxfPoint | null = null;
+
   while (index < points.length - 1) {
     let bestLineEnd = index + 1;
     for (let end = index + 2; end < Math.min(points.length, index + 80); end++) {
@@ -718,6 +992,8 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
       );
       let sweep = 0;
       let consistent = true;
+      // How far the arc wanders from the outline in the gaps between samples.
+      let departure = 0;
       for (let pointIndex = 1; pointIndex < segment.length; pointIndex++) {
         const previous = Math.atan2(
           segment[pointIndex - 1].y - circle.center.y,
@@ -733,6 +1009,7 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
         if (sweep !== 0 && Math.sign(delta) !== Math.sign(sweep) && Math.abs(delta) > 0.005)
           consistent = false;
         sweep += delta;
+        departure = Math.max(departure, circle.radius * (1 - Math.cos(Math.abs(delta) / 2)));
       }
       // A nearly straight run of points fits a colossal circle almost perfectly:
       // three points a hair off collinear give a radius of hundreds of units and
@@ -747,6 +1024,15 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
 
       if (
         radialError <= tolerance &&
+        // An arc is only entitled to the shape its samples can vouch for.
+        // Between two consecutive points it leaves the straight chord by
+        // r(1 - cos(θ/2)); where that exceeds the tolerance the arc is claiming
+        // a bulge nothing in the traced outline supports. Checking the points
+        // alone does not catch it, because simplification has already deleted
+        // every point that would have objected: a traced square came out as
+        // four arcs of radius 352 bowing 28 units off its own straight edges,
+        // and each one passed the radial test exactly.
+        departure <= tolerance &&
         consistent &&
         Math.abs(sweep) >= 0.12 &&
         Math.abs(sweep) < Math.PI * 1.95 &&
@@ -756,11 +1042,19 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
         bestArc = { end, circle, sweep };
     }
 
-    // Ties go to the arc again. Forcing the arc to win outright was the wrong
-    // guard against giant radii — it left real curves as chains of chords. The
-    // sagitta and radius checks above already stop a straight run being claimed
-    // by a circle, so an arc that reaches as far as the line fit is a real one.
-    if (bestArc && bestArc.end >= bestLineEnd) {
+    const arcEnd = bestArc?.end ?? index;
+    const straightest = Math.max(bestLineEnd, arcEnd);
+    const bestCubic = longestCubic(points, index, straightest, tolerance, entryTangent);
+
+    if (bestCubic) {
+      result.push({ type: "spline", controls: bestCubic.bezier });
+      entryTangent = exitTangent(bestCubic.bezier);
+      index = bestCubic.end;
+      continue;
+    }
+    entryTangent = null;
+
+    if (bestArc && arcEnd >= bestLineEnd) {
       const start = points[index];
       const end = points[bestArc.end];
       let startAngle =
@@ -784,20 +1078,101 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
       index = bestLineEnd;
     }
   }
+  return mergeSplines(result);
+}
+
+/** Neighbouring cubics are one curve, so they leave as one SPLINE rather than a
+ *  string of them. They already share an end point and a tangent direction. */
+function mergeSplines(primitives: CadPrimitive[]): CadPrimitive[] {
+  const result: CadPrimitive[] = [];
+  for (const primitive of primitives) {
+    const previous = result[result.length - 1];
+    if (primitive.type === "spline" && previous?.type === "spline")
+      previous.controls = [...previous.controls, ...primitive.controls.slice(1)];
+    else if (primitive.type === "spline") result.push({ ...primitive });
+    else result.push(primitive);
+  }
+  return result;
+}
+
+/**
+ * Fit CAD primitives to a traced outline, one span between corners at a time.
+ *
+ * Splitting at corners first is what lets the curve fitting be aggressive: a
+ * bézier chain can smooth as hard as it likes inside a span, because a corner
+ * is always a span boundary and can never be smoothed through.
+ */
+export function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
+  const points = path.closed ? [...path.points, path.points[0]] : path.points;
+  const last = points.length - 1;
+  const boundaries = [
+    ...new Set([0, ...(path.corners ?? []).filter((mark) => mark > 0 && mark < last), last]),
+  ].sort((a, b) => a - b);
+
+  const result: CadPrimitive[] = [];
+  for (let index = 0; index + 1 < boundaries.length; index++)
+    result.push(...fitSpan(points.slice(boundaries[index], boundaries[index + 1] + 1), tolerance));
   return result;
 }
 
 export function analyzeCadGeometry(paths: DxfPath[], tolerance = 0.8): CadGeometryStats {
-  const stats = { lines: 0, arcs: 0, polylines: 0 };
+  const stats: CadGeometryStats = { lines: 0, arcs: 0, splines: 0, polylines: 0 };
   for (const path of paths) {
     if (path.layer !== "TRACE") {
       stats.polylines++;
       continue;
     }
     for (const primitive of fitPrimitives(path, tolerance))
-      stats[primitive.type === "arc" ? "arcs" : "lines"]++;
+      stats[
+        primitive.type === "arc" ? "arcs" : primitive.type === "spline" ? "splines" : "lines"
+      ]++;
   }
   return stats;
+}
+
+/**
+ * The geometry that will actually be exported, as SVG path data.
+ *
+ * The preview used to draw the raw contour points, which meant it showed a
+ * smooth outline no matter what the exporter went on to write. A square whose
+ * exported edges bowed 57 units out of place looked perfect on screen and only
+ * came apart in CAD. Drawing the fitted primitives instead makes the preview
+ * answer the question it appears to be answering.
+ */
+export function toSvgPathData(paths: DxfPath[], tolerance = 0.8): string[] {
+  const xy = (point: DxfPoint) => `${point.x.toFixed(3)},${point.y.toFixed(3)}`;
+  return paths.map((path) => {
+    if (path.layer !== "TRACE") {
+      const line = path.points.map((point, index) => `${index ? "L" : "M"}${xy(point)}`).join(" ");
+      return path.closed ? `${line} Z` : line;
+    }
+    const parts: string[] = [];
+    for (const primitive of fitPrimitives(path, tolerance)) {
+      if (primitive.type === "line") {
+        parts.push(`M${xy(primitive.start)} L${xy(primitive.end)}`);
+      } else if (primitive.type === "arc") {
+        // DXF angles are measured anticlockwise with y running up; the preview
+        // runs y down, which turns the same sweep into a clockwise one.
+        const radians = (degrees: number) => (degrees * Math.PI) / 180;
+        const on = (degrees: number) => ({
+          x: primitive.center.x + Math.cos(radians(degrees)) * primitive.radius,
+          y: primitive.center.y - Math.sin(radians(degrees)) * primitive.radius,
+        });
+        const swept = (((primitive.endAngle - primitive.startAngle) % 360) + 360) % 360;
+        const r = primitive.radius.toFixed(3);
+        parts.push(
+          `M${xy(on(primitive.startAngle))} A${r},${r} 0 ${swept > 180 ? 1 : 0} 1 ${xy(on(primitive.endAngle))}`,
+        );
+      } else {
+        const [first, ...rest] = primitive.controls;
+        let data = `M${xy(first)}`;
+        for (let index = 0; index + 2 < rest.length; index += 3)
+          data += ` C${xy(rest[index])} ${xy(rest[index + 1])} ${xy(rest[index + 2])}`;
+        parts.push(data);
+      }
+    }
+    return parts.join(" ");
+  });
 }
 
 export function getBounds(paths: DxfPath[]): DrawingBounds {
@@ -823,6 +1198,36 @@ export function isTraced(paths: DxfPath[]): boolean {
   return paths.some((path) => path.layer === "TRACE");
 }
 
+/* ── DXF output ────────────────────────────────────────────────────────────────
+ * The exporter wrote R12 until traced curves became splines. R12 has no SPLINE
+ * entity — it predates it — so on that version a curve could only ever leave
+ * here as a chain of straight chords, which is what made every traced outline
+ * read as a polygon in CAD.
+ *
+ * R2000 is the earliest version that can hold a real curve and is read by every
+ * CAD and CAM package in current use. It is stricter than R12: each record
+ * carries a handle unique to the file, names the record that owns it, and
+ * declares the subclasses it inherits, and the tables and blocks entities refer
+ * to have to be present. That scaffolding is what most of this file is.
+ */
+
+/** Turns a bézier chain into the control points and knot vector a DXF SPLINE
+ *  wants. A chain of n cubic segments is a degree-3 B-spline with 3n+1 control
+ *  points and a knot at each joint repeated three times, which is what makes
+ *  the joints exact rather than smoothed over. */
+function splineKnots(segments: number): number[] {
+  const knots = [0, 0, 0, 0];
+  for (let joint = 1; joint < segments; joint++) knots.push(joint, joint, joint);
+  knots.push(segments, segments, segments, segments);
+  return knots;
+}
+
+/** A DXF file is nothing but group code / value pairs, so it is written as
+ *  pairs and flattened at the end rather than as a stream of loose strings. */
+type Pair = [number | string, number | string];
+const flatten = (pairs: Pair[]): string[] =>
+  pairs.flatMap(([code, value]) => [String(code), String(value)]);
+
 export function createDxf(
   paths: DxfPath[],
   scale: number,
@@ -842,90 +1247,300 @@ export function createDxf(
     throw new Error("The scale must be a positive number.");
   }
   const bounds = getBounds(paths);
-  const unitCode = units === "mm" ? 4 : 1;
-  const lines = [
-    "0",
-    "SECTION",
-    "2",
-    "HEADER",
-    "9",
-    "$ACADVER",
-    "1",
-    "AC1009",
-    "9",
-    "$INSUNITS",
-    "70",
-    String(unitCode),
-    "0",
-    "ENDSEC",
-    "0",
-    "SECTION",
-    "2",
-    "ENTITIES",
-  ];
+
+  // Handles start above the range AutoCAD reserves for its own fixed records.
+  let nextHandle = 0x30;
+  const handle = () => (nextHandle++).toString(16).toUpperCase();
+  const modelSpace = handle();
+  const paperSpace = handle();
+  const rootDictionary = handle();
+  const groupDictionary = handle();
+
+  // The drawing is moved so its bottom-left corner sits on the origin, and y is
+  // flipped: image and SVG space count downwards, CAD space counts upwards.
+  const px = (x: number) => ((x - bounds.minX) * scale).toFixed(6);
+  const py = (y: number) => ((bounds.maxY - y) * scale).toFixed(6);
+
+  const layerNames = new Set<string>(["0"]);
+  for (const path of paths)
+    layerNames.add(path.layer?.replace(/[^A-Za-z0-9_-]/g, "_") || "GEOMETRY");
+
+  const tables: Pair[] = [];
+  const entities: Pair[] = [];
+  const blocks: Pair[] = [];
+  const objects: Pair[] = [];
+
+  const openTable = (name: string, count: number) =>
+    tables.push([0, "TABLE"], [2, name], [5, handle()], [100, "AcDbSymbolTable"], [70, count]);
+  const record = (type: string, subclass: string) =>
+    tables.push([0, type], [5, handle()], [100, "AcDbSymbolTableRecord"], [100, subclass]);
+
+  openTable("VPORT", 1);
+  record("VPORT", "AcDbViewportTableRecord");
+  tables.push(
+    [2, "*Active"],
+    [70, 0],
+    [10, "0.0"],
+    [20, "0.0"],
+    [11, "1.0"],
+    [21, "1.0"],
+    // Where the view is centred and how much of the drawing it shows, so the
+    // file opens looking at the part rather than at empty paper.
+    [12, px(bounds.maxX)],
+    [22, py(bounds.minY)],
+    [13, "0.0"],
+    [23, "0.0"],
+    [14, "10.0"],
+    [24, "10.0"],
+    [15, "10.0"],
+    [25, "10.0"],
+    [16, "0.0"],
+    [26, "0.0"],
+    [36, "1.0"],
+    [17, "0.0"],
+    [27, "0.0"],
+    [37, "0.0"],
+    [40, (bounds.height * scale).toFixed(6)],
+    [41, "1.5"],
+    [42, "50.0"],
+    [43, "0.0"],
+    [44, "0.0"],
+    [50, "0.0"],
+    [51, "0.0"],
+    [71, 0],
+    [72, 100],
+    [73, 1],
+    [74, 3],
+    [75, 0],
+    [76, 0],
+    [77, 0],
+    [78, 0],
+    [0, "ENDTAB"],
+  );
+
+  openTable("LTYPE", 3);
+  for (const [name, description] of [
+    ["ByBlock", ""],
+    ["ByLayer", ""],
+    ["Continuous", "Solid line"],
+  ]) {
+    record("LTYPE", "AcDbLinetypeTableRecord");
+    tables.push([2, name], [70, 0], [3, description], [72, 65], [73, 0], [40, "0.0"]);
+  }
+  tables.push([0, "ENDTAB"]);
+
+  openTable("LAYER", layerNames.size);
+  for (const name of layerNames) {
+    record("LAYER", "AcDbLayerTableRecord");
+    // Colour 7 is "whatever the background is not", the only sensible default
+    // when we cannot know whether CAD is set light or dark.
+    tables.push([2, name], [70, 0], [62, 7], [6, "Continuous"], [370, -3]);
+  }
+  tables.push([0, "ENDTAB"]);
+
+  openTable("STYLE", 1);
+  record("STYLE", "AcDbTextStyleTableRecord");
+  tables.push(
+    [2, "Standard"],
+    [70, 0],
+    [40, "0.0"],
+    [41, "1.0"],
+    [50, "0.0"],
+    [71, 0],
+    [42, "2.5"],
+    [3, "txt"],
+    [4, ""],
+    [0, "ENDTAB"],
+  );
+
+  openTable("VIEW", 0);
+  tables.push([0, "ENDTAB"]);
+  openTable("UCS", 0);
+  tables.push([0, "ENDTAB"]);
+
+  openTable("APPID", 1);
+  record("APPID", "AcDbRegAppTableRecord");
+  tables.push([2, "ACAD"], [70, 0], [0, "ENDTAB"]);
+
+  // DIMSTYLE is the one table whose records carry their handle on code 105
+  // rather than 5, because on a dimension style 5 already means something else.
+  tables.push(
+    [0, "TABLE"],
+    [2, "DIMSTYLE"],
+    [5, handle()],
+    [100, "AcDbSymbolTable"],
+    [70, 1],
+    [100, "AcDbDimStyleTable"],
+    [71, 0],
+    [0, "DIMSTYLE"],
+    [105, handle()],
+    [100, "AcDbSymbolTableRecord"],
+    [100, "AcDbDimStyleTableRecord"],
+    [2, "Standard"],
+    [70, 0],
+    [0, "ENDTAB"],
+  );
+
+  openTable("BLOCK_RECORD", 2);
+  for (const [name, id] of [
+    ["*Model_Space", modelSpace],
+    ["*Paper_Space", paperSpace],
+  ]) {
+    tables.push(
+      [0, "BLOCK_RECORD"],
+      [5, id],
+      [100, "AcDbSymbolTableRecord"],
+      [100, "AcDbBlockTableRecord"],
+      [2, name],
+      [70, 0],
+    );
+  }
+  tables.push([0, "ENDTAB"]);
+
+  for (const [name, owner, paper] of [
+    ["*Model_Space", modelSpace, false],
+    ["*Paper_Space", paperSpace, true],
+  ] as Array<[string, string, boolean]>) {
+    blocks.push([0, "BLOCK"], [5, handle()], [330, owner], [100, "AcDbEntity"]);
+    if (paper) blocks.push([67, 1]);
+    blocks.push(
+      [8, "0"],
+      [100, "AcDbBlockBegin"],
+      [2, name],
+      [70, 0],
+      [10, "0.0"],
+      [20, "0.0"],
+      [30, "0.0"],
+      [3, name],
+      [1, ""],
+      [0, "ENDBLK"],
+      [5, handle()],
+      [330, owner],
+      [100, "AcDbEntity"],
+    );
+    if (paper) blocks.push([67, 1]);
+    blocks.push([8, "0"], [100, "AcDbBlockEnd"]);
+  }
+
+  /** The head every entity shares: its own handle, the block that owns it, and
+   *  the layer it draws on. */
+  const entity = (type: string, layer: string, subclass: string) =>
+    entities.push(
+      [0, type],
+      [5, handle()],
+      [330, modelSpace],
+      [100, "AcDbEntity"],
+      [8, layer],
+      [100, subclass],
+    );
+
   for (const path of paths) {
     const layer = path.layer?.replace(/[^A-Za-z0-9_-]/g, "_") || "GEOMETRY";
     if (path.layer === "TRACE") {
       for (const primitive of fitPrimitives(path, fitTolerance)) {
         if (primitive.type === "line") {
-          lines.push(
-            "0",
-            "LINE",
-            "8",
-            layer,
-            "10",
-            ((primitive.start.x - bounds.minX) * scale).toFixed(6),
-            "20",
-            ((bounds.maxY - primitive.start.y) * scale).toFixed(6),
-            "30",
-            "0",
-            "11",
-            ((primitive.end.x - bounds.minX) * scale).toFixed(6),
-            "21",
-            ((bounds.maxY - primitive.end.y) * scale).toFixed(6),
-            "31",
-            "0",
+          entity("LINE", layer, "AcDbLine");
+          entities.push(
+            [10, px(primitive.start.x)],
+            [20, py(primitive.start.y)],
+            [30, "0.0"],
+            [11, px(primitive.end.x)],
+            [21, py(primitive.end.y)],
+            [31, "0.0"],
+          );
+        } else if (primitive.type === "arc") {
+          entity("ARC", layer, "AcDbCircle");
+          entities.push(
+            [10, px(primitive.center.x)],
+            [20, py(primitive.center.y)],
+            [30, "0.0"],
+            [40, (primitive.radius * scale).toFixed(6)],
+            [100, "AcDbArc"],
+            [50, primitive.startAngle.toFixed(6)],
+            [51, primitive.endAngle.toFixed(6)],
           );
         } else {
-          lines.push(
-            "0",
-            "ARC",
-            "8",
-            layer,
-            "10",
-            ((primitive.center.x - bounds.minX) * scale).toFixed(6),
-            "20",
-            ((bounds.maxY - primitive.center.y) * scale).toFixed(6),
-            "30",
-            "0",
-            "40",
-            (primitive.radius * scale).toFixed(6),
-            "50",
-            primitive.startAngle.toFixed(6),
-            "51",
-            primitive.endAngle.toFixed(6),
+          const controls = primitive.controls;
+          const knots = splineKnots((controls.length - 1) / 3);
+          entity("SPLINE", layer, "AcDbSpline");
+          entities.push(
+            [210, "0.0"],
+            [220, "0.0"],
+            [230, "1.0"],
+            // Flag 8 marks the spline planar, which it is: this is a flat drawing.
+            [70, 8],
+            [71, 3],
+            [72, knots.length],
+            [73, controls.length],
+            [74, 0],
+            [42, "0.0000000001"],
+            [43, "0.0000000001"],
           );
+          for (const knot of knots) entities.push([40, knot.toFixed(6)]);
+          for (const control of controls)
+            entities.push([10, px(control.x)], [20, py(control.y)], [30, "0.0"]);
         }
       }
       continue;
     }
-    lines.push("0", "POLYLINE", "8", layer, "66", "1", "70", path.closed ? "1" : "0");
-    for (const point of path.points) {
-      lines.push(
-        "0",
-        "VERTEX",
-        "8",
-        layer,
-        "10",
-        ((point.x - bounds.minX) * scale).toFixed(6),
-        "20",
-        ((bounds.maxY - point.y) * scale).toFixed(6),
-        "30",
-        "0",
-      );
-    }
-    lines.push("0", "SEQEND");
+    entity("LWPOLYLINE", layer, "AcDbPolyline");
+    entities.push([90, path.points.length], [70, path.closed ? 1 : 0]);
+    for (const point of path.points) entities.push([10, px(point.x)], [20, py(point.y)]);
   }
-  lines.push("0", "ENDSEC", "0", "EOF", "");
-  return lines.join("\r\n");
+
+  objects.push(
+    // The root dictionary is the one record that owns itself into nothing.
+    [0, "DICTIONARY"],
+    [5, rootDictionary],
+    [330, "0"],
+    [100, "AcDbDictionary"],
+    [3, "ACAD_GROUP"],
+    [350, groupDictionary],
+    [0, "DICTIONARY"],
+    [5, groupDictionary],
+    [330, rootDictionary],
+    [100, "AcDbDictionary"],
+  );
+
+  const header: Pair[] = [
+    [0, "SECTION"],
+    [2, "HEADER"],
+    [9, "$ACADVER"],
+    [1, "AC1015"],
+    // Every handle written above is below this, which is what $HANDSEED promises.
+    [9, "$HANDSEED"],
+    [5, nextHandle.toString(16).toUpperCase()],
+    [9, "$INSUNITS"],
+    [70, units === "mm" ? 4 : 1],
+    [9, "$MEASUREMENT"],
+    [70, units === "mm" ? 1 : 0],
+    [9, "$EXTMIN"],
+    [10, "0.0"],
+    [20, "0.0"],
+    [30, "0.0"],
+    [9, "$EXTMAX"],
+    [10, (bounds.width * scale).toFixed(6)],
+    [20, (bounds.height * scale).toFixed(6)],
+    [30, "0.0"],
+    [0, "ENDSEC"],
+  ];
+
+  const section = (name: string, body: Pair[]): Pair[] => [
+    [0, "SECTION"],
+    [2, name],
+    ...body,
+    [0, "ENDSEC"],
+  ];
+
+  return [
+    ...flatten([
+      ...header,
+      ...section("TABLES", tables),
+      ...section("BLOCKS", blocks),
+      ...section("ENTITIES", entities),
+      ...section("OBJECTS", objects),
+      [0, "EOF"],
+    ]),
+    "",
+  ].join("\r\n");
 }
