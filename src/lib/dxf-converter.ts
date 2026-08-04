@@ -1294,9 +1294,22 @@ export function toSvgPathData(paths: DxfPath[], tolerance = 0.8): string[] {
       return path.closed ? `${line} Z` : line;
     }
     const parts: string[] = [];
+    // Consecutive primitives share an end point, so the path is drawn as one
+    // continuous run. Starting a fresh subpath at every primitive quintupled
+    // the file, and left the outline as thousands of disconnected two-point
+    // fragments — which cannot be filled, and which CAM cannot chain into a
+    // toolpath.
+    let cursor: DxfPoint | null = null;
+    const moveTo = (point: DxfPoint) => {
+      const joined = cursor && Math.hypot(point.x - cursor.x, point.y - cursor.y) < 1e-6;
+      cursor = point;
+      return joined ? "" : `M${xy(point)} `;
+    };
+
     for (const primitive of geometry) {
       if (primitive.type === "line") {
-        parts.push(`M${xy(primitive.start)} L${xy(primitive.end)}`);
+        parts.push(`${moveTo(primitive.start)}L${xy(primitive.end)}`);
+        cursor = primitive.end;
       } else if (primitive.type === "arc") {
         // A DXF arc runs anticlockwise from its start angle, and those angles
         // were measured in CAD's y-up frame. Mapping an angle back to this
@@ -1311,18 +1324,22 @@ export function toSvgPathData(paths: DxfPath[], tolerance = 0.8): string[] {
         });
         const swept = (((primitive.endAngle - primitive.startAngle) % 360) + 360) % 360;
         const r = primitive.radius.toFixed(3);
-        parts.push(
-          `M${xy(on(primitive.startAngle))} A${r},${r} 0 ${swept > 180 ? 1 : 0} 0 ${xy(on(primitive.endAngle))}`,
-        );
+        const from = on(primitive.startAngle);
+        const to = on(primitive.endAngle);
+        parts.push(`${moveTo(from)}A${r},${r} 0 ${swept > 180 ? 1 : 0} 0 ${xy(to)}`);
+        cursor = to;
       } else {
         const [first, ...rest] = primitive.controls;
-        let data = `M${xy(first)}`;
-        for (let index = 0; index + 2 < rest.length; index += 3)
-          data += ` C${xy(rest[index])} ${xy(rest[index + 1])} ${xy(rest[index + 2])}`;
-        parts.push(data);
+        let data = moveTo(first);
+        for (let index = 0; index + 2 < rest.length; index += 3) {
+          data += `C${xy(rest[index])} ${xy(rest[index + 1])} ${xy(rest[index + 2])} `;
+          cursor = rest[index + 2];
+        }
+        parts.push(data.trim());
       }
     }
-    return parts.join(" ");
+    const joined = parts.join(" ").replace(/\s+/g, " ").trim();
+    return path.closed ? `${joined} Z` : joined;
   });
 }
 

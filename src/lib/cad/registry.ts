@@ -141,15 +141,29 @@ export interface LoadedDrawing {
   needsScale: boolean;
   /** Kept for STL so the section height can be moved without re-reading. */
   mesh?: StlMesh;
+  /** Images: which way the ink was read, so the user can overrule it. */
+  traceMode?: TraceMode;
   /** A plain sentence about what was read, for the user. */
   summary: string;
 }
+
+/**
+ * Outline follows the edge of the ink; centreline follows its middle.
+ *
+ * For a filled shape the edge is the answer. For a drawing it is not: a pen
+ * stroke has two edges, so outlining a sketched jigsaw returns every line
+ * twice, a stroke-width apart, and a machine told to cut that cuts the piece
+ * out of existence.
+ */
+export type TraceMode = "outline" | "centerline";
 
 export interface LoadOptions {
   invert?: boolean;
   /** STL: where to take the cross-section, and whether to section or flatten. */
   sliceZ?: number;
   stlMode?: StlMode;
+  /** Images: left out, it is decided from how wide the ink is. */
+  traceMode?: TraceMode;
   /** Progress for the slow ones, so a large file on a phone is not a dead UI. */
   onProgress?: (message: string) => void;
 }
@@ -287,22 +301,39 @@ export async function loadDrawing(file: File, options: LoadOptions = {}): Promis
     case "raster": {
       progress("Loading image…");
       const image = await readImage(file);
-      progress("Finding outlines…");
-      const paths = traceRasterContours(
-        image.pixels,
-        image.width,
-        image.height,
-        undefined,
-        options.invert ?? false,
-      );
+      const invert = options.invert ?? false;
+      const { looksLikeLineDrawing, traceCenterlines } = await import("./centerline");
+
+      progress("Measuring the ink…");
+      // Asking the user to know the difference between a drawing and a filled
+      // shape is asking them to know why their last export came out doubled.
+      // The ink itself says which it is.
+      const mode: TraceMode =
+        options.traceMode ??
+        (looksLikeLineDrawing(image.pixels, image.width, image.height, undefined, invert)
+          ? "centerline"
+          : "outline");
+
+      progress(mode === "centerline" ? "Following the lines…" : "Finding outlines…");
+      const paths =
+        mode === "centerline"
+          ? traceCenterlines(image.pixels, image.width, image.height, undefined, invert)
+          : traceRasterContours(image.pixels, image.width, image.height, undefined, invert);
+
+      if (mode === "centerline")
+        warnings.push(
+          "Read as a line drawing, so each drawn line came through once, down its middle. If this was meant to be a filled shape, switch to outline tracing.",
+        );
+
       return {
         paths,
         format,
         warnings,
+        traceMode: mode,
         // Pixels have no size. Until the user says what something measures, an
         // exported DXF would be confidently and invisibly the wrong scale.
         needsScale: true,
-        summary: `${image.width}×${image.height} traced → ${countOf(paths, "outline")}`,
+        summary: `${image.width}×${image.height} → ${countOf(paths, mode === "centerline" ? "line" : "outline")}`,
       };
     }
 

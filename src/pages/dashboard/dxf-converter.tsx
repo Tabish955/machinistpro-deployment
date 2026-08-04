@@ -18,6 +18,7 @@ import {
   type LoadedDrawing,
 } from "@/lib/cad/registry";
 import type { StlMode } from "@/lib/cad/stl-import";
+import type { TraceMode } from "@/lib/cad/registry";
 import {
   AlertTriangle,
   Download,
@@ -49,6 +50,8 @@ export default function DxfConverterPage() {
   const [invert, setInvert] = useState(false);
   const [fitTolerance, setFitTolerance] = useState(0.8);
   const [stlMode, setStlMode] = useState<StlMode>("slice");
+  // Left null the tracer decides from the ink; set, the user has overruled it.
+  const [traceMode, setTraceMode] = useState<TraceMode | null>(null);
   const [sliceZ, setSliceZ] = useState<number | null>(null);
 
   // A fresh [] on every render would make every memo below recompute, and
@@ -71,6 +74,7 @@ export default function DxfConverterPage() {
     setAdvice("");
     setBusy("");
     setSliceZ(null);
+    setTraceMode(null);
     setScaleWasSet(false);
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -78,7 +82,12 @@ export default function DxfConverterPage() {
   const run = useCallback(
     async (
       target: File,
-      overrides: { invert?: boolean; stlMode?: StlMode; sliceZ?: number } = {},
+      overrides: {
+        invert?: boolean;
+        stlMode?: StlMode;
+        sliceZ?: number;
+        traceMode?: TraceMode;
+      } = {},
     ) => {
       setError("");
       setAdvice("");
@@ -88,6 +97,7 @@ export default function DxfConverterPage() {
           invert: overrides.invert ?? invert,
           stlMode: overrides.stlMode ?? stlMode,
           sliceZ: overrides.sliceZ ?? sliceZ ?? undefined,
+          traceMode: overrides.traceMode ?? traceMode ?? undefined,
           onProgress: setBusy,
         });
         setDrawing(loaded);
@@ -107,7 +117,7 @@ export default function DxfConverterPage() {
         setBusy("");
       }
     },
-    [invert, stlMode, sliceZ],
+    [invert, stlMode, sliceZ, traceMode],
   );
 
   const accept = (chosen: File | undefined | null) => {
@@ -352,6 +362,34 @@ export default function DxfConverterPage() {
 
               {drawing?.format.kind === "raster" && (
                 <div className="space-y-3 border-t border-dark-700 pt-4">
+                  <div>
+                    <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                      How to read the image
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {(
+                        [
+                          ["centerline", "Line drawing"],
+                          ["outline", "Filled shape"],
+                        ] as const
+                      ).map(([mode, label]) => (
+                        <button
+                          key={mode}
+                          onClick={() => {
+                            setTraceMode(mode);
+                            if (file) void run(file, { traceMode: mode });
+                          }}
+                          className={`rounded-lg py-2 text-xs font-semibold border cursor-pointer ${(traceMode ?? drawing.traceMode) === mode ? "border-accent-cyan/50 bg-accent-cyan/10 text-accent-cyan" : "border-dark-600 text-gray-400"}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="mt-2 block text-xs text-gray-400">
+                      A drawn line has two edges. Read as a line drawing it comes through once, down
+                      its middle; as a filled shape you get both edges.
+                    </span>
+                  </div>
                   <label className="block">
                     <span className="flex justify-between text-xs uppercase tracking-wider text-gray-400 font-semibold">
                       <span>Line/arc tolerance</span>
