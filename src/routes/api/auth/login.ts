@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { issueSession, revokeUserSessions } from "@/lib/session-server";
-import { verifyPassword } from "@/lib/password";
+import { verifyPassword, hashPassword, needsRehash } from "@/lib/password";
 import { clientSignalsSchema, hashHwid } from "@/lib/device-server";
 
 const bodySchema = z.object({
