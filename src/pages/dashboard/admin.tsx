@@ -17,7 +17,16 @@ import {
   adminSetSetting,
   type AdminUserRow,
 } from "@/lib/admin.functions";
-import { ShieldCheck, UserPlus, RefreshCw, Trash2, Megaphone, Wrench, KeyRound } from "lucide-react";
+import {
+  ShieldCheck,
+  UserPlus,
+  RefreshCw,
+  Trash2,
+  Megaphone,
+  Wrench,
+  KeyRound,
+  AlertTriangle,
+} from "lucide-react";
 
 const inputClass =
   "w-full rounded-xl bg-dark-900 border border-dark-600 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-accent-cyan";
@@ -37,6 +46,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
+  /** Something went wrong that is not a question of permission. */
+  const [failure, setFailure] = useState("");
 
   const [nu, setNu] = useState({
     username: "",
@@ -63,8 +74,20 @@ export default function AdminPage() {
       setMaint(s.maintenance);
       setAnn(s.announcement);
       setDenied(false);
-    } catch {
-      setDenied(true);
+      setFailure("");
+    } catch (reason) {
+      // Only the server refusing the token means the account is not an admin.
+      // Treating every failure as that sent an administrator who was correctly
+      // signed in off to look at their own account, when the real fault was a
+      // database that could not be reached.
+      const message = reason instanceof Error ? reason.message : String(reason);
+      if (/not authoris|not authoriz|forbidden|401|403/i.test(message)) {
+        setDenied(true);
+        setFailure("");
+      } else {
+        setDenied(false);
+        setFailure(message || "The admin data could not be loaded.");
+      }
     } finally {
       setLoading(false);
     }
@@ -117,10 +140,17 @@ export default function AdminPage() {
     } else toast.error("Delete failed", r.error);
   };
 
-  const saveSetting = async (key: "maintenance" | "announcement", v: { enabled: boolean; message: string }) => {
+  const saveSetting = async (
+    key: "maintenance" | "announcement",
+    v: { enabled: boolean; message: string },
+  ) => {
     if (!token) return;
     const r = await setSetting({ data: { sessionToken: token, key, ...v } });
-    if (r.ok) toast.success("Saved", key === "maintenance" ? "Maintenance mode updated." : "Announcement updated.");
+    if (r.ok)
+      toast.success(
+        "Saved",
+        key === "maintenance" ? "Maintenance mode updated." : "Announcement updated.",
+      );
     else toast.error("Save failed", r.error);
   };
 
@@ -138,7 +168,27 @@ export default function AdminPage() {
         <p className="text-sm text-gray-400">
           This area is restricted. Sign in with an administrator account to continue.
         </p>
+        <p className="text-xs text-gray-500">
+          Signed in as {user?.username ?? "unknown"}. If this account was made an administrator
+          after you signed in, sign out and back in.
+        </p>
         <Button onClick={() => router.push("/dashboard")}>Back to dashboard</Button>
+      </div>
+    );
+  }
+
+  if (failure) {
+    return (
+      <div className="max-w-lg mx-auto mt-20 text-center space-y-4">
+        <AlertTriangle size={40} className="mx-auto text-accent-amber" />
+        <h1 className="text-xl font-semibold text-white">The admin panel could not load</h1>
+        <p className="text-sm text-gray-400">
+          This is not a permissions problem — your account was accepted. Something behind it failed.
+        </p>
+        <p className="text-xs text-gray-500 font-mono break-words bg-dark-900 border border-dark-700 rounded-lg p-3">
+          {failure}
+        </p>
+        <Button onClick={() => void refresh()}>Try again</Button>
       </div>
     );
   }
@@ -180,7 +230,11 @@ export default function AdminPage() {
             >
               {maint.enabled ? "Turn off" : "Turn on"}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => void saveSetting("maintenance", maint)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void saveSetting("maintenance", maint)}
+            >
               Save message
             </Button>
           </div>
@@ -211,7 +265,11 @@ export default function AdminPage() {
             >
               {ann.enabled ? "Hide" : "Publish"}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => void saveSetting("announcement", ann)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void saveSetting("announcement", ann)}
+            >
               Save message
             </Button>
           </div>
@@ -302,7 +360,9 @@ export default function AdminPage() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {u.subscription}
-                    {u.expiry_date ? ` · expires ${new Date(u.expiry_date).toLocaleDateString()}` : " · no expiry"}
+                    {u.expiry_date
+                      ? ` · expires ${new Date(u.expiry_date).toLocaleDateString()}`
+                      : " · no expiry"}
                     {u.last_login_at
                       ? ` · last login ${new Date(u.last_login_at).toLocaleString()}`
                       : " · never signed in"}

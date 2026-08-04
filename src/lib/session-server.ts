@@ -117,6 +117,13 @@ export async function validateSession(rawToken: string): Promise<SessionRecord |
   }
 
   // A paid account can be deactivated or deleted mid-session; kill the session too.
+  //
+  // The account row is also the truth about what this user may do *now*. The
+  // session row only records what was true when they signed in, so reading
+  // rights from it means granting somebody admin has no effect until they log
+  // out and back in — and, worse, that taking it away has no effect either.
+  // These columns were already being fetched and then thrown away.
+  let { is_admin: isAdmin, subscription, expiry_date: expiry } = data;
   if (data.user_id) {
     const { data: u } = await a
       .from("app_users")
@@ -134,14 +141,17 @@ export async function validateSession(rawToken: string): Promise<SessionRecord |
         );
       return null;
     }
+    isAdmin = u.is_admin;
+    subscription = u.subscription;
+    expiry = u.expiry_date;
   }
 
   return {
     username: data.username,
-    subscription: data.subscription,
-    expiry: data.expiry_date ?? "",
+    subscription,
+    expiry: expiry ?? "",
     isTrial: data.is_trial,
-    isAdmin: data.is_admin,
+    isAdmin,
     rememberMe: data.remember_me,
     expiresAt: data.expires_at,
     userId: data.user_id,

@@ -48,8 +48,34 @@ const mocks: {
 };
 
 // Proxy-based admin-client stub mirroring the real surface used.
+/** What the account row says right now, as opposed to what the session
+ *  remembers from sign-in time. */
+let appUserResult: {
+  data: {
+    is_active: boolean;
+    is_admin: boolean;
+    subscription: string;
+    expiry_date: string | null;
+  } | null;
+} = { data: null };
+
 const supabaseAdmin = {
   from(table: string) {
+    if (table === "app_users") {
+      return {
+        select() {
+          return {
+            eq() {
+              return {
+                async maybeSingle() {
+                  return appUserResult;
+                },
+              };
+            },
+          };
+        },
+      };
+    }
     if (table !== "sessions") throw new Error(`Unexpected table: ${table}`);
     return {
       insert: mocks.insertFn,
@@ -145,7 +171,6 @@ describe("issueSession", () => {
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
-
 });
 
 describe("validateSession", () => {
@@ -207,6 +232,64 @@ describe("validateSession", () => {
     expect(result!.isTrial).toBe(true);
     expect(result!.rememberMe).toBe(true);
     expect(result!.expiresAt).toBe(futureIso);
+  });
+
+  it("takes admin rights from the account, not from the session", async () => {
+    // The bug this guards: an account promoted to administrator kept being
+    // refused, because rights were read from the snapshot taken when the user
+    // signed in. They had to sign out and back in for their own permissions to
+    // apply, and nothing on screen said so.
+    const futureIso = new Date(Date.now() + 60_000).toISOString();
+    selectResult = {
+      data: {
+        token_hash: "h",
+        user_id: "u1",
+        username: "alice",
+        subscription: "Standard",
+        expiry_date: "2027-01-01",
+        is_trial: false,
+        is_admin: false,
+        remember_me: false,
+        expires_at: futureIso,
+      } as never,
+      error: null,
+    };
+    appUserResult = {
+      data: { is_active: true, is_admin: true, subscription: "Admin", expiry_date: "2030-01-01" },
+    };
+
+    const result = await validateSession("a".repeat(32));
+    expect(result!.isAdmin).toBe(true);
+    // The plan and expiry come from the account too, so an upgrade applies at
+    // once rather than at next sign-in.
+    expect(result!.subscription).toBe("Admin");
+    expect(result!.expiry).toBe("2030-01-01");
+  });
+
+  it("withdraws admin rights the moment the account loses them", async () => {
+    // The same fault in the direction that actually matters: someone demoted
+    // must not keep administrator access until their session happens to expire.
+    const futureIso = new Date(Date.now() + 60_000).toISOString();
+    selectResult = {
+      data: {
+        token_hash: "h",
+        user_id: "u1",
+        username: "alice",
+        subscription: "Admin",
+        expiry_date: "2030-01-01",
+        is_trial: false,
+        is_admin: true,
+        remember_me: false,
+        expires_at: futureIso,
+      } as never,
+      error: null,
+    };
+    appUserResult = {
+      data: { is_active: true, is_admin: false, subscription: "Standard", expiry_date: null },
+    };
+
+    const result = await validateSession("a".repeat(32));
+    expect(result!.isAdmin).toBe(false);
   });
 });
 
