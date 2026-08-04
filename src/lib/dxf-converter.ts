@@ -413,7 +413,10 @@ export function traceRasterContours(
     const luminance = pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722;
     return invert ? luminance > threshold : luminance < threshold;
   };
-  const step = Math.max(1, Math.ceil(Math.max(width, height) / 900));
+  // Every pixel thrown away here is detail no amount of curve fitting gets
+  // back. A puzzle outline traced at 900 came out with a third of the entities
+  // it needed. Full resolution up to 1800, then one sample in two beyond that.
+  const step = Math.max(1, Math.ceil(Math.max(width, height) / 1800));
   const columns = Math.ceil(width / step);
   const rows = Math.ceil(height / step);
   const mask = Array.from({ length: rows }, (_, row) =>
@@ -466,17 +469,63 @@ export function traceRasterContours(
         points.push(edge.end);
         break;
       }
-      edgeIndex = candidates[0];
+      // Where several boundary edges meet — and on a one-pixel-wide line they
+      // meet constantly — taking the first one found joins whichever branch
+      // happened to be built first. That is what turned a straight square edge
+      // into a line running diagonally across the drawing.
+      //
+      // The edges are emitted with the material on the right of travel, so the
+      // walk stays on one boundary by always taking the sharpest right turn.
+      edgeIndex = sharpestRightTurn(edges, edge, candidates);
     }
     if (points.length < 8) continue;
     const iterations = smoothing >= 70 ? 3 : smoothing >= 30 ? 2 : smoothing > 0 ? 1 : 0;
     const smoothed = smoothClosed(points, iterations);
     const simplified = simplifyClosed(smoothed, step * (0.18 + smoothing / 160));
-    if (simplified.length >= 5) paths.push({ points: simplified, closed: true, layer: "TRACE" });
+    // Three points is the smallest closed shape there is. Requiring five threw
+    // away every traced rectangle — a square simplifies to its four corners.
+    if (simplified.length >= 3) paths.push({ points: simplified, closed: true, layer: "TRACE" });
   }
   if (!paths.length)
     throw new Error("No outline was detected. Adjust the threshold or invert the image.");
   return paths;
+}
+
+/**
+ * Of the boundary edges leaving a junction, the one that turns furthest to the
+ * right of the incoming direction.
+ *
+ * Image coordinates run y downwards, so a positive cross product is a turn to
+ * the right on screen. Ordering by angle rather than by cross product alone
+ * keeps a straight-on continuation ahead of a left turn, which matters where
+ * three edges meet.
+ */
+function sharpestRightTurn(
+  edges: Array<{ start: DxfPoint; end: DxfPoint }>,
+  incoming: { start: DxfPoint; end: DxfPoint },
+  candidates: number[],
+): number {
+  const inX = incoming.end.x - incoming.start.x;
+  const inY = incoming.end.y - incoming.start.y;
+  let best = candidates[0];
+  let bestAngle = Infinity;
+  for (const index of candidates) {
+    const edge = edges[index];
+    const outX = edge.end.x - edge.start.x;
+    const outY = edge.end.y - edge.start.y;
+    // Signed turn from the incoming direction, measured clockwise on screen.
+    const cross = inX * outY - inY * outX;
+    const dot = inX * outX + inY * outY;
+    // atan2(-cross, dot) puts a hard right turn at the smallest angle and a
+    // hard left at the largest, with straight ahead in between.
+    let angle = Math.atan2(-cross, dot);
+    if (angle < 0) angle += Math.PI * 2;
+    if (angle < bestAngle) {
+      bestAngle = angle;
+      best = index;
+    }
+  }
+  return best;
 }
 
 function circleThrough(a: DxfPoint, b: DxfPoint, c: DxfPoint) {
