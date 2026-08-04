@@ -132,6 +132,29 @@ describe("bugs found reviewing the first version", () => {
     expect(applyMatrix(parseTransform(""), { x: 3, y: 4 })).toEqual({ x: 3, y: 4 });
   });
 
+  it("separates smoothing from how much detail survives", () => {
+    // One control used to do both jobs, so asking for a smoother outline also
+    // deleted points and there was no way to round the pixel staircase while
+    // keeping corners. Holding smoothing still, detail alone must change the
+    // number of points that come out.
+    const size = 100;
+    const pixels = new Uint8ClampedArray(size * size * 4).fill(255);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (Math.hypot(x - 50, y - 50) > 34) continue;
+        const o = (y * size + x) * 4;
+        pixels[o] = 0;
+        pixels[o + 1] = 0;
+        pixels[o + 2] = 0;
+        pixels[o + 3] = 255;
+      }
+    }
+
+    const coarse = traceRasterContours(pixels, size, size, 128, false, 55, 5);
+    const fine = traceRasterContours(pixels, size, size, 128, false, 55, 95);
+    expect(fine[0].points.length).toBeGreaterThan(coarse[0].points.length);
+  });
+
   it("traces a square border as square edges, not a diagonal", () => {
     // The real export turned the left edge of a square into a line running from
     // (0, 529) to (3.5, 1050) — halfway up, and slanted. At a junction the walk

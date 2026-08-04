@@ -407,6 +407,13 @@ export function traceRasterContours(
   threshold: number,
   invert: boolean,
   smoothing = 55,
+  /**
+   * How much of the outline to keep, 0–100. Separate from smoothing on purpose:
+   * one control used to do both jobs, so asking for a smoother outline also
+   * deleted detail and there was no way to say "round the pixel staircase but
+   * keep my corners". 100 keeps everything, 0 simplifies hard.
+   */
+  detail = 55,
 ): DxfPath[] {
   const dark = (x: number, y: number) => {
     const i = (y * width + x) * 4;
@@ -479,9 +486,13 @@ export function traceRasterContours(
       edgeIndex = sharpestRightTurn(edges, edge, candidates);
     }
     if (points.length < 8) continue;
+    // Smoothing rounds the pixel staircase off; detail decides how many points
+    // survive afterwards. They pull in opposite directions, which is exactly
+    // why they have to be two knobs and not one.
     const iterations = smoothing >= 70 ? 3 : smoothing >= 30 ? 2 : smoothing > 0 ? 1 : 0;
     const smoothed = smoothClosed(points, iterations);
-    const simplified = simplifyClosed(smoothed, step * (0.18 + smoothing / 160));
+    const epsilon = step * (0.08 + (100 - Math.min(100, Math.max(0, detail))) / 120);
+    const simplified = simplifyClosed(smoothed, epsilon);
     // Three points is the smallest closed shape there is. Requiring five threw
     // away every traced rectangle — a square simplifies to its four corners.
     if (simplified.length >= 3) paths.push({ points: simplified, closed: true, layer: "TRACE" });

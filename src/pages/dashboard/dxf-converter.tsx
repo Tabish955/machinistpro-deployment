@@ -28,6 +28,8 @@ export default function DxfConverterPage() {
   const [threshold, setThreshold] = useState(128);
   const [invert, setInvert] = useState(false);
   const [smoothing, setSmoothing] = useState(55);
+  // Kept apart from smoothing so a smoother outline does not also cost detail.
+  const [detail, setDetail] = useState(55);
   const [fitTolerance, setFitTolerance] = useState(0.8);
   const [error, setError] = useState("");
   const [raster, setRaster] = useState<{
@@ -54,7 +56,12 @@ export default function DxfConverterPage() {
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const updateRaster = (value = threshold, inverted = invert, smoothness = smoothing) => {
+  const updateRaster = (
+    value = threshold,
+    inverted = invert,
+    smoothness = smoothing,
+    keep = detail,
+  ) => {
     if (!raster) return;
     try {
       setPaths(
@@ -65,6 +72,7 @@ export default function DxfConverterPage() {
           value,
           inverted,
           smoothness,
+          keep,
         ),
       );
       setError("");
@@ -111,6 +119,7 @@ export default function DxfConverterPage() {
                 threshold,
                 invert,
                 smoothing,
+                detail,
               ),
             );
           } catch (reason) {
@@ -268,6 +277,9 @@ export default function DxfConverterPage() {
                       <span>Contour smoothing</span>
                       <span>{smoothing}%</span>
                     </span>
+                    <span className="mt-1 block text-[10px] text-gray-600">
+                      Rounds off the pixel staircase. Lower keeps sharp corners.
+                    </span>
                     <input
                       type="range"
                       min="0"
@@ -276,7 +288,28 @@ export default function DxfConverterPage() {
                       onChange={(event) => {
                         const value = Number(event.target.value);
                         setSmoothing(value);
-                        updateRaster(threshold, invert, value);
+                        updateRaster(threshold, invert, value, detail);
+                      }}
+                      className="w-full mt-2 accent-cyan-400"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                      <span>Detail kept</span>
+                      <span>{detail}%</span>
+                    </span>
+                    <span className="mt-1 block text-[10px] text-gray-600">
+                      How much of the outline survives. Higher keeps more points.
+                    </span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={detail}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        setDetail(value);
+                        updateRaster(threshold, invert, smoothing, value);
                       }}
                       className="w-full mt-2 accent-cyan-400"
                     />
@@ -285,6 +318,9 @@ export default function DxfConverterPage() {
                     <span className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
                       <span>Line/arc tolerance</span>
                       <span>{fitTolerance.toFixed(1)} px</span>
+                    </span>
+                    <span className="mt-1 block text-[10px] text-gray-600">
+                      How far the exported geometry may sit from the outline.
                     </span>
                     <input
                       type="range"
