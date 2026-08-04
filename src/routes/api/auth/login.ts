@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { issueSession, revokeUserSessions } from "@/lib/session-server";
-import { verifyPassword } from "@/lib/password";
+import { verifyPassword, hashPassword, needsRehash } from "@/lib/password";
 import { clientSignalsSchema, hashHwid } from "@/lib/device-server";
 
 const bodySchema = z.object({
@@ -43,6 +43,20 @@ export const Route = createFileRoute("/api/auth/login")({
           if (!user) return fail("Invalid username or password");
           const ok = await verifyPassword(password, user.password_hash);
           if (!ok) return fail("Invalid username or password");
+          // Legacy hashes (120k iterations) cannot be produced by Cloudflare
+          // Workers' WebCrypto — upgrade them transparently on first login.
+          if (needsRehash(user.password_hash)) {
+            try {
+              const upgraded = await hashPassword(password);
+              await supabaseAdmin
+                .from("app_users")
+                .update({ password_hash: upgraded })
+                .eq("id", user.id);
+            } catch (e) {
+              console.error("[/api/auth/login] rehash failed:", e);
+            }
+          }
+
           if (!user.is_active) return fail("This account has been suspended.", 403);
           if (user.expiry_date && new Date(user.expiry_date).getTime() <= Date.now()) {
             return fail("Your subscription has expired.", 403);
