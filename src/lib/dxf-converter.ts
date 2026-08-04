@@ -372,6 +372,130 @@ function simplifyOpen(points: DxfPoint[], epsilon: number): DxfPoint[] {
   return [...left.slice(0, -1), ...right];
 }
 
+/**
+ * Otsu's method: the threshold that best separates an image into two classes,
+ * found from its own histogram by maximising the variance between them.
+ *
+ * This is why a threshold slider is not needed. The right cut is a property of
+ * the image, not a preference, and asking a user to hunt for it by eye is
+ * asking them to do arithmetic the machine can do exactly.
+ */
+export function otsuThreshold(pixels: Uint8ClampedArray): number {
+  const histogram = new Array(256).fill(0);
+  let count = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const luminance = Math.round(
+      pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722,
+    );
+    histogram[Math.min(255, Math.max(0, luminance))] += 1;
+    count += 1;
+  }
+  if (!count) return 128;
+
+  let sum = 0;
+  for (let level = 0; level < 256; level++) sum += level * histogram[level];
+
+  let backgroundWeight = 0;
+  let backgroundSum = 0;
+  let best = 128;
+  let bestVariance = -1;
+  for (let level = 0; level < 256; level++) {
+    backgroundWeight += histogram[level];
+    if (!backgroundWeight) continue;
+    const foregroundWeight = count - backgroundWeight;
+    if (!foregroundWeight) break;
+    backgroundSum += level * histogram[level];
+    const backgroundMean = backgroundSum / backgroundWeight;
+    const foregroundMean = (sum - backgroundSum) / foregroundWeight;
+    const between = backgroundWeight * foregroundWeight * (backgroundMean - foregroundMean) ** 2;
+    if (between > bestVariance) {
+      bestVariance = between;
+      best = level;
+    }
+  }
+  return best;
+}
+
+/**
+ * Where the outline genuinely turns a corner, as opposed to where the pixel
+ * grid produced a step.
+ *
+ * A staircase artifact is bounded by one sample, so the turn it creates is
+ * measured over a short span and vanishes over a longer one. A real corner
+ * turns sharply however far either side you look. Comparing the direction of
+ * travel before and after a window of several samples separates the two, which
+ * is the judgement Chaikin smoothing and Douglas-Peucker cannot make: one
+ * rounds every corner, the other keeps every spike.
+ */
+function detectCorners(points: DxfPoint[], window: number, minTurn: number): Set<number> {
+  const corners = new Set<number>();
+  const count = points.length;
+  if (count < window * 2 + 1) return corners;
+
+  for (let index = 0; index < count; index++) {
+    const before = points[(index - window + count) % count];
+    const at = points[index];
+    const after = points[(index + window) % count];
+    const inX = at.x - before.x;
+    const inY = at.y - before.y;
+    const outX = after.x - at.x;
+    const outY = after.y - at.y;
+    const inLength = Math.hypot(inX, inY);
+    const outLength = Math.hypot(outX, outY);
+    if (inLength < 1e-9 || outLength < 1e-9) continue;
+    const cos = (inX * outX + inY * outY) / (inLength * outLength);
+    const turn = Math.acos(Math.min(1, Math.max(-1, cos)));
+    if (turn >= minTurn) corners.add(index);
+  }
+  return corners;
+}
+
+/** Average each point with its neighbours to take the pixel staircase out.
+ *  Unlike corner cutting this leaves the outline where it is rather than
+ *  pulling it inwards, so a feature keeps its size. */
+function destaircase(points: DxfPoint[], radius: number): DxfPoint[] {
+  if (radius < 1 || points.length < radius * 2 + 1) return points;
+  const count = points.length;
+  return points.map((_, index) => {
+    let x = 0;
+    let y = 0;
+    let n = 0;
+    for (let offset = -radius; offset <= radius; offset++) {
+      const point = points[(index + offset + count) % count];
+      x += point.x;
+      y += point.y;
+      n += 1;
+    }
+    return { x: x / n, y: y / n };
+  });
+}
+
+/**
+ * Simplify a closed outline span by span, cutting it at its corners so a corner
+ * can never be simplified away and a curve is never held up by one.
+ */
+function simplifyBetweenCorners(
+  points: DxfPoint[],
+  corners: Set<number>,
+  epsilon: number,
+): DxfPoint[] {
+  const marks = [...corners].sort((a, b) => a - b);
+  // No corners at all means the whole thing is one curve.
+  if (marks.length < 2) return simplifyClosed(points, epsilon);
+
+  const result: DxfPoint[] = [];
+  for (let i = 0; i < marks.length; i++) {
+    const from = marks[i];
+    const to = marks[(i + 1) % marks.length];
+    const span =
+      to > from ? points.slice(from, to + 1) : [...points.slice(from), ...points.slice(0, to + 1)];
+    const simplified = simplifyOpen(span, epsilon);
+    // Drop the last point of each span; the next span starts on it.
+    result.push(...simplified.slice(0, -1));
+  }
+  return result;
+}
+
 function smoothClosed(points: DxfPoint[], iterations: number): DxfPoint[] {
   let result = points;
   for (let iteration = 0; iteration < iterations; iteration++) {
@@ -404,21 +528,17 @@ export function traceRasterContours(
   pixels: Uint8ClampedArray,
   width: number,
   height: number,
-  threshold: number,
-  invert: boolean,
-  smoothing = 55,
-  /**
-   * How much of the outline to keep, 0–100. Separate from smoothing on purpose:
-   * one control used to do both jobs, so asking for a smoother outline also
-   * deleted detail and there was no way to say "round the pixel staircase but
-   * keep my corners". 100 keeps everything, 0 simplifies hard.
-   */
-  detail = 55,
+  /** Left out, the threshold is computed from the image by Otsu's method. */
+  threshold?: number,
+  invert = false,
 ): DxfPath[] {
+  // The right cut is a property of the image, so it is measured, not asked for.
+  const cut = threshold ?? otsuThreshold(pixels);
   const dark = (x: number, y: number) => {
     const i = (y * width + x) * 4;
     const luminance = pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722;
-    return invert ? luminance > threshold : luminance < threshold;
+    // Otsu's threshold belongs to the darker class, so the test is inclusive.
+    return invert ? luminance > cut : luminance <= cut;
   };
   // Every pixel thrown away here is detail no amount of curve fitting gets
   // back. A puzzle outline traced at 900 came out with a third of the entities
@@ -486,13 +606,17 @@ export function traceRasterContours(
       edgeIndex = sharpestRightTurn(edges, edge, candidates);
     }
     if (points.length < 8) continue;
-    // Smoothing rounds the pixel staircase off; detail decides how many points
-    // survive afterwards. They pull in opposite directions, which is exactly
-    // why they have to be two knobs and not one.
-    const iterations = smoothing >= 70 ? 3 : smoothing >= 30 ? 2 : smoothing > 0 ? 1 : 0;
-    const smoothed = smoothClosed(points, iterations);
-    const epsilon = step * (0.08 + (100 - Math.min(100, Math.max(0, detail))) / 120);
-    const simplified = simplifyClosed(smoothed, epsilon);
+    // Take the staircase out by averaging, which leaves the outline where it
+    // is, then find the corners that survive that averaging, then simplify each
+    // span between corners without ever deleting a corner itself.
+    //
+    // The old order — corner-cutting then Douglas-Peucker — could not win: the
+    // cutting rounded real corners and the simplification preserved the very
+    // staircase spikes it was meant to remove.
+    const smoothed = destaircase(points, Math.max(1, Math.round(step * 1.5)));
+    const corners = detectCorners(smoothed, Math.max(2, Math.round(step * 2)), 0.7);
+    const epsilon = step * 0.45;
+    const simplified = simplifyBetweenCorners(smoothed, corners, epsilon);
     // Three points is the smallest closed shape there is. Requiring five threw
     // away every traced rectangle — a square simplifies to its four corners.
     if (simplified.length >= 3) paths.push({ points: simplified, closed: true, layer: "TRACE" });

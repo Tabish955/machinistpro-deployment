@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import {
   analyzeCadGeometry,
   createDxf,
   getBounds,
+  otsuThreshold,
   parseCoordinateText,
   parseTransform,
   applyMatrix,
@@ -79,7 +80,7 @@ describe("DXF converter", () => {
       }
     }
 
-    const paths = traceRasterContours(pixels, width, height, 128, false, 70);
+    const paths = traceRasterContours(pixels, width, height, 128, false);
     expect(paths).toHaveLength(1);
     expect(paths[0].closed).toBe(true);
     expect(paths[0].points.length).toBeLessThan(100);
@@ -93,7 +94,7 @@ describe("DXF converter", () => {
 });
 
 describe("bugs found reviewing the first version", () => {
-  // parseSvg needs a DOM, and this repo has no DOM test environment — which is
+  // parseSvg needs a DOM, and this repo has no DOM test environment â€” which is
   // why the SVG side shipped untested. The transform maths, where the bug was,
   // is pure and is tested directly.
 
@@ -132,32 +133,31 @@ describe("bugs found reviewing the first version", () => {
     expect(applyMatrix(parseTransform(""), { x: 3, y: 4 })).toEqual({ x: 3, y: 4 });
   });
 
-  it("separates smoothing from how much detail survives", () => {
-    // One control used to do both jobs, so asking for a smoother outline also
-    // deleted points and there was no way to round the pixel staircase while
-    // keeping corners. Holding smoothing still, detail alone must change the
-    // number of points that come out.
-    const size = 100;
-    const pixels = new Uint8ClampedArray(size * size * 4).fill(255);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        if (Math.hypot(x - 50, y - 50) > 34) continue;
-        const o = (y * size + x) * 4;
-        pixels[o] = 0;
-        pixels[o + 1] = 0;
-        pixels[o + 2] = 0;
-        pixels[o + 3] = 255;
+  it("finds its own threshold instead of asking for one", () => {
+    // Otsu picks the cut that best separates the two classes in the histogram.
+    // A slider for this was asking the user to do arithmetic by eye.
+    const size = 40;
+    const pixels = new Uint8ClampedArray(size * size * 4).fill(230);
+    for (let i = 0; i < pixels.length; i += 4) {
+      if ((i / 4) % size < size / 2) {
+        pixels[i] = 30;
+        pixels[i + 1] = 30;
+        pixels[i + 2] = 30;
       }
     }
+    const cut = otsuThreshold(pixels);
+    // The cut belongs to the darker class, so it lands on 30 and separates the
+    // two populations cleanly — anywhere from 30 to 229 splits them identically.
+    expect(cut).toBeGreaterThanOrEqual(30);
+    expect(cut).toBeLessThan(230);
 
-    const coarse = traceRasterContours(pixels, size, size, 128, false, 55, 5);
-    const fine = traceRasterContours(pixels, size, size, 128, false, 55, 95);
-    expect(fine[0].points.length).toBeGreaterThan(coarse[0].points.length);
+    // And tracing without a threshold must work at all.
+    expect(() => traceRasterContours(pixels, size, size)).not.toThrow();
   });
 
   it("traces a square border as square edges, not a diagonal", () => {
     // The real export turned the left edge of a square into a line running from
-    // (0, 529) to (3.5, 1050) — halfway up, and slanted. At a junction the walk
+    // (0, 529) to (3.5, 1050) â€” halfway up, and slanted. At a junction the walk
     // took whichever edge happened to be built first and jumped boundaries.
     const size = 120;
     const pixels = new Uint8ClampedArray(size * size * 4).fill(255);
@@ -172,7 +172,7 @@ describe("bugs found reviewing the first version", () => {
       }
     }
 
-    const [contour] = traceRasterContours(pixels, size, size, 128, false, 0);
+    const [contour] = traceRasterContours(pixels, size, size, 128, false);
     const points = contour.points;
     // Every step round a square must move along one axis only. A segment that
     // moves substantially in both is the walk having jumped to another edge.
@@ -208,7 +208,7 @@ describe("bugs found reviewing the first version", () => {
 
   it("fits a long sweeping curve as arcs rather than a chain of chords", () => {
     // Straight sections came out clean but every curve was faceted, because the
-    // line search looked 80 points ahead while the arc search stopped at 52 — a
+    // line search looked 80 points ahead while the arc search stopped at 52 â€” a
     // gentle curve was won by a straight fit purely on reach.
     const sweep = {
       points: Array.from({ length: 160 }, (_, i) => {

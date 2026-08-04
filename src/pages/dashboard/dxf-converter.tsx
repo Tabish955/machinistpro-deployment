@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+﻿import { useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -25,11 +25,7 @@ export default function DxfConverterPage() {
   // A traced image has no size of its own, so the default 1 is a guess, not a
   // measurement. Until someone changes it, a traced export is refused.
   const [scaleWasSet, setScaleWasSet] = useState(false);
-  const [threshold, setThreshold] = useState(128);
   const [invert, setInvert] = useState(false);
-  const [smoothing, setSmoothing] = useState(55);
-  // Kept apart from smoothing so a smoother outline does not also cost detail.
-  const [detail, setDetail] = useState(55);
   const [fitTolerance, setFitTolerance] = useState(0.8);
   const [error, setError] = useState("");
   const [raster, setRaster] = useState<{
@@ -56,24 +52,12 @@ export default function DxfConverterPage() {
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const updateRaster = (
-    value = threshold,
-    inverted = invert,
-    smoothness = smoothing,
-    keep = detail,
-  ) => {
+  const updateRaster = (inverted = invert) => {
     if (!raster) return;
     try {
+      // No threshold: it is measured from the image by Otsu's method.
       setPaths(
-        traceRasterContours(
-          raster.pixels,
-          raster.width,
-          raster.height,
-          value,
-          inverted,
-          smoothness,
-          keep,
-        ),
+        traceRasterContours(raster.pixels, raster.width, raster.height, undefined, inverted),
       );
       setError("");
     } catch (reason) {
@@ -112,15 +96,7 @@ export default function DxfConverterPage() {
           setSourceKind("raster");
           try {
             setPaths(
-              traceRasterContours(
-                data.data,
-                canvas.width,
-                canvas.height,
-                threshold,
-                invert,
-                smoothing,
-                detail,
-              ),
+              traceRasterContours(data.data, canvas.width, canvas.height, undefined, invert),
             );
           } catch (reason) {
             setError(reason instanceof Error ? reason.message : "Could not trace this image.");
@@ -196,7 +172,7 @@ export default function DxfConverterPage() {
               <FileUp size={28} className="text-accent-cyan" />
               <span className="text-sm font-medium text-white">Choose a workshop file</span>
               <span className="text-[11px] text-gray-500">
-                SVG · CSV/XYZ · PNG/JPG · BMP · WebP
+                SVG Â· CSV/XYZ Â· PNG/JPG Â· BMP Â· WebP
               </span>
             </button>
             {fileName && (
@@ -254,66 +230,11 @@ export default function DxfConverterPage() {
               </label>
               {sourceKind === "raster" && (
                 <>
-                  <label className="block">
-                    <span className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                      <span>Trace threshold</span>
-                      <span>{threshold}</span>
-                    </span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="245"
-                      value={threshold}
-                      onChange={(event) => {
-                        const value = Number(event.target.value);
-                        setThreshold(value);
-                        updateRaster(value, invert);
-                      }}
-                      className="w-full mt-2 accent-cyan-400"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                      <span>Contour smoothing</span>
-                      <span>{smoothing}%</span>
-                    </span>
-                    <span className="mt-1 block text-[10px] text-gray-600">
-                      Rounds off the pixel staircase. Lower keeps sharp corners.
-                    </span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={smoothing}
-                      onChange={(event) => {
-                        const value = Number(event.target.value);
-                        setSmoothing(value);
-                        updateRaster(threshold, invert, value, detail);
-                      }}
-                      className="w-full mt-2 accent-cyan-400"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                      <span>Detail kept</span>
-                      <span>{detail}%</span>
-                    </span>
-                    <span className="mt-1 block text-[10px] text-gray-600">
-                      How much of the outline survives. Higher keeps more points.
-                    </span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={detail}
-                      onChange={(event) => {
-                        const value = Number(event.target.value);
-                        setDetail(value);
-                        updateRaster(threshold, invert, smoothing, value);
-                      }}
-                      className="w-full mt-2 accent-cyan-400"
-                    />
-                  </label>
+                  {/* Smoothing, detail and threshold were three ways of asking
+                      the user to compensate for a weak tracer. The staircase is
+                      removed by measurement now, corners are detected rather
+                      than guessed at, and the threshold comes from the image
+                      itself, so there is nothing left to tune. */}
                   <label className="block">
                     <span className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
                       <span>Line/arc tolerance</span>
@@ -341,7 +262,7 @@ export default function DxfConverterPage() {
                       checked={invert}
                       onChange={(event) => {
                         setInvert(event.target.checked);
-                        updateRaster(threshold, event.target.checked);
+                        updateRaster(event.target.checked);
                       }}
                       className="accent-cyan-400"
                     />{" "}
@@ -385,7 +306,8 @@ export default function DxfConverterPage() {
                   <Badge color="gray">{geometryStats.polylines} polylines</Badge>
                 )}
                 <Badge color="blue">
-                  {(bounds.width * scale).toFixed(2)} × {(bounds.height * scale).toFixed(2)} {units}
+                  {(bounds.width * scale).toFixed(2)} Ã— {(bounds.height * scale).toFixed(2)}{" "}
+                  {units}
                 </Badge>
               </div>
             )}
