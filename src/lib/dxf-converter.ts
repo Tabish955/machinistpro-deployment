@@ -562,7 +562,11 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
       circle: NonNullable<ReturnType<typeof circleThrough>>;
       sweep: number;
     } | null = null;
-    for (let end = index + 4; end < Math.min(points.length, index + 52); end++) {
+    // The arc search has to reach at least as far as the line search, or a long
+    // gentle curve is always won by a straight fit simply because the straight
+    // one was allowed to look further ahead. That asymmetry — 80 for lines
+    // against 52 for arcs — is what left every curve faceted into short chords.
+    for (let end = index + 4; end < Math.min(points.length, index + 240); end++) {
       const middle = Math.floor((index + end) / 2);
       const circle = circleThrough(points[index], points[middle], points[end]);
       if (!circle || circle.radius < tolerance * 2 || circle.radius > 1e7) continue;
@@ -614,10 +618,11 @@ function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] {
         bestArc = { end, circle, sweep };
     }
 
-    // Ties go to the line. An arc has to cover strictly more points than a
-    // straight fit to earn its place, or a straight run gets exported as a huge
-    // shallow arc that only looks straight until the machine follows it.
-    if (bestArc && bestArc.end > bestLineEnd) {
+    // Ties go to the arc again. Forcing the arc to win outright was the wrong
+    // guard against giant radii — it left real curves as chains of chords. The
+    // sagitta and radius checks above already stop a straight run being claimed
+    // by a circle, so an arc that reaches as far as the line fit is a real one.
+    if (bestArc && bestArc.end >= bestLineEnd) {
       const start = points[index];
       const end = points[bestArc.end];
       let startAngle =

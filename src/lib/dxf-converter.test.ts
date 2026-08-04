@@ -183,6 +183,23 @@ describe("bugs found reviewing the first version", () => {
     }
   });
 
+  it("fits a long sweeping curve as arcs rather than a chain of chords", () => {
+    // Straight sections came out clean but every curve was faceted, because the
+    // line search looked 80 points ahead while the arc search stopped at 52 — a
+    // gentle curve was won by a straight fit purely on reach.
+    const sweep = {
+      points: Array.from({ length: 160 }, (_, i) => {
+        const a = (i / 159) * Math.PI * 0.9;
+        return { x: 200 + Math.cos(a) * 180, y: 200 + Math.sin(a) * 180 };
+      }),
+      layer: "TRACE",
+    };
+    const stats = analyzeCadGeometry([sweep], 0.8);
+    expect(stats.arcs).toBeGreaterThan(0);
+    // The curve is one continuous bend; it should not need a dozen straights.
+    expect(stats.lines).toBeLessThan(stats.arcs * 2);
+  });
+
   it("still fits a genuine circle as arcs", () => {
     // The guard must not throw away real curvature.
     const circle = {
