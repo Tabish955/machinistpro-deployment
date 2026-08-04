@@ -1,7 +1,22 @@
-// PBKDF2-SHA256 password hashing on WebCrypto (works on Node and Workers).
+// PBKDF2-SHA256 password hashing that works on Node, Vercel and Cloudflare Workers.
 // Format: pbkdf2$<iterations>$<saltHex>$<hashHex>
+//
+// NOTE: Cloudflare Workers' WebCrypto rejects PBKDF2 iteration counts above
+// 100000 ("Pbkdf2 failed: iteration counts above 100000 are not supported").
+// New hashes therefore use 100000. Legacy 120000-iteration hashes are still
+// verifiable through a pure-JS fallback, and callers can re-hash them.
+import { pbkdf2 as noblePbkdf2 } from "@noble/hashes/pbkdf2.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 
-const ITERATIONS = 120000;
+const ITERATIONS = 100000;
+const MAX_WEBCRYPTO_ITERATIONS = 100000;
+
+/** True when the stored hash uses an iteration count Workers cannot handle. */
+export function needsRehash(stored: string): boolean {
+  const parts = stored.split("$");
+  return parts[0] !== "pbkdf2" || Number(parts[1]) !== ITERATIONS;
+}
+
 
 function toHex(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
