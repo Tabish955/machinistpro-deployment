@@ -1,0 +1,4 @@
+# These are test inputs, checked byte for byte. Binary STL is 50 bytes a face
+# and a PDF carries its own byte offsets, so line-ending translation would
+# corrupt both. DXF is text but its \r\n line endings are part of the format.
+* -text

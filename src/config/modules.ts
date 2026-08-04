@@ -14,6 +14,7 @@ import {
   Factory,
   Cpu,
   Compass,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -397,6 +398,40 @@ export const referenceModules: ModuleConfig[] = [
 
 // Workspace & Tools
 export const workspaceModules: ModuleConfig[] = [
+  {
+    id: "dxf-converter",
+    // The href stays /dashboard/dxf-converter so existing links keep working.
+    name: "CAD Converter",
+    shortName: "Converter",
+    description:
+      "Drop in a DXF, PDF, SVG, STL, G-code program, photograph or coordinate list and get CAD geometry back — all on the device",
+    icon: ScanLine,
+    href: "/dashboard/dxf-converter",
+    color: "cyan",
+    status: "beta",
+    category: "tools",
+    keywords: [
+      "dxf",
+      "cad",
+      "convert",
+      "converter",
+      "pdf",
+      "svg",
+      "stl",
+      "gcode",
+      "g-code",
+      "mesh",
+      "slice",
+      "image trace",
+      "cnc",
+      "laser",
+      "plasma",
+      "coordinates",
+      "dwg",
+      "step",
+    ],
+    version: "0.2",
+  },
   {
     id: "workspace",
     name: "Workspace",
