@@ -22,6 +22,9 @@ export default function DxfConverterPage() {
   const [sourceKind, setSourceKind] = useState<SourceKind | null>(null);
   const [units, setUnits] = useState<"mm" | "in">("mm");
   const [scale, setScale] = useState(1);
+  // A traced image has no size of its own, so the default 1 is a guess, not a
+  // measurement. Until someone changes it, a traced export is refused.
+  const [scaleWasSet, setScaleWasSet] = useState(false);
   const [threshold, setThreshold] = useState(128);
   const [invert, setInvert] = useState(false);
   const [smoothing, setSmoothing] = useState(55);
@@ -128,7 +131,14 @@ export default function DxfConverterPage() {
 
   const download = () => {
     if (!paths.length) return;
-    const blob = new Blob([createDxf(paths, scale, units, fitTolerance)], {
+    let dxf: string;
+    try {
+      dxf = createDxf(paths, scale, units, fitTolerance, { scaleWasSet });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The DXF could not be written.");
+      return;
+    }
+    const blob = new Blob([dxf], {
       type: "application/dxf",
     });
     const url = URL.createObjectURL(blob);
@@ -225,9 +235,10 @@ export default function DxfConverterPage() {
                     min="0.000001"
                     step="any"
                     value={scale}
-                    onChange={(event) =>
-                      setScale(Math.max(0.000001, Number(event.target.value) || 1))
-                    }
+                    onChange={(event) => {
+                      setScale(Math.max(0.000001, Number(event.target.value) || 1));
+                      setScaleWasSet(true);
+                    }}
                     className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-dark-900 border border-dark-600 text-sm font-mono text-white focus:border-accent-cyan/50 focus:outline-none"
                   />
                 </div>

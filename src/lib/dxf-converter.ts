@@ -46,6 +46,94 @@ function numbers(value: string | null): number[] {
   return (value?.match(numberPattern) ?? []).map(Number).filter(Number.isFinite);
 }
 
+/* ── Transforms ────────────────────────────────────────────────────────────────
+ * An SVG element's coordinates mean nothing without the transforms above it.
+ * Illustrator and Inkscape put the whole drawing inside a translated,
+ * often scaled <g>, so reading the raw attributes puts every part in the wrong
+ * place and frequently the wrong size. The matrices compose from the root down.
+ */
+
+/** [a c e / b d f] as SVG writes it, the bottom row being 0 0 1. */
+export type Matrix = [number, number, number, number, number, number];
+
+const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
+
+export function multiply(m: Matrix, n: Matrix): Matrix {
+  return [
+    m[0] * n[0] + m[2] * n[1],
+    m[1] * n[0] + m[3] * n[1],
+    m[0] * n[2] + m[2] * n[3],
+    m[1] * n[2] + m[3] * n[3],
+    m[0] * n[4] + m[2] * n[5] + m[4],
+    m[1] * n[4] + m[3] * n[5] + m[5],
+  ];
+}
+
+export function applyMatrix(m: Matrix, p: DxfPoint): DxfPoint {
+  return { x: m[0] * p.x + m[2] * p.y + m[4], y: m[1] * p.x + m[3] * p.y + m[5] };
+}
+
+/** The scale a matrix applies to lengths, for radii. Uses the average of the
+ *  two axis scales, which is exact for uniform scaling and the best available
+ *  approximation when a drawing has been squashed. */
+function matrixScale(m: Matrix): number {
+  return (Math.hypot(m[0], m[1]) + Math.hypot(m[2], m[3])) / 2;
+}
+
+export function parseTransform(value: string | null): Matrix {
+  if (!value) return IDENTITY;
+  let result: Matrix = IDENTITY;
+  for (const match of value.matchAll(
+    /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/g,
+  )) {
+    const [, name, body] = match;
+    const a = numbers(body);
+    const rad = (deg: number) => (deg * Math.PI) / 180;
+    let step: Matrix = IDENTITY;
+    switch (name) {
+      case "matrix":
+        if (a.length >= 6) step = [a[0], a[1], a[2], a[3], a[4], a[5]];
+        break;
+      case "translate":
+        step = [1, 0, 0, 1, a[0] ?? 0, a[1] ?? 0];
+        break;
+      case "scale":
+        step = [a[0] ?? 1, 0, 0, a[1] ?? a[0] ?? 1, 0, 0];
+        break;
+      case "rotate": {
+        const [deg = 0, cx, cy] = a;
+        const c = Math.cos(rad(deg));
+        const s = Math.sin(rad(deg));
+        const r: Matrix = [c, s, -s, c, 0, 0];
+        // rotate(deg cx cy) rotates about a point, not the origin.
+        step =
+          cx === undefined
+            ? r
+            : multiply(multiply([1, 0, 0, 1, cx, cy ?? 0], r), [1, 0, 0, 1, -cx, -(cy ?? 0)]);
+        break;
+      }
+      case "skewX":
+        step = [1, 0, Math.tan(rad(a[0] ?? 0)), 1, 0, 0];
+        break;
+      case "skewY":
+        step = [1, Math.tan(rad(a[0] ?? 0)), 0, 1, 0, 0];
+        break;
+    }
+    result = multiply(result, step);
+  }
+  return result;
+}
+
+/** Every transform from the document root down to this element, composed. */
+function inheritedMatrix(element: Element): Matrix {
+  const chain: Element[] = [];
+  for (let node: Element | null = element; node; node = node.parentElement) chain.push(node);
+  let m = IDENTITY;
+  for (const node of chain.reverse())
+    m = multiply(m, parseTransform(node.getAttribute("transform")));
+  return m;
+}
+
 function sampleEllipse(cx: number, cy: number, rx: number, ry: number, segments = 72): DxfPath {
   const points = Array.from({ length: segments }, (_, index) => {
     const angle = (index / segments) * Math.PI * 2;
@@ -54,7 +142,7 @@ function sampleEllipse(cx: number, cy: number, rx: number, ry: number, segments 
   return { points, closed: true };
 }
 
-function parsePathData(data: string): DxfPath[] {
+function parsePathData(data: string, warnings?: string[]): DxfPath[] {
   const tokens = data.match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) ?? [];
   const paths: DxfPath[] = [];
   let index = 0;
@@ -145,7 +233,12 @@ function parsePathData(data: string): DxfPath[] {
       }
       current = { x, y };
     } else {
-      // Unsupported SVG commands are skipped safely rather than producing corrupt geometry.
+      // A, S and T carry real geometry. Skipping them keeps the file readable
+      // but silently loses a feature, and a part missing a slot looks exactly
+      // like a part that never had one — so it has to be said out loud.
+      warnings?.push(
+        `Path command "${upper}" is not supported yet — that part of the outline is missing from the DXF.`,
+      );
       while (index < tokens.length && !isCommand(tokens[index])) index++;
     }
   }
@@ -153,11 +246,25 @@ function parsePathData(data: string): DxfPath[] {
   return paths;
 }
 
-export function parseSvg(svgText: string): DxfPath[] {
+export function parseSvg(svgText: string, warnings?: string[]): DxfPath[] {
   if (typeof DOMParser === "undefined") throw new Error("SVG import requires a browser context.");
   const document = new DOMParser().parseFromString(svgText, "image/svg+xml");
   if (document.querySelector("parsererror")) throw new Error("The SVG file is not valid XML.");
   const result: DxfPath[] = [];
+
+  // Anything carrying geometry that is not converted must be named, not dropped
+  // in silence. A part missing a feature looks exactly like a part that never
+  // had one.
+  if (warnings) {
+    const skipped = new Map<string, number>();
+    document.querySelectorAll("text, image, use, tspan, textPath").forEach((el) => {
+      const tag = el.tagName.toLowerCase();
+      skipped.set(tag, (skipped.get(tag) ?? 0) + 1);
+    });
+    for (const [tag, count] of skipped) {
+      warnings.push(`${count} <${tag}> element${count > 1 ? "s" : ""} skipped — not geometry.`);
+    }
+  }
 
   document
     .querySelectorAll("line, rect, circle, ellipse, polyline, polygon, path")
@@ -202,9 +309,14 @@ export function parseSvg(svgText: string): DxfPath[] {
         for (let i = 0; i + 1 < coords.length; i += 2)
           points.push({ x: coords[i], y: coords[i + 1] });
         additions = [{ points, closed: tag === "polygon" }];
-      } else if (tag === "path") additions = parsePathData(element.getAttribute("d") ?? "");
+      } else if (tag === "path")
+        additions = parsePathData(element.getAttribute("d") ?? "", warnings);
+
+      // Every transform between this element and the root, applied last.
+      const matrix = inheritedMatrix(element);
       additions.forEach((path) => {
-        if (path.points.length > 1) result.push({ ...path, layer });
+        if (path.points.length <= 1) return;
+        result.push({ ...path, points: path.points.map((p) => applyMatrix(matrix, p)), layer });
       });
     });
 
@@ -482,6 +594,9 @@ export function analyzeCadGeometry(paths: DxfPath[], tolerance = 0.8): CadGeomet
 
 export function getBounds(paths: DxfPath[]): DrawingBounds {
   const points = paths.flatMap((path) => path.points);
+  // Math.min of nothing is Infinity, which would put NaN at every coordinate in
+  // the DXF — a file that opens and contains nowhere.
+  if (!points.length) throw new Error("There is no geometry to measure.");
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
   const minX = Math.min(...xs);
@@ -491,12 +606,33 @@ export function getBounds(paths: DxfPath[]): DrawingBounds {
   return { minX, minY, maxX, maxY, width: maxX - minX || 1, height: maxY - minY || 1 };
 }
 
+/**
+ * True when any of this geometry was traced from an image rather than read from
+ * a vector file. A trace carries no dimensions of its own — the pixels have no
+ * size — so it cannot be exported until someone says what it measures.
+ */
+export function isTraced(paths: DxfPath[]): boolean {
+  return paths.some((path) => path.layer === "TRACE");
+}
+
 export function createDxf(
   paths: DxfPath[],
   scale: number,
   units: "mm" | "in",
   fitTolerance = 0.8,
+  options: { scaleWasSet?: boolean } = {},
 ): string {
+  // A traced outline looks exactly like drawn geometry and is the one thing in
+  // this app that can be confidently, invisibly the wrong size. Refuse rather
+  // than hand someone a file where one pixel silently became one millimetre.
+  if (isTraced(paths) && options.scaleWasSet === false) {
+    throw new Error(
+      "Set a known size for this trace before exporting. An image has pixels, not millimetres — until you say what something on it measures, the DXF has no real dimensions.",
+    );
+  }
+  if (!(scale > 0) || !Number.isFinite(scale)) {
+    throw new Error("The scale must be a positive number.");
+  }
   const bounds = getBounds(paths);
   const unitCode = units === "mm" ? 4 : 1;
   const lines = [

@@ -4,6 +4,9 @@ import {
   createDxf,
   getBounds,
   parseCoordinateText,
+  parseTransform,
+  applyMatrix,
+  multiply,
   traceRasterContours,
 } from "./dxf-converter";
 
@@ -86,5 +89,88 @@ describe("DXF converter", () => {
     const dxf = createDxf(paths, 1, "mm", 1);
     expect(dxf).toContain("\r\nARC\r\n");
     expect(dxf).not.toContain("\r\nPOLYLINE\r\n");
+  });
+});
+
+describe("bugs found reviewing the first version", () => {
+  // parseSvg needs a DOM, and this repo has no DOM test environment — which is
+  // why the SVG side shipped untested. The transform maths, where the bug was,
+  // is pure and is tested directly.
+
+  it("composes ancestor transforms in document order", () => {
+    // Illustrator and Inkscape wrap the drawing in a translated, scaled group.
+    // Reading raw attributes put every part in the wrong place and often the
+    // wrong size. Outer translate then inner scale: the scale must not move the
+    // translation, so (10,0) lands at (120,50) and not (110,50).
+    const outer = parseTransform("translate(100,50)");
+    const inner = parseTransform("scale(2)");
+    const combined = multiply(outer, inner);
+    expect(applyMatrix(combined, { x: 0, y: 0 })).toEqual({ x: 100, y: 50 });
+    expect(applyMatrix(combined, { x: 10, y: 0 })).toEqual({ x: 120, y: 50 });
+  });
+
+  it("rotates about the given point, not the origin", () => {
+    const m = parseTransform("rotate(90 10 10)");
+    const pivot = applyMatrix(m, { x: 10, y: 10 });
+    expect(pivot.x).toBeCloseTo(10, 6);
+    expect(pivot.y).toBeCloseTo(10, 6);
+    const swung = applyMatrix(m, { x: 20, y: 10 });
+    expect(swung.x).toBeCloseTo(10, 6);
+    expect(swung.y).toBeCloseTo(20, 6);
+  });
+
+  it("reads a matrix() and a bare rotate the same way SVG does", () => {
+    expect(parseTransform("matrix(1,0,0,1,5,7)")).toEqual([1, 0, 0, 1, 5, 7]);
+    const r = parseTransform("rotate(90)");
+    const p = applyMatrix(r, { x: 1, y: 0 });
+    expect(p.x).toBeCloseTo(0, 6);
+    expect(p.y).toBeCloseTo(1, 6);
+  });
+
+  it("treats a missing transform as identity rather than throwing", () => {
+    expect(parseTransform(null)).toEqual([1, 0, 0, 1, 0, 0]);
+    expect(applyMatrix(parseTransform(""), { x: 3, y: 4 })).toEqual({ x: 3, y: 4 });
+  });
+
+  it("refuses to measure nothing instead of writing NaN", () => {
+    // Math.min of an empty list is Infinity, which put NaN at every coordinate.
+    expect(() => getBounds([])).toThrow("no geometry");
+  });
+
+  it("refuses to export a trace until someone says what it measures", () => {
+    const traced = [
+      {
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+        ],
+        layer: "TRACE",
+      },
+    ];
+    expect(() => createDxf(traced, 1, "mm", 0.8, { scaleWasSet: false })).toThrow("known size");
+    // Vector geometry carries its own dimensions, so it is unaffected.
+    const drawn = [
+      {
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+        ],
+        layer: "GEOMETRY",
+      },
+    ];
+    expect(() => createDxf(drawn, 1, "mm", 0.8, { scaleWasSet: false })).not.toThrow();
+  });
+
+  it("refuses a scale that is not a positive number", () => {
+    const drawn = [
+      {
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      },
+    ];
+    expect(() => createDxf(drawn, 0, "mm")).toThrow("positive");
+    expect(() => createDxf(drawn, NaN, "mm")).toThrow("positive");
   });
 });
