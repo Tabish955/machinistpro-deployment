@@ -13,6 +13,17 @@ export interface DxfPath {
    * cannot be rounded off by the smoothing that a curve needs.
    */
   corners?: number[];
+  /**
+   * Exact geometry, for sources that already know it.
+   *
+   * A trace has to have its primitives guessed at, but a DXF, a PDF or a line
+   * of G-code states outright that something is a circle of radius 5. Sampling
+   * that into a polyline and fitting arcs back to the samples would be throwing
+   * away an exact answer and returning an approximation of it. When this is
+   * set it is what gets exported; `points` is still filled with a sampled
+   * version, because measuring the drawing needs points.
+   */
+  primitives?: CadPrimitive[];
 }
 
 export interface DrawingBounds {
@@ -31,13 +42,15 @@ export interface CadGeometryStats {
   polylines: number;
 }
 
-interface LinePrimitive {
+export interface LinePrimitive {
   type: "line";
   start: DxfPoint;
   end: DxfPoint;
 }
 
-interface ArcPrimitive {
+/** Angles are degrees, measured anticlockwise in CAD's y-up frame, which is the
+ *  flip of the y-down frame the points are held in. */
+export interface ArcPrimitive {
   type: "arc";
   center: DxfPoint;
   radius: number;
@@ -51,12 +64,12 @@ interface ArcPrimitive {
  * DXF SPLINE wants, and the form SVG's C command wants, so it is what both the
  * exporter and the preview read.
  */
-interface SplinePrimitive {
+export interface SplinePrimitive {
   type: "spline";
   controls: DxfPoint[];
 }
 
-type CadPrimitive = LinePrimitive | ArcPrimitive | SplinePrimitive;
+export type CadPrimitive = LinePrimitive | ArcPrimitive | SplinePrimitive;
 
 const numberPattern = /[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g;
 
@@ -160,6 +173,73 @@ function sampleEllipse(cx: number, cy: number, rx: number, ry: number, segments 
   return { points, closed: true };
 }
 
+/**
+ * An SVG elliptical arc, sampled.
+ *
+ * "A" gives the two endpoints and asks for an ellipse through them, leaving the
+ * centre to be worked out from the radii and the two flags — the conversion in
+ * appendix F.6.5 of the specification. Illustrator and Inkscape write rounded
+ * corners and pie slices this way constantly, so a reader that skips "A" loses
+ * whole features of a drawing rather than a little accuracy.
+ */
+function sampleSvgArc(
+  from: DxfPoint,
+  to: DxfPoint,
+  rxIn: number,
+  ryIn: number,
+  rotation: number,
+  largeArc: boolean,
+  sweep: boolean,
+): DxfPoint[] {
+  let rx = Math.abs(rxIn);
+  let ry = Math.abs(ryIn);
+  // A zero radius means "this is a straight line", per the specification.
+  if (rx < 1e-12 || ry < 1e-12) return [to];
+
+  const angle = (rotation * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const dx = (from.x - to.x) / 2;
+  const dy = (from.y - to.y) / 2;
+  const x1 = cos * dx + sin * dy;
+  const y1 = -sin * dx + cos * dy;
+
+  // Radii too small to reach across the gap are scaled up until they just do.
+  const oversize = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry);
+  if (oversize > 1) {
+    const grow = Math.sqrt(oversize);
+    rx *= grow;
+    ry *= grow;
+  }
+
+  const numerator = rx * rx * ry * ry - rx * rx * y1 * y1 - ry * ry * x1 * x1;
+  const denominator = rx * rx * y1 * y1 + ry * ry * x1 * x1;
+  const factor =
+    denominator === 0
+      ? 0
+      : (largeArc === sweep ? -1 : 1) * Math.sqrt(Math.max(0, numerator / denominator));
+  const cx1 = (factor * rx * y1) / ry;
+  const cy1 = (-factor * ry * x1) / rx;
+  const cx = cos * cx1 - sin * cy1 + (from.x + to.x) / 2;
+  const cy = sin * cx1 + cos * cy1 + (from.y + to.y) / 2;
+
+  const angleOf = (x: number, y: number) => Math.atan2((y - cy1) / ry, (x - cx1) / rx);
+  const startAngle = angleOf(x1, y1);
+  let delta = angleOf(-x1, -y1) - startAngle;
+  if (!sweep && delta > 0) delta -= Math.PI * 2;
+  else if (sweep && delta < 0) delta += Math.PI * 2;
+
+  const steps = Math.max(6, Math.ceil((Math.abs(delta) / (Math.PI * 2)) * 72));
+  const points: DxfPoint[] = [];
+  for (let step = 1; step <= steps; step++) {
+    const t = startAngle + (delta * step) / steps;
+    const px = Math.cos(t) * rx;
+    const py = Math.sin(t) * ry;
+    points.push({ x: cos * px - sin * py + cx, y: sin * px + cos * py + cy });
+  }
+  return points;
+}
+
 function parsePathData(data: string, warnings?: string[]): DxfPath[] {
   const tokens = data.match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) ?? [];
   const paths: DxfPath[] = [];
@@ -168,6 +248,10 @@ function parsePathData(data: string, warnings?: string[]): DxfPath[] {
   let current = { x: 0, y: 0 };
   let start = { x: 0, y: 0 };
   let points: DxfPoint[] = [];
+  // S and T continue the curve before them by mirroring its last control point.
+  // Without these a smooth curve kinks at every join.
+  let lastCubicControl: DxfPoint | null = null;
+  let lastQuadControl: DxfPoint | null = null;
   const isCommand = (token: string) => /^[a-zA-Z]$/.test(token);
   const take = () => Number(tokens[index++]);
   const finish = (closed = false) => {
@@ -216,14 +300,24 @@ function parsePathData(data: string, warnings?: string[]): DxfPath[] {
       const value = take();
       current = { x: current.x, y: relative ? current.y + value : value };
       points.push({ ...current });
-    } else if (upper === "C") {
-      if (index + 5 >= tokens.length || isCommand(tokens[index])) continue;
+    } else if (upper === "C" || upper === "S") {
+      const needed = upper === "C" ? 5 : 3;
+      if (index + needed >= tokens.length || isCommand(tokens[index])) continue;
       const origin = { ...current };
-      const raw = [take(), take(), take(), take(), take(), take()];
+      const raw = Array.from({ length: needed + 1 }, () => take());
       const absolute = raw.map((value, i) =>
         relative ? value + (i % 2 === 0 ? origin.x : origin.y) : value,
       );
-      const [x1, y1, x2, y2, x, y] = absolute;
+      // S names only the second control point; the first is the mirror of the
+      // previous curve's last one, which is what makes the join smooth.
+      const [x1, y1, x2, y2, x, y]: number[] =
+        upper === "C"
+          ? absolute
+          : [
+              lastCubicControl ? origin.x * 2 - lastCubicControl.x : origin.x,
+              lastCubicControl ? origin.y * 2 - lastCubicControl.y : origin.y,
+              ...absolute,
+            ];
       for (let step = 1; step <= 16; step++) {
         const t = step / 16;
         const mt = 1 - t;
@@ -233,6 +327,41 @@ function parsePathData(data: string, warnings?: string[]): DxfPath[] {
         });
       }
       current = { x, y };
+      lastCubicControl = { x: x2, y: y2 };
+      lastQuadControl = null;
+    } else if (upper === "A") {
+      if (index + 6 >= tokens.length || isCommand(tokens[index])) continue;
+      const origin = { ...current };
+      const rx = take();
+      const ry = take();
+      const rotation = take();
+      const largeArc = take() !== 0;
+      const sweep = take() !== 0;
+      const x = relative ? origin.x + take() : take();
+      const y = relative ? origin.y + take() : take();
+      points.push(...sampleSvgArc(origin, { x, y }, rx, ry, rotation, largeArc, sweep));
+      current = { x, y };
+      lastCubicControl = null;
+      lastQuadControl = null;
+    } else if (upper === "T") {
+      if (index + 1 >= tokens.length || isCommand(tokens[index])) continue;
+      const origin = { ...current };
+      const x = relative ? origin.x + take() : take();
+      const y = relative ? origin.y + take() : take();
+      const control: DxfPoint = lastQuadControl
+        ? { x: origin.x * 2 - lastQuadControl.x, y: origin.y * 2 - lastQuadControl.y }
+        : { ...origin };
+      for (let step = 1; step <= 12; step++) {
+        const t = step / 12;
+        const mt = 1 - t;
+        points.push({
+          x: mt ** 2 * origin.x + 2 * mt * t * control.x + t ** 2 * x,
+          y: mt ** 2 * origin.y + 2 * mt * t * control.y + t ** 2 * y,
+        });
+      }
+      current = { x, y };
+      lastQuadControl = control;
+      lastCubicControl = null;
     } else if (upper === "Q") {
       if (index + 3 >= tokens.length || isCommand(tokens[index])) continue;
       const origin = { ...current };
@@ -250,10 +379,12 @@ function parsePathData(data: string, warnings?: string[]): DxfPath[] {
         });
       }
       current = { x, y };
+      lastQuadControl = { x: x1, y: y1 };
+      lastCubicControl = null;
     } else {
-      // A, S and T carry real geometry. Skipping them keeps the file readable
-      // but silently loses a feature, and a part missing a slot looks exactly
-      // like a part that never had one — so it has to be said out loud.
+      // Every command that carries geometry is handled above. Anything left is
+      // still named rather than dropped in silence, because a part missing a
+      // feature looks exactly like a part that never had one.
       warnings?.push(
         `Path command "${upper}" is not supported yet — that part of the outline is missing from the DXF.`,
       );
@@ -1118,16 +1249,31 @@ export function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] 
 export function analyzeCadGeometry(paths: DxfPath[], tolerance = 0.8): CadGeometryStats {
   const stats: CadGeometryStats = { lines: 0, arcs: 0, splines: 0, polylines: 0 };
   for (const path of paths) {
-    if (path.layer !== "TRACE") {
+    const primitives = exactGeometry(path, tolerance);
+    if (!primitives) {
       stats.polylines++;
       continue;
     }
-    for (const primitive of fitPrimitives(path, tolerance))
+    for (const primitive of primitives)
       stats[
         primitive.type === "arc" ? "arcs" : primitive.type === "spline" ? "splines" : "lines"
       ]++;
   }
   return stats;
+}
+
+/**
+ * The primitives a path should be written as, or null if it is simply a
+ * polyline.
+ *
+ * An importer that knows the exact geometry says so and is believed. A trace
+ * knows only pixels, so its primitives are fitted. Everything else — a run of
+ * surveyed coordinates, an SVG polygon — is a polyline and stays one.
+ */
+function exactGeometry(path: DxfPath, tolerance: number): CadPrimitive[] | null {
+  if (path.primitives?.length) return path.primitives;
+  if (path.layer === "TRACE") return fitPrimitives(path, tolerance);
+  return null;
 }
 
 /**
@@ -1142,12 +1288,13 @@ export function analyzeCadGeometry(paths: DxfPath[], tolerance = 0.8): CadGeomet
 export function toSvgPathData(paths: DxfPath[], tolerance = 0.8): string[] {
   const xy = (point: DxfPoint) => `${point.x.toFixed(3)},${point.y.toFixed(3)}`;
   return paths.map((path) => {
-    if (path.layer !== "TRACE") {
+    const geometry = exactGeometry(path, tolerance);
+    if (!geometry) {
       const line = path.points.map((point, index) => `${index ? "L" : "M"}${xy(point)}`).join(" ");
       return path.closed ? `${line} Z` : line;
     }
     const parts: string[] = [];
-    for (const primitive of fitPrimitives(path, tolerance)) {
+    for (const primitive of geometry) {
       if (primitive.type === "line") {
         parts.push(`M${xy(primitive.start)} L${xy(primitive.end)}`);
       } else if (primitive.type === "arc") {
@@ -1440,8 +1587,9 @@ export function createDxf(
 
   for (const path of paths) {
     const layer = path.layer?.replace(/[^A-Za-z0-9_-]/g, "_") || "GEOMETRY";
-    if (path.layer === "TRACE") {
-      for (const primitive of fitPrimitives(path, fitTolerance)) {
+    const geometry = exactGeometry(path, fitTolerance);
+    if (geometry) {
+      for (const primitive of geometry) {
         if (primitive.type === "line") {
           entity("LINE", layer, "AcDbLine");
           entities.push(

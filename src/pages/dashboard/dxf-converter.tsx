@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -6,42 +6,56 @@ import {
   analyzeCadGeometry,
   createDxf,
   getBounds,
-  parseCoordinateText,
-  parseSvg,
   toSvgPathData,
-  traceRasterContours,
   type DxfPath,
 } from "@/lib/dxf-converter";
-import { Download, FileUp, RefreshCw, Ruler, ScanLine } from "lucide-react";
+import {
+  ACCEPTED,
+  FORMATS,
+  formatFor,
+  loadDrawing,
+  toSvgFile,
+  type LoadedDrawing,
+} from "@/lib/cad/registry";
+import type { StlMode } from "@/lib/cad/stl-import";
+import {
+  AlertTriangle,
+  Download,
+  FileUp,
+  Layers,
+  Loader2,
+  RefreshCw,
+  Ruler,
+  ScanLine,
+} from "lucide-react";
 
-type SourceKind = "vector" | "coordinates" | "raster";
+type OutputFormat = "dxf" | "svg";
+
+const NO_PATHS: DxfPath[] = [];
 
 export default function DxfConverterPage() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [paths, setPaths] = useState<DxfPath[]>([]);
-  const [fileName, setFileName] = useState("");
-  const [sourceKind, setSourceKind] = useState<SourceKind | null>(null);
+  const [drawing, setDrawing] = useState<LoadedDrawing | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [advice, setAdvice] = useState("");
+  const [dragging, setDragging] = useState(false);
+
   const [units, setUnits] = useState<"mm" | "in">("mm");
   const [scale, setScale] = useState(1);
-  // A traced image has no size of its own, so the default 1 is a guess, not a
-  // measurement. Until someone changes it, a traced export is refused.
   const [scaleWasSet, setScaleWasSet] = useState(false);
+  const [output, setOutput] = useState<OutputFormat>("dxf");
   const [invert, setInvert] = useState(false);
   const [fitTolerance, setFitTolerance] = useState(0.8);
-  const [error, setError] = useState("");
-  const [raster, setRaster] = useState<{
-    pixels: Uint8ClampedArray;
-    width: number;
-    height: number;
-  } | null>(null);
+  const [stlMode, setStlMode] = useState<StlMode>("slice");
+  const [sliceZ, setSliceZ] = useState<number | null>(null);
 
+  // A fresh [] on every render would make every memo below recompute, and
+  // fitting curves is not cheap enough to do for nothing.
+  const paths: DxfPath[] = drawing?.paths ?? NO_PATHS;
   const bounds = useMemo(() => (paths.length ? getBounds(paths) : null), [paths]);
-  const geometryStats = useMemo(
-    () => analyzeCadGeometry(paths, fitTolerance),
-    [paths, fitTolerance],
-  );
-  // What the DXF will contain, not what was traced. Those are not the same
-  // drawing, and only one of them is what the user takes to the machine.
+  const stats = useMemo(() => analyzeCadGeometry(paths, fitTolerance), [paths, fitTolerance]);
   const preview = useMemo(
     () => (paths.length ? toSvgPathData(paths, fitTolerance) : []),
     [paths, fitTolerance],
@@ -51,92 +65,84 @@ export default function DxfConverterPage() {
     : "0 0 100 100";
 
   const reset = () => {
-    setPaths([]);
-    setFileName("");
-    setSourceKind(null);
-    setRaster(null);
+    setDrawing(null);
+    setFile(null);
     setError("");
+    setAdvice("");
+    setBusy("");
+    setSliceZ(null);
+    setScaleWasSet(false);
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const updateRaster = (inverted = invert) => {
-    if (!raster) return;
-    try {
-      // No threshold: it is measured from the image by Otsu's method.
-      setPaths(
-        traceRasterContours(raster.pixels, raster.width, raster.height, undefined, inverted),
-      );
+  const run = useCallback(
+    async (
+      target: File,
+      overrides: { invert?: boolean; stlMode?: StlMode; sliceZ?: number } = {},
+    ) => {
       setError("");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not trace this image.");
-    }
-  };
+      setAdvice("");
+      setBusy("Reading file…");
+      try {
+        const loaded = await loadDrawing(target, {
+          invert: overrides.invert ?? invert,
+          stlMode: overrides.stlMode ?? stlMode,
+          sliceZ: overrides.sliceZ ?? sliceZ ?? undefined,
+          onProgress: setBusy,
+        });
+        setDrawing(loaded);
+        // A file that states its own units is believed over the current choice.
+        if (loaded.units) setUnits(loaded.units);
+        if (loaded.mesh && sliceZ === null)
+          setSliceZ((loaded.mesh.min[2] + loaded.mesh.max[2]) / 2);
+      } catch (reason) {
+        const message = reason instanceof Error ? reason.message : "The file could not be read.";
+        setError(message);
+        // An unsupported format is not a failure to explain away — it comes
+        // with the way out of it.
+        const known = formatFor(target.name);
+        if (known && !known.supported) setAdvice(known.advice ?? "");
+        setDrawing(null);
+      } finally {
+        setBusy("");
+      }
+    },
+    [invert, stlMode, sliceZ],
+  );
 
-  const importFile = async (file: File) => {
+  const accept = (chosen: File | undefined | null) => {
+    if (!chosen) return;
     reset();
-    setFileName(file.name);
-    try {
-      const extension = file.name.split(".").pop()?.toLowerCase();
-      if (extension === "svg") {
-        setPaths(parseSvg(await file.text()));
-        setSourceKind("vector");
-      } else if (extension === "csv" || extension === "txt" || extension === "xyz") {
-        setPaths(parseCoordinateText(await file.text()));
-        setSourceKind("coordinates");
-      } else if (["png", "jpg", "jpeg", "bmp", "webp"].includes(extension ?? "")) {
-        const url = URL.createObjectURL(file);
-        const image = new Image();
-        image.onload = () => {
-          const canvas = document.createElement("canvas");
-          const ratio = Math.min(1, 1400 / Math.max(image.width, image.height));
-          canvas.width = Math.max(1, Math.round(image.width * ratio));
-          canvas.height = Math.max(1, Math.round(image.height * ratio));
-          const context = canvas.getContext("2d", { willReadFrequently: true });
-          if (!context) {
-            setError("Image processing is unavailable on this device.");
-            return;
-          }
-          context.drawImage(image, 0, 0, canvas.width, canvas.height);
-          const data = context.getImageData(0, 0, canvas.width, canvas.height);
-          const nextRaster = { pixels: data.data, width: canvas.width, height: canvas.height };
-          setRaster(nextRaster);
-          setSourceKind("raster");
-          try {
-            setPaths(
-              traceRasterContours(data.data, canvas.width, canvas.height, undefined, invert),
-            );
-          } catch (reason) {
-            setError(reason instanceof Error ? reason.message : "Could not trace this image.");
-          }
-          URL.revokeObjectURL(url);
-        };
-        image.onerror = () => {
-          URL.revokeObjectURL(url);
-          setError("The image could not be opened.");
-        };
-        image.src = url;
-      } else throw new Error("Supported inputs are SVG, CSV, TXT, XYZ, PNG, JPG, BMP and WebP.");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The file could not be converted.");
-    }
+    setFile(chosen);
+    void run(chosen);
   };
 
   const download = () => {
     if (!paths.length) return;
-    let dxf: string;
+    let text: string;
+    let mime: string;
+    let extension: string;
     try {
-      dxf = createDxf(paths, scale, units, fitTolerance, { scaleWasSet });
+      if (output === "svg") {
+        text = toSvgFile(paths, scale, fitTolerance);
+        mime = "image/svg+xml";
+        extension = "svg";
+      } else {
+        text = createDxf(paths, scale, units, fitTolerance, {
+          scaleWasSet: drawing?.needsScale ? scaleWasSet : true,
+        });
+        mime = "application/dxf";
+        extension = "dxf";
+      }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The DXF could not be written.");
+      setError(reason instanceof Error ? reason.message : "The file could not be written.");
       return;
     }
-    const blob = new Blob([dxf], {
-      type: "application/dxf",
-    });
+    const blob = new Blob([text], { type: mime });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${fileName.replace(/\.[^.]+$/, "") || "machinistpro"}.dxf`;
+    anchor.download = `${file?.name.replace(/\.[^.]+$/, "") || "machinistpro"}.${extension}`;
     anchor.style.display = "none";
     document.body.appendChild(anchor);
     anchor.click();
@@ -144,61 +150,119 @@ export default function DxfConverterPage() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const warnings = drawing?.warnings ?? [];
+
   return (
     <div className="space-y-5 animate-fade-in max-w-6xl mx-auto">
       <PageHeader
-        title="DXF Workshop"
-        description="Convert workshop drawings into offline CAD geometry"
+        title="CAD Converter"
+        description="Turn drawings, models, programs and photographs into CAD geometry — on this device"
         icon={<ScanLine size={22} className="text-accent-cyan" />}
         iconColor="cyan"
         status="beta"
       />
 
-      <div className="grid lg:grid-cols-[360px_1fr] gap-5">
+      <div className="grid lg:grid-cols-[380px_1fr] gap-5">
         <div className="space-y-4">
           <Card variant="solid" padding="md" className="border-dark-600">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-white">1. Import drawing</h2>
+              <h2 className="text-sm font-semibold text-white">1. Drop a file</h2>
               <Badge color="green">Offline</Badge>
             </div>
             <input
               ref={inputRef}
               type="file"
-              accept=".svg,.csv,.txt,.xyz,.png,.jpg,.jpeg,.bmp,.webp"
+              accept={ACCEPTED}
               className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void importFile(file);
-              }}
+              onChange={(event) => accept(event.target.files?.[0])}
             />
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="w-full min-h-36 rounded-xl border border-dashed border-dark-500 bg-dark-900/50 hover:border-accent-cyan/50 hover:bg-accent-cyan/5 transition-colors flex flex-col items-center justify-center gap-3 text-center p-5 cursor-pointer"
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                accept(event.dataTransfer.files?.[0]);
+              }}
+              className={`w-full min-h-40 rounded-xl border border-dashed transition-colors flex flex-col items-center justify-center gap-3 text-center p-5 cursor-pointer ${
+                dragging
+                  ? "border-accent-cyan bg-accent-cyan/10"
+                  : "border-dark-500 bg-dark-900/50 hover:border-accent-cyan/50 hover:bg-accent-cyan/5"
+              }`}
             >
-              <FileUp size={28} className="text-accent-cyan" />
-              <span className="text-sm font-medium text-white">Choose a workshop file</span>
-              <span className="text-[11px] text-gray-500">
-                SVG Â· CSV/XYZ Â· PNG/JPG Â· BMP Â· WebP
+              {busy ? (
+                <Loader2 size={28} className="text-accent-cyan animate-spin" />
+              ) : (
+                <FileUp size={28} className="text-accent-cyan" />
+              )}
+              <span className="text-sm font-medium text-white">
+                {busy || "Drop a file here, or choose one"}
+              </span>
+              <span className="text-xs text-gray-400">
+                DXF · PDF · SVG · STL · G-code · PNG/JPG · CSV
               </span>
             </button>
-            {fileName && (
-              <p className="mt-3 text-xs text-gray-400 truncate">
-                Loaded: <span className="text-white">{fileName}</span>
-              </p>
+
+            {file && drawing && (
+              <div className="mt-3 text-xs text-gray-400">
+                <p className="truncate">
+                  <span className="text-white">{file.name}</span>
+                </p>
+                <p className="mt-1">
+                  Read as {drawing.format.label} — {drawing.summary}
+                </p>
+              </div>
             )}
+
             {error && (
-              <p className="mt-3 text-xs text-accent-red bg-accent-red/10 border border-accent-red/20 rounded-lg p-3">
-                {error}
-              </p>
+              <div className="mt-3 text-xs bg-accent-red/10 border border-accent-red/20 rounded-lg p-3">
+                <p className="text-accent-red">{error}</p>
+                {advice && <p className="text-gray-300 mt-2 leading-relaxed">{advice}</p>}
+              </div>
+            )}
+
+            {warnings.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {warnings.map((warning) => (
+                  <li
+                    key={warning}
+                    className="text-xs text-accent-amber flex gap-2 bg-accent-amber/10 border border-accent-amber/20 rounded-lg p-2.5"
+                  >
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{warning}</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </Card>
 
           <Card variant="solid" padding="md" className="border-dark-600">
-            <h2 className="text-sm font-semibold text-white mb-4">2. Drawing setup</h2>
+            <h2 className="text-sm font-semibold text-white mb-4">2. Set up the drawing</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                <label className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                  Save as
+                </label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {(["dxf", "svg"] as const).map((kind) => (
+                    <button
+                      key={kind}
+                      onClick={() => setOutput(kind)}
+                      className={`rounded-lg py-2 text-xs font-semibold border cursor-pointer ${output === kind ? "border-accent-cyan/50 bg-accent-cyan/10 text-accent-cyan" : "border-dark-600 text-gray-400"}`}
+                    >
+                      {kind === "dxf" ? "DXF (CAD)" : "SVG (vector)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
                   Output units
                 </label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
@@ -213,10 +277,17 @@ export default function DxfConverterPage() {
                   ))}
                 </div>
               </div>
+
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
                   Scale per source unit
                 </span>
+                {drawing?.needsScale && !scaleWasSet && (
+                  <span className="mt-1 block text-xs text-accent-amber">
+                    A traced image is pixels, not millimetres. Set what one pixel measures before
+                    exporting.
+                  </span>
+                )}
                 <div className="relative mt-2">
                   <Ruler
                     size={15}
@@ -235,20 +306,59 @@ export default function DxfConverterPage() {
                   />
                 </div>
               </label>
-              {sourceKind === "raster" && (
-                <>
-                  {/* Smoothing, detail and threshold were three ways of asking
-                      the user to compensate for a weak tracer. The staircase is
-                      removed by measurement now, corners are detected rather
-                      than guessed at, and the threshold comes from the image
-                      itself, so there is nothing left to tune. */}
+
+              {drawing?.format.kind === "mesh" && drawing.mesh && (
+                <div className="space-y-3 border-t border-dark-700 pt-4">
+                  <div className="flex items-center gap-2 text-xs text-gray-300">
+                    <Layers size={13} className="text-accent-cyan" />A model is a solid; a drawing
+                    is flat.
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["slice", "outline"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => {
+                          setStlMode(mode);
+                          if (file) void run(file, { stlMode: mode });
+                        }}
+                        className={`rounded-lg py-2 text-xs font-semibold border cursor-pointer ${stlMode === mode ? "border-accent-cyan/50 bg-accent-cyan/10 text-accent-cyan" : "border-dark-600 text-gray-400"}`}
+                      >
+                        {mode === "slice" ? "Cross-section" : "Flatten"}
+                      </button>
+                    ))}
+                  </div>
+                  {stlMode === "slice" && (
+                    <label className="block">
+                      <span className="flex justify-between text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                        <span>Section height</span>
+                        <span className="text-accent-cyan">Z {(sliceZ ?? 0).toFixed(2)}</span>
+                      </span>
+                      <input
+                        type="range"
+                        min={drawing.mesh.min[2]}
+                        max={drawing.mesh.max[2]}
+                        step={(drawing.mesh.max[2] - drawing.mesh.min[2]) / 200 || 0.01}
+                        value={sliceZ ?? 0}
+                        onChange={(event) => setSliceZ(Number(event.target.value))}
+                        onPointerUp={() => {
+                          if (file) void run(file, { sliceZ: sliceZ ?? undefined });
+                        }}
+                        className="w-full mt-2 accent-cyan-400"
+                      />
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {drawing?.format.kind === "raster" && (
+                <div className="space-y-3 border-t border-dark-700 pt-4">
                   <label className="block">
-                    <span className="flex justify-between text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                    <span className="flex justify-between text-xs uppercase tracking-wider text-gray-400 font-semibold">
                       <span>Line/arc tolerance</span>
-                      <span>{fitTolerance.toFixed(1)} px</span>
+                      <span className="text-accent-cyan">{fitTolerance.toFixed(1)} px</span>
                     </span>
-                    <span className="mt-1 block text-[10px] text-gray-600">
-                      How far the exported geometry may sit from the outline.
+                    <span className="mt-1 block text-xs text-gray-400">
+                      How far the exported geometry may sit from the traced outline.
                     </span>
                     <input
                       type="range"
@@ -259,9 +369,6 @@ export default function DxfConverterPage() {
                       onChange={(event) => setFitTolerance(Number(event.target.value))}
                       className="w-full mt-2 accent-cyan-400"
                     />
-                    <span className="text-[10px] text-gray-600">
-                      Lower values keep more detail; higher values make cleaner geometry.
-                    </span>
                   </label>
                   <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                     <input
@@ -269,28 +376,29 @@ export default function DxfConverterPage() {
                       checked={invert}
                       onChange={(event) => {
                         setInvert(event.target.checked);
-                        updateRaster(event.target.checked);
+                        if (file) void run(file, { invert: event.target.checked });
                       }}
                       className="accent-cyan-400"
-                    />{" "}
+                    />
                     Trace light shapes instead of dark
                   </label>
-                </>
+                </div>
               )}
+
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   onClick={reset}
-                  disabled={!fileName}
-                  className="rounded-lg py-2.5 border border-dark-600 text-xs text-gray-400 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={!file}
+                  className="rounded-lg py-2.5 border border-dark-600 text-xs text-gray-300 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <RefreshCw size={13} /> Reset
                 </button>
                 <button
                   onClick={download}
-                  disabled={!paths.length}
+                  disabled={!paths.length || !!busy}
                   className="rounded-lg py-2.5 bg-accent-cyan text-dark-950 text-xs font-bold disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Download size={14} /> Export DXF
+                  <Download size={14} /> Save {output.toUpperCase()}
                 </button>
               </div>
             </div>
@@ -301,23 +409,24 @@ export default function DxfConverterPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div>
               <h2 className="text-sm font-semibold text-white">CAD preview</h2>
-              <p className="text-[11px] text-gray-500 mt-0.5">
-                Geometry is processed locally on this device
+              <p className="text-xs text-gray-400 mt-0.5">
+                This is the geometry that will be written to the file
               </p>
             </div>
             {bounds && (
               <div className="flex flex-wrap gap-2">
-                {geometryStats.splines > 0 && (
-                  <Badge color="cyan">{geometryStats.splines.toLocaleString()} splines</Badge>
+                {stats.splines > 0 && (
+                  <Badge color="cyan">{stats.splines.toLocaleString()} splines</Badge>
                 )}
-                <Badge color="purple">{geometryStats.arcs.toLocaleString()} arcs</Badge>
-                <Badge color="gray">{geometryStats.lines.toLocaleString()} lines</Badge>
-                {geometryStats.polylines > 0 && (
-                  <Badge color="gray">{geometryStats.polylines} polylines</Badge>
+                {stats.arcs > 0 && <Badge color="purple">{stats.arcs.toLocaleString()} arcs</Badge>}
+                {stats.lines > 0 && (
+                  <Badge color="gray">{stats.lines.toLocaleString()} lines</Badge>
+                )}
+                {stats.polylines > 0 && (
+                  <Badge color="gray">{stats.polylines.toLocaleString()} polylines</Badge>
                 )}
                 <Badge color="blue">
-                  {(bounds.width * scale).toFixed(2)} Ã— {(bounds.height * scale).toFixed(2)}{" "}
-                  {units}
+                  {(bounds.width * scale).toFixed(2)} × {(bounds.height * scale).toFixed(2)} {units}
                 </Badge>
               </div>
             )}
@@ -349,18 +458,34 @@ export default function DxfConverterPage() {
                       fill="none"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      // Rapids are travel, not metal removal, so they are drawn
+                      // faintly rather than as something to cut.
+                      opacity={paths[index]?.layer === "RAPID" ? 0.25 : 1}
+                      strokeDasharray={paths[index]?.layer === "RAPID" ? "4 4" : undefined}
                     />
                   ))}
                 </g>
               </svg>
             ) : (
               <div className="absolute inset-0 grid place-items-center text-center p-8">
-                <div>
-                  <ScanLine size={42} className="mx-auto text-gray-700 mb-3" />
-                  <p className="text-sm text-gray-400">
-                    Import a supported drawing to inspect its CAD geometry
+                <div className="max-w-md">
+                  <ScanLine size={42} className="mx-auto text-gray-600 mb-3" />
+                  <p className="text-sm text-gray-300">
+                    Drop a drawing, model, program or photograph to convert it
                   </p>
-                  <p className="text-xs text-gray-600 mt-2">Nothing is uploaded to a server</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Everything is processed on this device — nothing is uploaded
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-1.5 justify-center">
+                    {FORMATS.filter((format) => format.supported).map((format) => (
+                      <span
+                        key={format.id}
+                        className="text-[11px] px-2 py-1 rounded-md bg-dark-800 border border-dark-600 text-gray-300"
+                      >
+                        {format.extensions[0].toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
