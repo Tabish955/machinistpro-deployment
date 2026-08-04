@@ -2,6 +2,13 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 
+// NOTE: `attachSupabaseAuth` is intentionally NOT registered. This app uses its
+// own session tokens (app_users + sessions tables), never Supabase Auth. The
+// generated attacher instantiates the browser Supabase client on every server
+// function call, which throws when VITE_SUPABASE_* is absent from a production
+// bundle and made every serverFn (trial start/status) fail. Do not re-add it.
+
+
 // Strong CSP + modern security headers on every response.
 const CSP = [
   "default-src 'self'",
