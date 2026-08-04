@@ -32,6 +32,12 @@ function fromHex(hex: string): Uint8Array {
 }
 
 async function derive(password: string, salt: Uint8Array, iterations: number): Promise<string> {
+  if (iterations > MAX_WEBCRYPTO_ITERATIONS) {
+    // Pure-JS path — WebCrypto refuses these counts on Cloudflare Workers.
+    return toHex(
+      noblePbkdf2(sha256, new TextEncoder().encode(password), salt, { c: iterations, dkLen: 32 }),
+    );
+  }
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
@@ -46,6 +52,7 @@ async function derive(password: string, salt: Uint8Array, iterations: number): P
   );
   return toHex(bits);
 }
+
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
