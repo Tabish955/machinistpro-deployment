@@ -63,7 +63,16 @@ export default function AdminPage() {
   const [ann, setAnn] = useState({ enabled: false, message: "" });
 
   const refresh = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      // `loading` starts true, so returning quietly here left the panel saying
+      // "Loading…" for ever. Every admin call needs a session token, and there
+      // is not one, so say that rather than spin.
+      setLoading(false);
+      setFailure(
+        "No session token was found in this browser, so the admin data cannot be fetched. Sign in properly — an administrator's own token is what authorises every call on this page.",
+      );
+      return;
+    }
     setLoading(true);
     try {
       const [u, s] = await Promise.all([
