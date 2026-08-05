@@ -22,7 +22,24 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
   const { status, user, setUser } = useAuthStore();
   const checkedRef = useRef(false);
+  const wasAuthedRef = useRef(false);
   const [checkFailed, setCheckFailed] = useState(false);
+
+  // Sign-out path: the store resets to { status: "idle", user: null } after the
+  // session check already ran, so the main effect below short-circuits and the
+  // component would otherwise sit on "Verifying session…" forever. Detect the
+  // authenticated → signed-out transition and leave for /login immediately.
+  useEffect(() => {
+    if (status === "authenticated" && user) {
+      wasAuthedRef.current = true;
+      return;
+    }
+    if (wasAuthedRef.current && !user) {
+      wasAuthedRef.current = false;
+      setCheckFailed(true);
+      router.replace("/login");
+    }
+  }, [status, user, router]);
 
   useEffect(() => {
     // Already authenticated for this app lifetime
