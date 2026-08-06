@@ -23,9 +23,6 @@ import {
   Printer,
   ArrowLeft,
   MoreHorizontal,
-  Play,
-  Square,
-  Timer,
 } from "lucide-react";
 
 /* ═══ Helpers ════════════════════════════════════════════════════════════════ */
@@ -36,13 +33,6 @@ function fmtDate(ts: number) {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function fmtDuration(ms: number) {
-  const totalMinutes = Math.floor(ms / 60_000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
 /* ═══ Project Detail View ════════════════════════════════════════════════════ */
@@ -56,9 +46,6 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
     updateNotes,
     removeCalcFromProject,
     addCalcToProject,
-    activeProjectId,
-    startProject,
-    stopProject,
   } = useWorkspaceStore();
   const [tab, setTab] = useState<"overview" | "calcs" | "notes" | "vars" | "report">("overview");
   const [editing, setEditing] = useState(false);
@@ -71,10 +58,6 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
   const [newVarUnit, setNewVarUnit] = useState("");
   const [notes, setNotes] = useState(project.notes);
   const [notesDirty, setNotesDirty] = useState(false);
-  const isActive = activeProjectId === project.id;
-  const trackedMs =
-    (project.totalTrackedMs ?? 0) +
-    (isActive && project.sessionStartedAt ? Date.now() - project.sessionStartedAt : 0);
 
   const saveInfo = () => {
     updateProject(project.id, { name, client, jobNumber: jobNum, description: desc });
@@ -124,21 +107,6 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
           ← All Projects
         </button>
         <div className="flex gap-1.5">
-          {isActive ? (
-            <button
-              onClick={stopProject}
-              className="flex items-center gap-2 rounded-lg border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-xs font-semibold text-accent-red cursor-pointer"
-            >
-              <Square size={13} /> Stop Project
-            </button>
-          ) : (
-            <button
-              onClick={() => startProject(project.id)}
-              className="flex items-center gap-2 rounded-lg border border-accent-green/30 bg-accent-green/10 px-3 py-2 text-xs font-semibold text-accent-green cursor-pointer"
-            >
-              <Play size={13} /> Start Project
-            </button>
-          )}
           <button
             onClick={handleExport}
             className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-dark-700 cursor-pointer"
@@ -259,9 +227,6 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
                 <span>Modified: {fmtDate(project.updatedAt)}</span>
                 <span>{project.calculations.length} calculations</span>
                 <span>{project.variables.length} variables</span>
-                <span className="flex items-center gap-1">
-                  <Timer size={10} /> {fmtDuration(trackedMs)} tracked
-                </span>
               </div>
               {project.tags.length > 0 && (
                 <div className="flex gap-1 mt-3">
@@ -517,9 +482,6 @@ export default function WorkspacePage() {
     duplicateProject,
     getActiveProjects,
     getPinnedProjects,
-    activeProjectId,
-    startProject,
-    stopProject,
   } = useWorkspaceStore();
   const [query, setQuery] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -552,7 +514,6 @@ export default function WorkspacePage() {
     setTemplateId("");
     setShowNew(false);
     setSelectedId(id);
-    startProject(id);
   };
 
   // Detail view
@@ -577,7 +538,7 @@ export default function WorkspacePage() {
             onClick={() => setShowNew(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-cyan/20 text-accent-cyan text-xs font-semibold cursor-pointer hover:bg-accent-cyan/30 transition-all"
           >
-            <Plus size={14} /> Start New Project
+            <Plus size={14} /> New Project
           </button>
         }
       />
@@ -621,7 +582,7 @@ export default function WorkspacePage() {
                 onClick={handleCreate}
                 className="px-4 py-2 rounded-xl bg-accent-cyan text-dark-950 text-xs font-bold cursor-pointer"
               >
-                Start Project
+                Create Project
               </button>
               <button
                 onClick={() => setShowNew(false)}
@@ -726,13 +687,6 @@ export default function WorkspacePage() {
                   </p>
                 </button>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => (activeProjectId === p.id ? stopProject() : startProject(p.id))}
-                    className={`p-1.5 rounded-lg cursor-pointer ${activeProjectId === p.id ? "text-accent-red" : "text-accent-green"}`}
-                    title={activeProjectId === p.id ? "Stop project" : "Start project"}
-                  >
-                    {activeProjectId === p.id ? <Square size={12} /> : <Play size={12} />}
-                  </button>
                   <button
                     onClick={() => togglePin(p.id)}
                     className={`p-1.5 rounded-lg cursor-pointer ${p.isPinned ? "text-accent-amber" : "text-gray-600 hover:text-accent-amber"}`}

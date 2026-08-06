@@ -12,8 +12,6 @@ export interface Project {
   calculations: SavedCalc[];
   notes: string; // markdown-like plain text
   variables: ProjectVar[];
-  sessionStartedAt?: number;
-  totalTrackedMs: number;
 }
 
 export interface SavedCalc {
@@ -122,6 +120,5 @@ export function createProject(name: string, template?: ProjectTemplate): Project
     calculations: [],
     notes: template?.notes || "# Project Notes\n\n",
     variables: template?.variables?.map((v, i) => ({ ...v, id: `v-${now}-${i}` })) || [],
-    totalTrackedMs: 0,
   };
 }

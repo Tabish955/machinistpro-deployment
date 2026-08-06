@@ -5,7 +5,6 @@ import { createProject, TEMPLATES } from "@/lib/workspace/types";
 
 interface WorkspaceStore {
   projects: Project[];
-  activeProjectId: string | null;
 
   // CRUD
   addProject: (name: string, templateId?: string) => string; // returns id
@@ -14,8 +13,6 @@ interface WorkspaceStore {
   duplicateProject: (id: string) => string;
   togglePin: (id: string) => void;
   archiveProject: (id: string) => void;
-  startProject: (id: string) => void;
-  stopProject: () => void;
 
   // Calculations
   addCalcToProject: (projectId: string, calc: Omit<SavedCalc, "id" | "createdAt">) => void;
@@ -40,7 +37,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set, get) => ({
       projects: [],
-      activeProjectId: null,
 
       addProject: (name, templateId) => {
         const template = templateId ? TEMPLATES.find((t) => t.id === templateId) : undefined;
@@ -58,10 +54,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       },
 
       deleteProject: (id) => {
-        set({
-          projects: get().projects.filter((p) => p.id !== id),
-          activeProjectId: get().activeProjectId === id ? null : get().activeProjectId,
-        });
+        set({ projects: get().projects.filter((p) => p.id !== id) });
       },
 
       duplicateProject: (id) => {
@@ -92,44 +85,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set({
           projects: get().projects.map((p) =>
             p.id === id ? { ...p, isArchived: !p.isArchived, updatedAt: Date.now() } : p,
-          ),
-        });
-      },
-
-      startProject: (id) => {
-        const now = Date.now();
-        const currentId = get().activeProjectId;
-        set({
-          activeProjectId: id,
-          projects: get().projects.map((p) => {
-            if (p.id === currentId && p.sessionStartedAt) {
-              return {
-                ...p,
-                totalTrackedMs: (p.totalTrackedMs ?? 0) + (now - p.sessionStartedAt),
-                sessionStartedAt: undefined,
-                updatedAt: now,
-              };
-            }
-            return p.id === id ? { ...p, sessionStartedAt: now, updatedAt: now } : p;
-          }),
-        });
-      },
-
-      stopProject: () => {
-        const id = get().activeProjectId;
-        if (!id) return;
-        const now = Date.now();
-        set({
-          activeProjectId: null,
-          projects: get().projects.map((p) =>
-            p.id === id && p.sessionStartedAt
-              ? {
-                  ...p,
-                  totalTrackedMs: (p.totalTrackedMs ?? 0) + (now - p.sessionStartedAt),
-                  sessionStartedAt: undefined,
-                  updatedAt: now,
-                }
-              : p,
           ),
         });
       },
