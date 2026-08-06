@@ -27,6 +27,7 @@ export function Sidebar() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     calculators: true,
     reference: true,
+    workspace: true,
     system: true,
   });
 
