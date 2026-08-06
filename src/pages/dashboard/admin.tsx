@@ -32,10 +32,16 @@ import {
   EyeOff,
   Check,
   X,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 
 const inputClass =
   "w-full rounded-xl bg-dark-900 border border-dark-600 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-accent-cyan";
+
+type SortKey = "username" | "subscription" | "expiry" | "lastLogin" | "status";
+
+const PAGE_SIZE = 10;
 
 export default function AdminPage() {
   const router = useRouter();
@@ -55,6 +61,9 @@ export default function AdminPage() {
   /** Something went wrong that is not a question of permission. */
   const [failure, setFailure] = useState("");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("username");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
 
   const [nu, setNu] = useState({
     username: "",
@@ -70,6 +79,10 @@ export default function AdminPage() {
 
   /** Which account has its password field open, and what has been typed. */
   const [pwEdit, setPwEdit] = useState<{ id: string; value: string } | null>(null);
+
+  /** The account the delete confirmation dialog is asking about. */
+  const [pendingDelete, setPendingDelete] = useState<AdminUserRow | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [maint, setMaint] = useState({ enabled: false, message: "" });
   const [ann, setAnn] = useState({ enabled: false, message: "" });
@@ -161,14 +174,26 @@ export default function AdminPage() {
     } else toast.error("Update failed", r.error);
   };
 
-  const handleDelete = async (u: AdminUserRow) => {
-    if (!token) return;
-    if (!confirm(`Permanently delete ${u.username}? Their access is revoked immediately.`)) return;
-    const r = await deleteUser({ data: { sessionToken: token, userId: u.id } });
-    if (r.ok) {
-      toast.success("Client removed", `${u.username} can no longer sign in.`);
-      void refresh();
-    } else toast.error("Delete failed", r.error);
+  /**
+   * Carry out a deletion the administrator has confirmed in the dialog.
+   * window.confirm() was used here. It cannot be styled, it names the account
+   * only in prose that is easy to skim past, and browsers suppress it after
+   * repeated use, which quietly turned Delete into a button that did nothing.
+   */
+  const confirmDelete = async () => {
+    const u = pendingDelete;
+    if (!token || !u) return;
+    setDeletingId(u.id);
+    try {
+      const r = await deleteUser({ data: { sessionToken: token, userId: u.id } });
+      if (r.ok) {
+        toast.success("Client removed", `${u.username} can no longer sign in.`);
+        setPendingDelete(null);
+        void refresh();
+      } else toast.error("Delete failed", r.error);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const saveSetting = async (
@@ -200,13 +225,53 @@ export default function AdminPage() {
     setPwEdit(null);
   };
 
-  const shown = useMemo(() => {
+  const matched = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return users;
     return users.filter((u) =>
       [u.username, u.email ?? "", u.subscription].some((field) => field.toLowerCase().includes(q)),
     );
   }, [users, search]);
+
+  const shown = useMemo(() => {
+    const factor = sortDir === "asc" ? 1 : -1;
+    // Accounts with no date sort to the bottom whichever way round the list is,
+    // rather than pretending the date is 1970 and burying real rows.
+    const stamp = (v: string | null | undefined) => (v ? new Date(v).getTime() : Number.NaN);
+    const byDate = (a: number, b: number) => {
+      if (Number.isNaN(a) && Number.isNaN(b)) return 0;
+      if (Number.isNaN(a)) return 1;
+      if (Number.isNaN(b)) return -1;
+      return factor * (a - b);
+    };
+    return [...matched].sort((a, b) => {
+      switch (sort) {
+        case "subscription":
+          return factor * a.subscription.localeCompare(b.subscription);
+        case "expiry":
+          return byDate(stamp(a.expiry_date), stamp(b.expiry_date));
+        case "lastLogin":
+          return byDate(stamp(a.last_login_at), stamp(b.last_login_at));
+        case "status":
+          return factor * (Number(b.is_active) - Number(a.is_active));
+        default:
+          return factor * a.username.localeCompare(b.username);
+      }
+    });
+  }, [matched, sort, sortDir]);
+
+  const pageCount = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  // Narrowing the search can leave the viewer on a page that no longer exists.
+  // Fall back to the last real page instead of showing an empty one.
+  const currentPage = Math.min(page, pageCount);
+  const visible = useMemo(
+    () => shown.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [shown, currentPage],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, sort, sortDir]);
 
   const adminCount = users.filter((u) => u.is_admin).length;
   if (denied) {
@@ -414,6 +479,28 @@ export default function AdminPage() {
             {adminCount} administrator{adminCount === 1 ? "" : "s"} · {users.length} account
             {users.length === 1 ? "" : "s"}
           </p>
+          <label className="flex items-center gap-2 text-xs text-gray-500">
+            Sort
+            <select
+              className={`${inputClass} w-auto py-1.5`}
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+            >
+              <option value="username">Username</option>
+              <option value="subscription">Plan</option>
+              <option value="expiry">Expiry date</option>
+              <option value="lastLogin">Last login</option>
+              <option value="status">Status</option>
+            </select>
+          </label>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={sortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+            onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+          >
+            {sortDir === "asc" ? "Ascending" : "Descending"}
+          </Button>
           <Button
             size="sm"
             variant="secondary"
@@ -434,7 +521,7 @@ export default function AdminPage() {
         </p>
       ) : (
         <div className="space-y-3">
-          {shown.map((u) => (
+          {visible.map((u) => (
             <Card key={u.id} variant="solid" padding="md" className="border-dark-600">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex-1 min-w-[180px]">
@@ -506,7 +593,7 @@ export default function AdminPage() {
                     size="sm"
                     variant="danger"
                     icon={<Trash2 size={13} />}
-                    onClick={() => void handleDelete(u)}
+                    onClick={() => setPendingDelete(u)}
                   >
                     Delete
                   </Button>
@@ -548,6 +635,71 @@ export default function AdminPage() {
               )}
             </Card>
           ))}
+          {pageCount > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <p className="text-xs text-gray-500">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1} to{" "}
+                {Math.min(currentPage * PAGE_SIZE, shown.length)} of {shown.length}
+              </p>
+              <div className="flex items-center gap-2">
+                {currentPage > 1 && (
+                  <Button size="sm" variant="secondary" onClick={() => setPage(currentPage - 1)}>
+                    Previous
+                  </Button>
+                )}
+                <span className="text-xs text-gray-500">
+                  Page {currentPage} of {pageCount}
+                </span>
+                {currentPage < pageCount && (
+                  <Button size="sm" variant="secondary" onClick={() => setPage(currentPage + 1)}>
+                    Next
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-dark-600 bg-dark-900 p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="mt-0.5 shrink-0 text-accent-red" />
+              <div>
+                <h3 className="text-sm font-semibold text-white break-all">
+                  Delete {pendingDelete.username}?
+                </h3>
+                <p className="mt-1 text-xs text-gray-400">
+                  Their sign-in is revoked immediately and this cannot be undone.
+                </p>
+                {pendingDelete.is_admin && (
+                  <p className="mt-2 text-xs text-accent-amber">
+                    {adminCount <= 1
+                      ? "This is the only administrator account. Deleting it leaves nobody able to reach this panel."
+                      : "This account is an administrator."}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setPendingDelete(null)}>
+                Keep account
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                icon={<Trash2 size={13} />}
+                loading={deletingId === pendingDelete.id}
+                onClick={() => void confirmDelete()}
+              >
+                Delete permanently
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
