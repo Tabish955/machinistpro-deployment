@@ -8,6 +8,7 @@ import {
   getFavorites,
   searchHistory,
 } from "@/lib/core/history";
+import { useWorkspaceStore } from "@/store/workspace-store";
 
 interface HistoryStore {
   entries: HistoryEntry[];
@@ -41,6 +42,16 @@ export const useHistoryStore = create<HistoryStore>()(
       add: (module, moduleLabel, title, details, inputs, outputs) => {
         const entry = createHistoryEntry(module, moduleLabel, title, details, inputs, outputs);
         set({ entries: addToHistory(get().entries, entry) });
+        const workspace = useWorkspaceStore.getState();
+        if (workspace.activeProjectId) {
+          workspace.addCalcToProject(workspace.activeProjectId, {
+            module,
+            moduleLabel,
+            title,
+            inputs,
+            outputs,
+          });
+        }
       },
 
       remove: (id) => {
