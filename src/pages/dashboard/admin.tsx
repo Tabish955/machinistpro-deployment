@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
@@ -15,6 +15,7 @@ import {
   adminDeleteUser,
   adminGetSettings,
   adminSetSetting,
+  NOT_AUTHORISED,
   type AdminUserRow,
 } from "@/lib/admin.functions";
 import {
@@ -26,6 +27,11 @@ import {
   Wrench,
   KeyRound,
   AlertTriangle,
+  Search,
+  Eye,
+  EyeOff,
+  Check,
+  X,
 } from "lucide-react";
 
 const inputClass =
@@ -48,6 +54,7 @@ export default function AdminPage() {
   const [denied, setDenied] = useState(false);
   /** Something went wrong that is not a question of permission. */
   const [failure, setFailure] = useState("");
+  const [search, setSearch] = useState("");
 
   const [nu, setNu] = useState({
     username: "",
@@ -58,10 +65,14 @@ export default function AdminPage() {
     isAdmin: false,
     allowMultiDevice: false,
   });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  /** Which account has its password field open, and what has been typed. */
+  const [pwEdit, setPwEdit] = useState<{ id: string; value: string } | null>(null);
 
   const [maint, setMaint] = useState({ enabled: false, message: "" });
   const [ann, setAnn] = useState({ enabled: false, message: "" });
-
   const refresh = useCallback(async () => {
     if (!token) {
       // `loading` starts true, so returning quietly here left the panel saying
@@ -89,8 +100,13 @@ export default function AdminPage() {
       // Treating every failure as that sent an administrator who was correctly
       // signed in off to look at their own account, when the real fault was a
       // database that could not be reached.
+      //
+      // Match the string the server actually throws, rather than guessing from
+      // the wording of whatever came back.
       const message = reason instanceof Error ? reason.message : String(reason);
-      if (/not authoris|not authoriz|forbidden|401|403/i.test(message)) {
+      const refused =
+        message.includes(NOT_AUTHORISED) || message.includes("401") || message.includes("403");
+      if (refused) {
         setDenied(true);
         setFailure("");
       } else {
@@ -112,21 +128,27 @@ export default function AdminPage() {
       toast.error("Missing details", "Username and a password of 4+ characters are required.");
       return;
     }
-    const r = await createUser({ data: { sessionToken: token, ...nu } });
-    if (r.ok) {
-      toast.success("Client created", `${nu.username} can now sign in.`);
-      setNu({
-        username: "",
-        password: "",
-        email: "",
-        subscription: "Standard",
-        expiryDate: "",
-        isAdmin: false,
-        allowMultiDevice: false,
-      });
-      void refresh();
-    } else {
-      toast.error("Could not create", r.error);
+    setCreating(true);
+    try {
+      const r = await createUser({ data: { sessionToken: token, ...nu } });
+      if (r.ok) {
+        toast.success("Client created", `${nu.username} can now sign in.`);
+        setNu({
+          username: "",
+          password: "",
+          email: "",
+          subscription: "Standard",
+          expiryDate: "",
+          isAdmin: false,
+          allowMultiDevice: false,
+        });
+        setShowNewPassword(false);
+        void refresh();
+      } else {
+        toast.error("Could not create", r.error);
+      }
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -163,12 +185,30 @@ export default function AdminPage() {
     else toast.error("Save failed", r.error);
   };
 
-  const handleResetPassword = async (u: AdminUserRow) => {
-    const pw = prompt(`New password for ${u.username}:`);
-    if (!pw || pw.length < 4) return;
-    await patch(u.id, { password: pw }, "Password changed");
+  /**
+   * Save the password typed into the inline field for one account. A prompt()
+   * box was used here, which cannot be styled, cannot mask what is typed, and
+   * is blocked outright in some browsers.
+   */
+  const savePassword = async (u: AdminUserRow) => {
+    if (!pwEdit || pwEdit.id !== u.id) return;
+    if (pwEdit.value.length < 4) {
+      toast.error("Too short", "Use at least 4 characters.");
+      return;
+    }
+    await patch(u.id, { password: pwEdit.value }, `Password changed for ${u.username}`);
+    setPwEdit(null);
   };
 
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) =>
+      [u.username, u.email ?? "", u.subscription].some((field) => field.toLowerCase().includes(q)),
+    );
+  }, [users, search]);
+
+  const adminCount = users.filter((u) => u.is_admin).length;
   if (denied) {
     return (
       <div className="max-w-lg mx-auto mt-20 text-center space-y-4">
@@ -274,17 +314,12 @@ export default function AdminPage() {
             >
               {ann.enabled ? "Hide" : "Publish"}
             </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => void saveSetting("announcement", ann)}
-            >
+            <Button size="sm" variant="secondary" onClick={() => void saveSetting("announcement", ann)}>
               Save message
             </Button>
           </div>
         </Card>
       </div>
-
       {/* Create client */}
       <SectionHeader title="Create Login Credentials" />
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
@@ -292,15 +327,29 @@ export default function AdminPage() {
           <input
             className={inputClass}
             placeholder="Username"
+            autoComplete="off"
             value={nu.username}
             onChange={(e) => setNu({ ...nu, username: e.target.value })}
           />
-          <input
-            className={inputClass}
-            placeholder="Password"
-            value={nu.password}
-            onChange={(e) => setNu({ ...nu, password: e.target.value })}
-          />
+          <div className="relative">
+            <input
+              className={`${inputClass} pr-10`}
+              type={showNewPassword ? "text" : "password"}
+              placeholder="Password"
+              autoComplete="new-password"
+              value={nu.password}
+              onChange={(e) => setNu({ ...nu, password: e.target.value })}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors cursor-pointer"
+              tabIndex={-1}
+              aria-label={showNewPassword ? "Hide password" : "Show password"}
+            >
+              {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
           <input
             className={inputClass}
             placeholder="Email (optional)"
@@ -341,18 +390,51 @@ export default function AdminPage() {
             </label>
           </div>
         </div>
-        <Button icon={<UserPlus size={14} />} onClick={() => void handleCreate()}>
+        <Button icon={<UserPlus size={14} />} loading={creating} onClick={() => void handleCreate()}>
           Create account
         </Button>
       </Card>
 
       {/* Clients */}
       <SectionHeader title={`Clients (${users.length})`} />
+      <Card variant="solid" padding="md" className="border-dark-600">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+              <Search size={14} />
+            </div>
+            <input
+              className={`${inputClass} pl-9`}
+              placeholder="Search by username, email or plan"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            {adminCount} administrator{adminCount === 1 ? "" : "s"} · {users.length} account
+            {users.length === 1 ? "" : "s"}
+          </p>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<RefreshCw size={13} />}
+            onClick={() => void refresh()}
+          >
+            Reload
+          </Button>
+        </div>
+      </Card>
       {loading ? (
         <p className="text-sm text-gray-500">Loading…</p>
+      ) : shown.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          {users.length === 0
+            ? "No accounts exist yet. Create one above."
+            : "No account matches that search."}
+        </p>
       ) : (
         <div className="space-y-3">
-          {users.map((u) => (
+          {shown.map((u) => (
             <Card key={u.id} variant="solid" padding="md" className="border-dark-600">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex-1 min-w-[180px]">
@@ -403,7 +485,7 @@ export default function AdminPage() {
                     size="sm"
                     variant="secondary"
                     icon={<KeyRound size={13} />}
-                    onClick={() => void handleResetPassword(u)}
+                    onClick={() => setPwEdit(pwEdit?.id === u.id ? null : { id: u.id, value: "" })}
                   >
                     Password
                   </Button>
@@ -430,6 +512,40 @@ export default function AdminPage() {
                   </Button>
                 </div>
               </div>
+
+              {pwEdit?.id === u.id && (
+                <div className="mt-3 border-t border-dark-700 pt-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="password"
+                      autoFocus
+                      autoComplete="new-password"
+                      className={`${inputClass} max-w-xs`}
+                      placeholder="New password (4+ characters)"
+                      value={pwEdit.value}
+                      onChange={(e) => setPwEdit({ id: u.id, value: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void savePassword(u);
+                        if (e.key === "Escape") setPwEdit(null);
+                      }}
+                    />
+                    <Button size="sm" icon={<Check size={13} />} onClick={() => void savePassword(u)}>
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon={<X size={13} />}
+                      onClick={() => setPwEdit(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Saving signs {u.username} out of every device.
+                  </p>
+                </div>
+              )}
             </Card>
           ))}
         </div>
