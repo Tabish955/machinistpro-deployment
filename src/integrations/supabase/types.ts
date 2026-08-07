@@ -36,6 +36,7 @@ export type Database = {
         Row: {
           allow_multi_device: boolean
           created_at: string
+          device_limit: number
           email: string | null
           expiry_date: string | null
           hwid: string | null
@@ -51,6 +52,7 @@ export type Database = {
         Insert: {
           allow_multi_device?: boolean
           created_at?: string
+          device_limit?: number
           email?: string | null
           expiry_date?: string | null
           hwid?: string | null
@@ -66,6 +68,7 @@ export type Database = {
         Update: {
           allow_multi_device?: boolean
           created_at?: string
+          device_limit?: number
           email?: string | null
           expiry_date?: string | null
           hwid?: string | null
@@ -213,6 +216,50 @@ export type Database = {
           trial_count?: number
         }
         Relationships: []
+      }
+      user_devices: {
+        Row: {
+          created_at: string
+          first_seen: string
+          hwid: string
+          id: string
+          label: string | null
+          last_seen: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_seen?: string
+          hwid: string
+          id?: string
+          label?: string | null
+          last_seen?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_seen?: string
+          hwid?: string
+          id?: string
+          label?: string | null
+          last_seen?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_devices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "app_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_trials: {
         Row: {
