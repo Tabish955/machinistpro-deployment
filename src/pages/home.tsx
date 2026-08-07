@@ -174,18 +174,54 @@ export default function LandingPage() {
             </>
           ) : (
             <>
+              {canStartTrial && (
+                <Button
+                  size="lg"
+                  icon={<Sparkles size={18} />}
+                  loading={starting}
+                  onClick={() => void start()}
+                >
+                  {starting ? "Starting trial…" : trialLabel}
+                </Button>
+              )}
               <Link href="/login">
-                <Button size="lg" icon={<LogIn size={18} />}>
-                  Sign In to Start
+                <Button variant="secondary" size="lg" icon={<LogIn size={18} />}>
+                  Sign In
                 </Button>
               </Link>
-              <Button variant="secondary" size="lg" disabled>
-                Learn More
-              </Button>
             </>
           )}
         </div>
+
+        {!isAuthenticated && (
+          <div className="mt-5 flex flex-col items-center gap-2">
+            {trial.state === "none" && (
+              <p className="text-xs text-gray-600">
+                No credit card required · One free trial per device
+              </p>
+            )}
+            {trial.state === "expired" && (
+              <p className="inline-flex items-center gap-1.5 text-xs text-accent-amber">
+                <Clock size={13} /> Your free trial on this device has ended — buy a subscription to
+                keep going.
+              </p>
+            )}
+            {trial.state === "blocked" && (
+              <p className="text-xs text-accent-red">{trial.reason}</p>
+            )}
+            <a
+              href={whatsappLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-accent-green hover:underline"
+            >
+              <MessageCircle size={14} /> Buy a subscription on WhatsApp ·{" "}
+              {SUPPORT_WHATSAPP_NUMBER}
+            </a>
+          </div>
+        )}
       </section>
+
 
       {/* Stats */}
       <section className="max-w-4xl mx-auto px-6 pb-16">
