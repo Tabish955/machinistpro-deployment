@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AngleMode, CalculationResult, CalculatorError } from "@/lib/calculator/types";
+import { copyText } from "@/lib/clipboard";
 import {
   evaluate,
   formatExpression,
@@ -240,7 +241,8 @@ interface CalculatorStore {
   loadFromHistory: (item: CalculationResult) => void;
 
   // Clipboard
-  copyResult: () => Promise<void>;
+  /** Resolves true only if the result actually reached the clipboard. */
+  copyResult: () => Promise<boolean>;
   pasteNumber: () => Promise<void>;
 
   // Direct expression set (for editing)
@@ -907,9 +909,11 @@ export const useCalculatorStore = create<CalculatorStore>()(
       // Copy result
       copyResult: async () => {
         const { result } = get();
-        if (result && result !== "Error" && navigator.clipboard) {
-          await navigator.clipboard.writeText(result.replace(/,/g, ""));
-        }
+        if (!result || result === "Error") return false;
+        // Was guarded on `navigator.clipboard` and returned nothing, so a
+        // caller could not tell a copy from a silent no-op — and the display
+        // showed a tick either way.
+        return copyText(result.replace(/,/g, ""));
       },
 
       // Paste number
