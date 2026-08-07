@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { ToastContainer } from "@/components/ui/toast";
 import Link from "@/lib/next-compat";
+import { useDeviceTrial } from "@/hooks/use-device-trial";
+import { whatsappLink, SUPPORT_WHATSAPP_NUMBER } from "@/lib/support";
 import {
   Calculator,
   ArrowRightLeft,
@@ -14,7 +17,10 @@ import {
   Shield,
   Zap,
   LogIn,
+  MessageCircle,
+  Clock,
 } from "lucide-react";
+
 
 const features = [
   {
