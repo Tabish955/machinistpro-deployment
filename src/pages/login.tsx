@@ -46,81 +46,13 @@ export default function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({});
   const [serverError, setServerError] = useState<{ error: string } | null>(null);
 
-  // Trial state
-  const checkTrial = useServerFn(getDeviceTrialStatus);
-  const startTrial = useServerFn(startDeviceTrial);
-  const [trialStatus, setTrialStatus] = useState<
-    | { state: "loading" }
-    | { state: "none" }
-    | { state: "active"; daysLeft: number; expiresAt: string }
-    | { state: "expired" }
-    | { state: "blocked"; reason: string }
-  >({ state: "loading" });
-  const [startingTrial, setStartingTrial] = useState(false);
+  // Trial state (shared with the landing page CTA)
+  const {
+    status: trialStatus,
+    starting: startingTrial,
+    start: handleStartTrial,
+  } = useDeviceTrial();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const signals = await collectSignals();
-        const r = await checkTrial({ data: { signals } });
-        if (cancelled) return;
-        if (!r.hasTrial) setTrialStatus({ state: "none" });
-        else if (r.active)
-          setTrialStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
-        else setTrialStatus({ state: "expired" });
-      } catch {
-        if (!cancelled) setTrialStatus({ state: "none" });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [checkTrial]);
-
-  const handleStartTrial = useCallback(async () => {
-    setStartingTrial(true);
-    try {
-      const signals = await collectSignals();
-      const r = await startTrial({ data: { signals } });
-      if (r.ok && r.sessionToken) {
-        const expiryDate = new Date(r.expiresAt).toLocaleDateString();
-        const subscription = `Trial (${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} left)`;
-        // The server now issues trials — token is validated by /api/auth/session.
-        localStorage.setItem("mp_session", r.sessionToken);
-        localStorage.setItem("mp_trial", "1");
-        localStorage.setItem(
-          "mp_user",
-          JSON.stringify({
-            username: "Trial User",
-            subscription,
-            expiry: expiryDate,
-            isTrial: true,
-          }),
-        );
-        setUser({
-          username: "Trial User",
-          subscription,
-          expiry: expiryDate,
-          sessionToken: r.sessionToken,
-        });
-        toast.success(
-          r.resumed ? "Trial resumed" : "Trial started",
-          `${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} remaining · expires ${expiryDate}`,
-        );
-        router.push("/dashboard");
-      } else if (r.ok) {
-        toast.error("Trial unavailable", "Server did not issue a session token.");
-      } else {
-        setTrialStatus({ state: "blocked", reason: r.reason });
-        toast.error("Trial unavailable", r.reason);
-      }
-    } catch {
-      toast.error("Trial unavailable", "Please try again.");
-    } finally {
-      setStartingTrial(false);
-    }
-  }, [startTrial, setUser, router]);
 
   // Redirect if already authenticated
   useEffect(() => {
