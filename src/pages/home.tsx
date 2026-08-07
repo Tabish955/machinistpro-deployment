@@ -341,8 +341,9 @@ export default function LandingPage() {
           </Link>
         </div>
         <p className="text-[11px] text-gray-700 text-center">
-          © 2025 MachinistPro · Precision Engineering Tools · v1.0.0-rc1
+          © {new Date().getFullYear()} MachinistPro · Precision Engineering Tools · v1.0.0-rc1
         </p>
+
       </footer>
     </div>
   );
