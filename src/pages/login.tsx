@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, type FormEvent } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
+import Link from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/store/toast-store";
 import { Logo } from "@/components/ui/logo";
@@ -17,9 +17,13 @@ import {
   Cpu,
   AlertCircle,
   Sparkles,
+  MessageCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { collectSignals } from "@/lib/fingerprint";
-import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
+import { useDeviceTrial } from "@/hooks/use-device-trial";
+import { whatsappLink, SUPPORT_WHATSAPP_NUMBER } from "@/lib/support";
+
 
 interface LoginResponse {
   success: boolean;
