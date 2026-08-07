@@ -97,17 +97,32 @@ export default function LandingPage() {
   }, []);
 
   const isAuthenticated = status === "authenticated" && user;
+  const { status: trial, starting, start } = useDeviceTrial();
+  const trialLabel =
+    trial.state === "active"
+      ? `Continue Trial · ${trial.daysLeft} day${trial.daysLeft === 1 ? "" : "s"} left`
+      : "Start 14-Day Free Trial";
+  const canStartTrial = trial.state === "none" || trial.state === "active";
 
   return (
     <div className="min-h-screen bg-dark-950 gradient-bg grid-pattern">
+      <ToastContainer />
       {/* Nav */}
-      <nav className="flex items-center justify-between px-6 lg:px-12 py-5">
+      <nav className="sticky top-0 z-40 flex items-center justify-between border-b border-dark-700/40 bg-dark-950/80 px-4 sm:px-6 lg:px-12 py-4 backdrop-blur-xl">
         <Logo size="md" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <a
+            href={whatsappLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-accent-green/40 px-3 py-1.5 text-xs font-semibold text-accent-green transition-colors hover:bg-accent-green/10"
+          >
+            <MessageCircle size={13} /> Buy Subscription
+          </a>
           {isAuthenticated ? (
             <Link href="/dashboard">
               <Button variant="primary" size="sm" icon={<ArrowRight size={14} />}>
-                Go to Dashboard
+                Dashboard
               </Button>
             </Link>
           ) : (
@@ -119,6 +134,7 @@ export default function LandingPage() {
           )}
         </div>
       </nav>
+
 
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-20 lg:pt-28 lg:pb-32 text-center">
