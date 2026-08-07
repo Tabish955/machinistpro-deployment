@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/auth/login")({
           const { data: user } = await supabaseAdmin
             .from("app_users")
             .select(
-              "id,username,email,password_hash,subscription,expiry_date,is_admin,is_active,hwid,allow_multi_device",
+              "id,username,email,password_hash,subscription,expiry_date,is_admin,is_active,hwid,allow_multi_device,device_limit",
             )
             .or(`username.ilike.${ident},email.ilike.${ident}`)
             .maybeSingle();
@@ -62,22 +62,49 @@ export const Route = createFileRoute("/api/auth/login")({
             return fail("Your subscription has expired.", 403);
           }
 
-          // ---- One device per licence (HWID lock) ----
+          // ---- Device allowance (HWID registry) ----
+          // `allow_multi_device` = unlimited devices. Otherwise the licence may
+          // be used on `device_limit` distinct machines (default 1).
           const ua = request.headers.get("user-agent")?.slice(0, 512) ?? "";
           const hwid = signals ? hashHwid(signals, ua) : null;
+          const limit = Math.max(1, user.device_limit ?? 1);
           if (!user.allow_multi_device) {
-            if (!hwid) return fail("Device verification failed. Please retry in a normal browser window.", 403);
-            if (!user.hwid) {
-              await supabaseAdmin.from("app_users").update({ hwid }).eq("id", user.id);
-            } else if (user.hwid !== hwid) {
+            if (!hwid) {
               return fail(
-                "This account is locked to another device. Ask the administrator to reset your device (HWID).",
+                "Device verification failed. Please retry in a normal browser window.",
                 403,
               );
             }
-            // Single active session per licence.
-            await revokeUserSessions(user.id);
+            const { data: devices } = await supabaseAdmin
+              .from("user_devices")
+              .select("id,hwid")
+              .eq("user_id", user.id);
+            const known = (devices ?? []).find((d) => d.hwid === hwid);
+            if (known) {
+              await supabaseAdmin
+                .from("user_devices")
+                .update({ last_seen: new Date().toISOString() })
+                .eq("id", known.id);
+            } else if ((devices?.length ?? 0) >= limit) {
+              return fail(
+                limit === 1
+                  ? "This account is locked to another device. Ask the administrator to reset your device (HWID)."
+                  : `This account has already been activated on ${limit} devices. Ask the administrator to free a device slot.`,
+                403,
+              );
+            } else {
+              await supabaseAdmin
+                .from("user_devices")
+                .insert({ user_id: user.id, hwid, user_agent: ua });
+              if (!user.hwid) {
+                await supabaseAdmin.from("app_users").update({ hwid }).eq("id", user.id);
+              }
+            }
+            // One active session per device slot: a single-device licence keeps
+            // exactly one session alive.
+            if (limit === 1) await revokeUserSessions(user.id);
           }
+
 
           const issued = await issueSession({
             username: user.username,
