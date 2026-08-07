@@ -15,23 +15,21 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Settings, Search, X, Copy, Check } from "lucide-react";
+import { useCopy } from "@/hooks/use-copy";
 
 function fmt(n: number, d = 3) {
   return n.toFixed(d).replace(/\.?0+$/, "");
 }
 
 function CBtn({ text }: { text: string }) {
-  const [ok, setOk] = useState(false);
+  const { copied, failed, copy } = useCopy();
   return (
     <button
-      onClick={() => {
-        navigator.clipboard?.writeText(text);
-        setOk(true);
-        setTimeout(() => setOk(false), 1500);
-      }}
-      className={`p-1.5 rounded-lg transition-all cursor-pointer ${ok ? "bg-accent-green/20 text-accent-green" : "text-gray-600 hover:text-white hover:bg-dark-700"}`}
+      onClick={() => void copy(text)}
+      title={failed ? "Nothing was copied — the clipboard is unavailable here" : "Copy"}
+      className={`p-1.5 rounded-lg transition-all cursor-pointer ${copied ? "bg-accent-green/20 text-accent-green" : failed ? "bg-accent-red/20 text-accent-red" : "text-gray-600 hover:text-white hover:bg-dark-700"}`}
     >
-      {ok ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? <Check size={12} /> : failed ? <X size={12} /> : <Copy size={12} />}
     </button>
   );
 }

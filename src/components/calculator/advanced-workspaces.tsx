@@ -32,6 +32,7 @@ import {
 } from "@/lib/calculator/advanced";
 import { useCalculatorStore } from "@/store/calculator-store";
 import type { CalculationResult } from "@/lib/calculator/types";
+import { copyText } from "@/lib/clipboard";
 
 const field =
   "w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-sm text-white placeholder:text-gray-700 focus:border-accent-cyan/40 focus:outline-none";
@@ -124,10 +125,14 @@ function EngineeringWorkspace({
   }, [historyItem, onHistoryConsumed]);
 
   const copy = async (value: string, target: typeof copied) => {
-    if (!value || !navigator.clipboard) return;
-    await navigator.clipboard.writeText(value);
-    setCopied(target);
-    window.setTimeout(() => setCopied(null), 1500);
+    if (!value) return;
+    // Bailing out on a missing `navigator.clipboard` at least did not claim a
+    // success, but it left the button doing nothing at all with no explanation.
+    // `copyText` has a fallback for exactly that case.
+    if (await copyText(value)) {
+      setCopied(target);
+      window.setTimeout(() => setCopied(null), 1500);
+    }
   };
 
   const calculate = (shift = exponentShift, recordHistory = true) => {
