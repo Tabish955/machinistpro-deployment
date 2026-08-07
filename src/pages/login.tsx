@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, type FormEvent } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
+import Link from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/store/toast-store";
 import { Logo } from "@/components/ui/logo";
@@ -17,9 +17,13 @@ import {
   Cpu,
   AlertCircle,
   Sparkles,
+  MessageCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { collectSignals } from "@/lib/fingerprint";
-import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
+import { useDeviceTrial } from "@/hooks/use-device-trial";
+import { whatsappLink, SUPPORT_WHATSAPP_NUMBER } from "@/lib/support";
+
 
 interface LoginResponse {
   success: boolean;
@@ -46,81 +50,13 @@ export default function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({});
   const [serverError, setServerError] = useState<{ error: string } | null>(null);
 
-  // Trial state
-  const checkTrial = useServerFn(getDeviceTrialStatus);
-  const startTrial = useServerFn(startDeviceTrial);
-  const [trialStatus, setTrialStatus] = useState<
-    | { state: "loading" }
-    | { state: "none" }
-    | { state: "active"; daysLeft: number; expiresAt: string }
-    | { state: "expired" }
-    | { state: "blocked"; reason: string }
-  >({ state: "loading" });
-  const [startingTrial, setStartingTrial] = useState(false);
+  // Trial state (shared with the landing page CTA)
+  const {
+    status: trialStatus,
+    starting: startingTrial,
+    start: handleStartTrial,
+  } = useDeviceTrial();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const signals = await collectSignals();
-        const r = await checkTrial({ data: { signals } });
-        if (cancelled) return;
-        if (!r.hasTrial) setTrialStatus({ state: "none" });
-        else if (r.active)
-          setTrialStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
-        else setTrialStatus({ state: "expired" });
-      } catch {
-        if (!cancelled) setTrialStatus({ state: "none" });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [checkTrial]);
-
-  const handleStartTrial = useCallback(async () => {
-    setStartingTrial(true);
-    try {
-      const signals = await collectSignals();
-      const r = await startTrial({ data: { signals } });
-      if (r.ok && r.sessionToken) {
-        const expiryDate = new Date(r.expiresAt).toLocaleDateString();
-        const subscription = `Trial (${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} left)`;
-        // The server now issues trials — token is validated by /api/auth/session.
-        localStorage.setItem("mp_session", r.sessionToken);
-        localStorage.setItem("mp_trial", "1");
-        localStorage.setItem(
-          "mp_user",
-          JSON.stringify({
-            username: "Trial User",
-            subscription,
-            expiry: expiryDate,
-            isTrial: true,
-          }),
-        );
-        setUser({
-          username: "Trial User",
-          subscription,
-          expiry: expiryDate,
-          sessionToken: r.sessionToken,
-        });
-        toast.success(
-          r.resumed ? "Trial resumed" : "Trial started",
-          `${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} remaining · expires ${expiryDate}`,
-        );
-        router.push("/dashboard");
-      } else if (r.ok) {
-        toast.error("Trial unavailable", "Server did not issue a session token.");
-      } else {
-        setTrialStatus({ state: "blocked", reason: r.reason });
-        toast.error("Trial unavailable", r.reason);
-      }
-    } catch {
-      toast.error("Trial unavailable", "Please try again.");
-    } finally {
-      setStartingTrial(false);
-    }
-  }, [startTrial, setUser, router]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -537,8 +473,25 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Buy a subscription */}
+            <div className="mt-5 rounded-xl border border-accent-green/30 bg-accent-green/5 p-4 text-center">
+              <p className="text-sm font-semibold text-white">Don&apos;t have an account?</p>
+              <p className="text-[11px] text-gray-400 mt-0.5 mb-3">
+                Get instant licence credentials on WhatsApp · {SUPPORT_WHATSAPP_NUMBER}
+              </p>
+              <a
+                href={whatsappLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent-green px-4 py-3 text-sm font-semibold text-dark-950 transition-transform hover:scale-[1.02] active:scale-[0.99]"
+              >
+                <MessageCircle size={16} />
+                Buy Subscription Now
+              </a>
+            </div>
+
             {/* Info */}
-            <div className="flex items-start gap-2 rounded-lg bg-dark-700/50 p-3">
+            <div className="mt-5 flex items-start gap-2 rounded-lg bg-dark-700/50 p-3">
               <Shield size={14} className="text-accent-cyan mt-0.5 shrink-0" />
               <p className="text-[11px] text-gray-500 leading-relaxed">
                 Your credentials are encrypted and verified through our secure authentication
@@ -548,9 +501,18 @@ export default function LoginPage() {
           </div>
 
           {/* Footer */}
-          <p className="mt-6 text-center text-[11px] text-gray-700">
-            MachinistPro v1.0.0-rc1 · Precision Engineering Tools
-          </p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-accent-cyan"
+            >
+              <ArrowLeft size={13} /> Back to home
+            </Link>
+            <p className="text-center text-[11px] text-gray-700">
+              MachinistPro v1.0.0-rc1 · Precision Engineering Tools
+            </p>
+          </div>
+
         </div>
       </div>
     </div>

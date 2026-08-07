@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
@@ -15,7 +15,11 @@ import {
   adminDeleteUser,
   adminGetSettings,
   adminSetSetting,
+  adminListDevices,
+  adminRemoveDevice,
   type AdminUserRow,
+  type AdminDeviceRow,
+  type AdminStats,
 } from "@/lib/admin.functions";
 import {
   ShieldCheck,
@@ -26,10 +30,27 @@ import {
   Wrench,
   KeyRound,
   AlertTriangle,
+  Search,
+  Laptop,
+  LogOut,
+  CalendarPlus,
+  Pencil,
+  Users,
 } from "lucide-react";
 
 const inputClass =
   "w-full rounded-xl bg-dark-900 border border-dark-600 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-accent-cyan";
+
+const emptyNewUser = {
+  username: "",
+  password: "",
+  email: "",
+  subscription: "Standard",
+  expiryDate: "",
+  isAdmin: false,
+  allowMultiDevice: false,
+  deviceLimit: 1,
+};
 
 export default function AdminPage() {
   const router = useRouter();
@@ -42,31 +63,27 @@ export default function AdminPage() {
   const deleteUser = useServerFn(adminDeleteUser);
   const getSettings = useServerFn(adminGetSettings);
   const setSetting = useServerFn(adminSetSetting);
+  const listDevices = useServerFn(adminListDevices);
+  const removeDevice = useServerFn(adminRemoveDevice);
 
   const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   /** Something went wrong that is not a question of permission. */
   const [failure, setFailure] = useState("");
+  const [query, setQuery] = useState("");
 
-  const [nu, setNu] = useState({
-    username: "",
-    password: "",
-    email: "",
-    subscription: "Standard",
-    expiryDate: "",
-    isAdmin: false,
-    allowMultiDevice: false,
-  });
-
+  const [nu, setNu] = useState(emptyNewUser);
   const [maint, setMaint] = useState({ enabled: false, message: "" });
   const [ann, setAnn] = useState({ enabled: false, message: "" });
 
+  /** Which client's device list is expanded, and its rows. */
+  const [openDevices, setOpenDevices] = useState<string | null>(null);
+  const [devices, setDevices] = useState<AdminDeviceRow[]>([]);
+
   const refresh = useCallback(async () => {
     if (!token) {
-      // `loading` starts true, so returning quietly here left the panel saying
-      // "Loading…" for ever. Every admin call needs a session token, and there
-      // is not one, so say that rather than spin.
       setLoading(false);
       setFailure(
         "No session token was found in this browser, so the admin data cannot be fetched. Sign in properly — an administrator's own token is what authorises every call on this page.",
@@ -80,15 +97,12 @@ export default function AdminPage() {
         getSettings({ data: { sessionToken: token } }),
       ]);
       setUsers(u.users);
+      setStats(u.stats);
       setMaint(s.maintenance);
       setAnn(s.announcement);
       setDenied(false);
       setFailure("");
     } catch (reason) {
-      // Only the server refusing the token means the account is not an admin.
-      // Treating every failure as that sent an administrator who was correctly
-      // signed in off to look at their own account, when the real fault was a
-      // database that could not be reached.
       const message = reason instanceof Error ? reason.message : String(reason);
       if (/not authoris|not authoriz|forbidden|401|403/i.test(message)) {
         setDenied(true);
@@ -115,15 +129,7 @@ export default function AdminPage() {
     const r = await createUser({ data: { sessionToken: token, ...nu } });
     if (r.ok) {
       toast.success("Client created", `${nu.username} can now sign in.`);
-      setNu({
-        username: "",
-        password: "",
-        email: "",
-        subscription: "Standard",
-        expiryDate: "",
-        isAdmin: false,
-        allowMultiDevice: false,
-      });
+      setNu(emptyNewUser);
       void refresh();
     } else {
       toast.error("Could not create", r.error);
@@ -136,6 +142,7 @@ export default function AdminPage() {
     if (r.ok) {
       toast.success(msg, "Change applied.");
       void refresh();
+      if (openDevices === userId) void loadDevices(userId);
     } else toast.error("Update failed", r.error);
   };
 
@@ -168,6 +175,75 @@ export default function AdminPage() {
     if (!pw || pw.length < 4) return;
     await patch(u.id, { password: pw }, "Password changed");
   };
+
+  const handleRename = async (u: AdminUserRow) => {
+    const name = prompt("New username:", u.username);
+    if (!name || name.trim().length < 3 || name.trim() === u.username) return;
+    const email = prompt("Email (leave blank for none):", u.email ?? "") ?? "";
+    await patch(u.id, { username: name.trim(), email: email.trim() }, "Account details updated");
+  };
+
+  const handleDeviceLimit = async (u: AdminUserRow) => {
+    const raw = prompt(
+      `How many devices may "${u.username}" sign in from with these credentials?\n(1 – 100)`,
+      String(u.device_limit),
+    );
+    if (raw === null) return;
+    const n = Number.parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 1 || n > 100) {
+      toast.error("Invalid number", "Enter a whole number between 1 and 100.");
+      return;
+    }
+    await patch(u.id, { deviceLimit: n, allowMultiDevice: false }, `Device allowance set to ${n}`);
+  };
+
+  const handleExtend = async (u: AdminUserRow, days: number) => {
+    await patch(u.id, { extendDays: days }, `Subscription extended by ${days} days`);
+  };
+
+  const loadDevices = useCallback(
+    async (userId: string) => {
+      if (!token) return;
+      try {
+        const r = await listDevices({ data: { sessionToken: token, userId } });
+        setDevices(r.devices);
+      } catch {
+        setDevices([]);
+      }
+    },
+    [token, listDevices],
+  );
+
+  const toggleDevices = async (u: AdminUserRow) => {
+    if (openDevices === u.id) {
+      setOpenDevices(null);
+      return;
+    }
+    setOpenDevices(u.id);
+    setDevices([]);
+    await loadDevices(u.id);
+  };
+
+  const handleRemoveDevice = async (userId: string, deviceId: string) => {
+    if (!token) return;
+    const r = await removeDevice({ data: { sessionToken: token, userId, deviceId } });
+    if (r.ok) {
+      toast.success("Device removed", "The slot is free for a new machine.");
+      void loadDevices(userId);
+      void refresh();
+    } else toast.error("Could not remove device", r.error);
+  };
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.username.toLowerCase().includes(q) ||
+        (u.email ?? "").toLowerCase().includes(q) ||
+        u.subscription.toLowerCase().includes(q),
+    );
+  }, [users, query]);
 
   if (denied) {
     return (
@@ -206,10 +282,34 @@ export default function AdminPage() {
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
       <PageHeader
         title="Admin Panel"
-        description={`Signed in as ${user?.username ?? "admin"} · manage clients, access and site status`}
+        description={`Signed in as ${user?.username ?? "admin"} · manage clients, devices and site status`}
         icon={<ShieldCheck size={22} className="text-accent-cyan" />}
         iconColor="cyan"
       />
+
+      {/* Overview */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Clients", value: stats.total, icon: Users },
+            { label: "Active", value: stats.active, icon: ShieldCheck },
+            { label: "Live sessions", value: stats.activeSessions, icon: Laptop },
+            { label: "Trials issued", value: stats.trialsIssued, icon: CalendarPlus },
+          ].map((s) => (
+            <Card key={s.label} variant="solid" padding="md" className="border-dark-600">
+              <s.icon size={16} className="text-accent-cyan mb-1.5" />
+              <p className="text-xl font-bold text-white leading-none">{s.value}</p>
+              <p className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">{s.label}</p>
+            </Card>
+          ))}
+        </div>
+      )}
+      {stats && (stats.expiringSoon > 0 || stats.expired > 0 || stats.suspended > 0) && (
+        <p className="text-xs text-gray-500">
+          {stats.expiringSoon} expiring within 7 days · {stats.expired} expired ·{" "}
+          {stats.suspended} suspended
+        </p>
+      )}
 
       {/* Site controls */}
       <SectionHeader title="Site Controls" />
@@ -322,7 +422,21 @@ export default function AdminPage() {
               onChange={(e) => setNu({ ...nu, expiryDate: e.target.value })}
             />
           </label>
-          <div className="flex flex-col justify-end gap-2 text-xs text-gray-400">
+          <label className="text-xs text-gray-400 flex flex-col gap-1">
+            Devices allowed
+            <input
+              type="number"
+              min={1}
+              max={100}
+              className={inputClass}
+              value={nu.deviceLimit}
+              disabled={nu.allowMultiDevice}
+              onChange={(e) =>
+                setNu({ ...nu, deviceLimit: Math.max(1, Number(e.target.value) || 1) })
+              }
+            />
+          </label>
+          <div className="flex flex-col justify-end gap-2 text-xs text-gray-400 sm:col-span-2">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -337,7 +451,7 @@ export default function AdminPage() {
                 checked={nu.allowMultiDevice}
                 onChange={(e) => setNu({ ...nu, allowMultiDevice: e.target.checked })}
               />
-              Allow multiple devices
+              Unlimited devices (ignores the number above)
             </label>
           </div>
         </div>
@@ -347,12 +461,21 @@ export default function AdminPage() {
       </Card>
 
       {/* Clients */}
-      <SectionHeader title={`Clients (${users.length})`} />
+      <SectionHeader title={`Clients (${filtered.length})`} />
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <input
+          className={`${inputClass} pl-9`}
+          placeholder="Search by username, email or plan"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
       {loading ? (
         <p className="text-sm text-gray-500">Loading…</p>
       ) : (
         <div className="space-y-3">
-          {users.map((u) => (
+          {filtered.map((u) => (
             <Card key={u.id} variant="solid" padding="md" className="border-dark-600">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex-1 min-w-[180px]">
@@ -363,9 +486,10 @@ export default function AdminPage() {
                       {u.is_active ? "Active" : "Suspended"}
                     </Badge>
                     <Badge color={u.allow_multi_device ? "cyan" : "amber"}>
-                      {u.allow_multi_device ? "Multi-device" : "1 device"}
+                      {u.allow_multi_device
+                        ? "Unlimited devices"
+                        : `${u.device_count}/${u.device_limit} devices`}
                     </Badge>
-                    {u.hwid_locked && <Badge color="blue">HWID locked</Badge>}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {u.subscription}
@@ -381,8 +505,19 @@ export default function AdminPage() {
                   <Button
                     size="sm"
                     variant="secondary"
+                    icon={<Laptop size={13} />}
+                    onClick={() => void toggleDevices(u)}
+                  >
+                    Devices
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => void handleDeviceLimit(u)}>
+                    Set limit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     icon={<RefreshCw size={13} />}
-                    onClick={() => void patch(u.id, { resetHwid: true }, "Device reset")}
+                    onClick={() => void patch(u.id, { resetHwid: true }, "Devices reset")}
                   >
                     Reset HWID
                   </Button>
@@ -393,11 +528,30 @@ export default function AdminPage() {
                       void patch(
                         u.id,
                         { allowMultiDevice: !u.allow_multi_device },
-                        u.allow_multi_device ? "Locked to one device" : "Multi-device enabled",
+                        u.allow_multi_device ? "Device limit enforced" : "Unlimited devices",
                       )
                     }
                   >
-                    {u.allow_multi_device ? "Lock to 1 device" : "Allow multi-device"}
+                    {u.allow_multi_device ? "Enforce limit" : "Unlimited"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<CalendarPlus size={13} />}
+                    onClick={() => void handleExtend(u, 30)}
+                  >
+                    +30d
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => void handleExtend(u, 365)}>
+                    +1y
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<Pencil size={13} />}
+                    onClick={() => void handleRename(u)}
+                  >
+                    Edit
                   </Button>
                   <Button
                     size="sm"
@@ -406,6 +560,28 @@ export default function AdminPage() {
                     onClick={() => void handleResetPassword(u)}
                   >
                     Password
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<LogOut size={13} />}
+                    onClick={() => void patch(u.id, { revokeSessions: true }, "Signed out")}
+                  >
+                    Force sign-out
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<ShieldCheck size={13} />}
+                    onClick={() =>
+                      void patch(
+                        u.id,
+                        { isAdmin: !u.is_admin },
+                        u.is_admin ? "Admin rights removed" : "Promoted to administrator",
+                      )
+                    }
+                  >
+                    {u.is_admin ? "Demote" : "Make admin"}
                   </Button>
                   <Button
                     size="sm"
@@ -430,8 +606,45 @@ export default function AdminPage() {
                   </Button>
                 </div>
               </div>
+
+              {openDevices === u.id && (
+                <div className="mt-4 border-t border-dark-700 pt-3 space-y-2">
+                  {devices.length === 0 ? (
+                    <p className="text-xs text-gray-500">
+                      No devices registered yet — the next successful sign-in claims a slot.
+                    </p>
+                  ) : (
+                    devices.map((d) => (
+                      <div
+                        key={d.id}
+                        className="flex flex-wrap items-center gap-2 rounded-lg bg-dark-900 border border-dark-700 px-3 py-2"
+                      >
+                        <div className="flex-1 min-w-[160px]">
+                          <p className="text-[11px] font-mono text-gray-400 break-all">
+                            {d.hwid.slice(0, 24)}…
+                          </p>
+                          <p className="text-[11px] text-gray-600 break-all">
+                            {d.user_agent?.slice(0, 90) || "Unknown browser"} · last used{" "}
+                            {new Date(d.last_seen).toLocaleString()}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => void handleRemoveDevice(u.id, d.id)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </Card>
           ))}
+          {filtered.length === 0 && (
+            <p className="text-sm text-gray-500">No clients match that search.</p>
+          )}
         </div>
       )}
     </div>

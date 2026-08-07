@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { ToastContainer } from "@/components/ui/toast";
 import Link from "@/lib/next-compat";
+import { useDeviceTrial } from "@/hooks/use-device-trial";
+import { whatsappLink, SUPPORT_WHATSAPP_NUMBER } from "@/lib/support";
 import {
   Calculator,
   ArrowRightLeft,
@@ -14,7 +17,10 @@ import {
   Shield,
   Zap,
   LogIn,
+  MessageCircle,
+  Clock,
 } from "lucide-react";
+
 
 const features = [
   {
@@ -91,17 +97,32 @@ export default function LandingPage() {
   }, []);
 
   const isAuthenticated = status === "authenticated" && user;
+  const { status: trial, starting, start } = useDeviceTrial();
+  const trialLabel =
+    trial.state === "active"
+      ? `Continue Trial · ${trial.daysLeft} day${trial.daysLeft === 1 ? "" : "s"} left`
+      : "Start 14-Day Free Trial";
+  const canStartTrial = trial.state === "none" || trial.state === "active";
 
   return (
     <div className="min-h-screen bg-dark-950 gradient-bg grid-pattern">
+      <ToastContainer />
       {/* Nav */}
-      <nav className="flex items-center justify-between px-6 lg:px-12 py-5">
+      <nav className="sticky top-0 z-40 flex items-center justify-between border-b border-dark-700/40 bg-dark-950/80 px-4 sm:px-6 lg:px-12 py-4 backdrop-blur-xl">
         <Logo size="md" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <a
+            href={whatsappLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-accent-green/40 px-3 py-1.5 text-xs font-semibold text-accent-green transition-colors hover:bg-accent-green/10"
+          >
+            <MessageCircle size={13} /> Buy Subscription
+          </a>
           {isAuthenticated ? (
             <Link href="/dashboard">
               <Button variant="primary" size="sm" icon={<ArrowRight size={14} />}>
-                Go to Dashboard
+                Dashboard
               </Button>
             </Link>
           ) : (
@@ -113,6 +134,7 @@ export default function LandingPage() {
           )}
         </div>
       </nav>
+
 
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-20 lg:pt-28 lg:pb-32 text-center">
@@ -152,18 +174,54 @@ export default function LandingPage() {
             </>
           ) : (
             <>
+              {canStartTrial && (
+                <Button
+                  size="lg"
+                  icon={<Sparkles size={18} />}
+                  loading={starting}
+                  onClick={() => void start()}
+                >
+                  {starting ? "Starting trial…" : trialLabel}
+                </Button>
+              )}
               <Link href="/login">
-                <Button size="lg" icon={<LogIn size={18} />}>
-                  Sign In to Start
+                <Button variant="secondary" size="lg" icon={<LogIn size={18} />}>
+                  Sign In
                 </Button>
               </Link>
-              <Button variant="secondary" size="lg" disabled>
-                Learn More
-              </Button>
             </>
           )}
         </div>
+
+        {!isAuthenticated && (
+          <div className="mt-5 flex flex-col items-center gap-2">
+            {trial.state === "none" && (
+              <p className="text-xs text-gray-600">
+                No credit card required · One free trial per device
+              </p>
+            )}
+            {trial.state === "expired" && (
+              <p className="inline-flex items-center gap-1.5 text-xs text-accent-amber">
+                <Clock size={13} /> Your free trial on this device has ended — buy a subscription to
+                keep going.
+              </p>
+            )}
+            {trial.state === "blocked" && (
+              <p className="text-xs text-accent-red">{trial.reason}</p>
+            )}
+            <a
+              href={whatsappLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-accent-green hover:underline"
+            >
+              <MessageCircle size={14} /> Buy a subscription on WhatsApp ·{" "}
+              {SUPPORT_WHATSAPP_NUMBER}
+            </a>
+          </div>
+        )}
       </section>
+
 
       {/* Stats */}
       <section className="max-w-4xl mx-auto px-6 pb-16">
@@ -228,23 +286,38 @@ export default function LandingPage() {
               Ready to get started?
             </h2>
             <p className="text-gray-500 max-w-md mx-auto mb-6">
-              Sign in with your account credentials to access the full suite of precision
-              engineering tools.
+              Start your free 14-day trial instantly, or message us on WhatsApp to buy a full
+              licence for your shop.
             </p>
-            {isAuthenticated ? (
-              <Link href="/dashboard">
-                <Button size="lg" icon={<ArrowRight size={18} />}>
-                  Go to Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <Link href="/login">
-                <Button size="lg" icon={<LogIn size={18} />}>
-                  Sign In Now
-                </Button>
-              </Link>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {isAuthenticated ? (
+                <Link href="/dashboard">
+                  <Button size="lg" icon={<ArrowRight size={18} />}>
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  {canStartTrial && (
+                    <Button
+                      size="lg"
+                      icon={<Sparkles size={18} />}
+                      loading={starting}
+                      onClick={() => void start()}
+                    >
+                      {starting ? "Starting trial…" : trialLabel}
+                    </Button>
+                  )}
+                  <a href={whatsappLink()} target="_blank" rel="noopener noreferrer">
+                    <Button variant="secondary" size="lg" icon={<MessageCircle size={18} />}>
+                      Buy Subscription
+                    </Button>
+                  </a>
+                </>
+              )}
+            </div>
           </div>
+
         </div>
       </section>
 
@@ -268,8 +341,9 @@ export default function LandingPage() {
           </Link>
         </div>
         <p className="text-[11px] text-gray-700 text-center">
-          © 2025 MachinistPro · Precision Engineering Tools · v1.0.0-rc1
+          © {new Date().getFullYear()} MachinistPro · Precision Engineering Tools · v1.0.0-rc1
         </p>
+
       </footer>
     </div>
   );
