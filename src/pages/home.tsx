@@ -286,23 +286,38 @@ export default function LandingPage() {
               Ready to get started?
             </h2>
             <p className="text-gray-500 max-w-md mx-auto mb-6">
-              Sign in with your account credentials to access the full suite of precision
-              engineering tools.
+              Start your free 14-day trial instantly, or message us on WhatsApp to buy a full
+              licence for your shop.
             </p>
-            {isAuthenticated ? (
-              <Link href="/dashboard">
-                <Button size="lg" icon={<ArrowRight size={18} />}>
-                  Go to Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <Link href="/login">
-                <Button size="lg" icon={<LogIn size={18} />}>
-                  Sign In Now
-                </Button>
-              </Link>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {isAuthenticated ? (
+                <Link href="/dashboard">
+                  <Button size="lg" icon={<ArrowRight size={18} />}>
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  {canStartTrial && (
+                    <Button
+                      size="lg"
+                      icon={<Sparkles size={18} />}
+                      loading={starting}
+                      onClick={() => void start()}
+                    >
+                      {starting ? "Starting trial…" : trialLabel}
+                    </Button>
+                  )}
+                  <a href={whatsappLink()} target="_blank" rel="noopener noreferrer">
+                    <Button variant="secondary" size="lg" icon={<MessageCircle size={18} />}>
+                      Buy Subscription
+                    </Button>
+                  </a>
+                </>
+              )}
+            </div>
           </div>
+
         </div>
       </section>
 
