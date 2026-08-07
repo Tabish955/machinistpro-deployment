@@ -50,14 +50,36 @@ function formatTime(): string {
   return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
-const QUICK_LINKS = [
-  { label: "Scientific", href: "/dashboard/scientific", color: "cyan" as const },
-  { label: "Converter", href: "/dashboard/converter", color: "blue" as const },
-  { label: "Weight", href: "/dashboard/weight", color: "purple" as const },
-  { label: "Machining", href: "/dashboard/machining", color: "red" as const },
-  { label: "Geometry", href: "/dashboard/geometry", color: "amber" as const },
-  { label: "Formulas", href: "/dashboard/formulas", color: "orange" as const },
-];
+/**
+ * The quick bar, ordered by how often a tool gets reached for rather than by
+ * the registry's own order. Only the order is stated here — the label, the path
+ * and the colour are read from the module registry, so a renamed tool or a
+ * moved route cannot leave a stale entry behind.
+ *
+ * The six hand-written entries this replaces had already drifted: three of them
+ * disagreed with the sidebar about what the same tool is called, and nothing
+ * would have caught a changed href until somebody clicked it.
+ *
+ * An id that no longer exists, or a tool that stops being available, drops out
+ * rather than rendering a link to nowhere.
+ */
+const QUICK_LINK_IDS = ["scientific", "converter", "weight", "machining", "geometry", "formulas"];
+
+const QUICK_LINKS = QUICK_LINK_IDS.map((id) => getModuleById(id)).filter(
+  (m): m is NonNullable<typeof m> => !!m && m.status === "available",
+);
+
+/** Chip styling per module colour. Was rebuilt on every row of the map. */
+const QUICK_LINK_STYLES: Record<string, string> = {
+  cyan: "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/20",
+  blue: "bg-accent-blue/15 text-accent-blue border-accent-blue/20",
+  purple: "bg-accent-purple/15 text-accent-purple border-accent-purple/20",
+  red: "bg-accent-red/15 text-accent-red border-accent-red/20",
+  amber: "bg-accent-amber/15 text-accent-amber border-accent-amber/20",
+  orange: "bg-orange-500/15 text-orange-400 border-orange-500/20",
+  green: "bg-accent-green/15 text-accent-green border-accent-green/20",
+  pink: "bg-pink-500/15 text-pink-400 border-pink-500/20",
+};
 
 const availableModules = allCalculatorModules.filter((m) => m.status === "available");
 
@@ -192,25 +214,16 @@ export default function DashboardPage() {
         className="flex gap-2 overflow-x-auto pb-1 scrollbar-none animate-fade-in"
         style={{ animationDelay: "0.05s", opacity: 0 }}
       >
-        {QUICK_LINKS.map((link) => {
-          const bgMap: Record<string, string> = {
-            cyan: "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/20",
-            blue: "bg-accent-blue/15 text-accent-blue border-accent-blue/20",
-            purple: "bg-accent-purple/15 text-accent-purple border-accent-purple/20",
-            red: "bg-accent-red/15 text-accent-red border-accent-red/20",
-            amber: "bg-accent-amber/15 text-accent-amber border-accent-amber/20",
-            orange: "bg-orange-500/15 text-orange-400 border-orange-500/20",
-          };
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold border transition-all hover:brightness-125 ${bgMap[link.color] || bgMap.cyan}`}
-            >
-              {link.label}
-            </Link>
-          );
-        })}
+        {QUICK_LINKS.map((link) => (
+          <Link
+            key={link.id}
+            href={link.href}
+            title={link.name}
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold border transition-all hover:brightness-125 ${QUICK_LINK_STYLES[link.color] || QUICK_LINK_STYLES.cyan}`}
+          >
+            {link.shortName || link.name}
+          </Link>
+        ))}
       </div>
 
       {/* ═══ Stats ═══ */}
