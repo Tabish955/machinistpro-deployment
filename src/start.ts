@@ -21,6 +21,12 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
+  // pdf.js starts its parser in a worker created from a blob URL, which is what
+  // keeps a large drawing from freezing the tab. Without this directive the
+  // browser falls back to script-src, which does not allow blob:, and blocks
+  // the worker outright — taking PDF import in the CAD Converter with it.
+  // Narrower than widening script-src: it permits workers only, not scripts.
+  "worker-src 'self' blob:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.lovable.dev https://*.lovable.app",
   "frame-ancestors 'self' https://*.lovable.dev https://*.lovable.app",
   "base-uri 'self'",
