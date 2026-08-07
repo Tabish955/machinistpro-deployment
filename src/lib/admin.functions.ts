@@ -8,9 +8,14 @@ import type { Database } from "@/integrations/supabase/types";
 
 type UserPatch = Database["public"]["Tables"]["app_users"]["Update"];
 
+// The exact message thrown when the caller is not an administrator. The admin
+// page matches on this string to tell a refusal apart from a fault behind it,
+// so do not reword it on its own.
+export const NOT_AUTHORISED = "Not authorised";
+
 async function requireAdmin(token: string) {
   const session = await validateSession(token);
-  if (!session || !session.isAdmin) throw new Error("Not authorised");
+  if (!session || !session.isAdmin) throw new Error(NOT_AUTHORISED);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return { session, supabaseAdmin };
 }

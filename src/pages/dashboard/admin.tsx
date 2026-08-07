@@ -17,6 +17,7 @@ import {
   adminSetSetting,
   adminListDevices,
   adminRemoveDevice,
+  NOT_AUTHORISED,
   type AdminUserRow,
   type AdminDeviceRow,
   type AdminStats,
@@ -36,6 +37,10 @@ import {
   CalendarPlus,
   Pencil,
   Users,
+  Eye,
+  EyeOff,
+  Check,
+  X,
 } from "lucide-react";
 
 const inputClass =
@@ -82,6 +87,15 @@ export default function AdminPage() {
   const [openDevices, setOpenDevices] = useState<string | null>(null);
   const [devices, setDevices] = useState<AdminDeviceRow[]>([]);
 
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  /** Which account has its password field open, and what has been typed. */
+  const [pwEdit, setPwEdit] = useState<{ id: string; value: string } | null>(null);
+
+  /** The account the delete confirmation dialog is asking about. */
+  const [pendingDelete, setPendingDelete] = useState<AdminUserRow | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const refresh = useCallback(async () => {
     if (!token) {
       setLoading(false);
@@ -103,8 +117,13 @@ export default function AdminPage() {
       setDenied(false);
       setFailure("");
     } catch (reason) {
+      // Match the string the server actually throws rather than guessing from
+      // the wording of whatever came back. The old pattern also matched on
+      // "forbidden", "401" and "403" anywhere in the text, so an unrelated
+      // fault that happened to mention one was reported as a refusal and sent
+      // a correctly signed-in administrator away.
       const message = reason instanceof Error ? reason.message : String(reason);
-      if (/not authoris|not authoriz|forbidden|401|403/i.test(message)) {
+      if (message.includes(NOT_AUTHORISED)) {
         setDenied(true);
         setFailure("");
       } else {
@@ -146,14 +165,26 @@ export default function AdminPage() {
     } else toast.error("Update failed", r.error);
   };
 
-  const handleDelete = async (u: AdminUserRow) => {
-    if (!token) return;
-    if (!confirm(`Permanently delete ${u.username}? Their access is revoked immediately.`)) return;
-    const r = await deleteUser({ data: { sessionToken: token, userId: u.id } });
-    if (r.ok) {
-      toast.success("Client removed", `${u.username} can no longer sign in.`);
-      void refresh();
-    } else toast.error("Delete failed", r.error);
+  /**
+   * Carry out a deletion the administrator has confirmed in the dialog.
+   * window.confirm() was used here. It cannot be styled, it names the account
+   * only in prose that is easy to skim past, and browsers suppress it after
+   * repeated use — which quietly turns Delete into a button that does nothing.
+   */
+  const confirmDelete = async () => {
+    const u = pendingDelete;
+    if (!token || !u) return;
+    setDeletingId(u.id);
+    try {
+      const r = await deleteUser({ data: { sessionToken: token, userId: u.id } });
+      if (r.ok) {
+        toast.success("Client removed", `${u.username} can no longer sign in.`);
+        setPendingDelete(null);
+        void refresh();
+      } else toast.error("Delete failed", r.error);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const saveSetting = async (
@@ -170,10 +201,20 @@ export default function AdminPage() {
     else toast.error("Save failed", r.error);
   };
 
-  const handleResetPassword = async (u: AdminUserRow) => {
-    const pw = prompt(`New password for ${u.username}:`);
-    if (!pw || pw.length < 4) return;
-    await patch(u.id, { password: pw }, "Password changed");
+  /**
+   * Save the password typed into the inline field for one account. This was a
+   * prompt() box, which cannot be styled, cannot mask what is typed, and is
+   * blocked outright by some browsers — where it returns null and the reset
+   * silently did nothing.
+   */
+  const savePassword = async (u: AdminUserRow) => {
+    if (!pwEdit || pwEdit.id !== u.id) return;
+    if (pwEdit.value.length < 4) {
+      toast.error("Too short", "Use at least 4 characters.");
+      return;
+    }
+    await patch(u.id, { password: pwEdit.value }, `Password changed for ${u.username}`);
+    setPwEdit(null);
   };
 
   const handleRename = async (u: AdminUserRow) => {
@@ -253,6 +294,8 @@ export default function AdminPage() {
         u.subscription.toLowerCase().includes(q),
     );
   }, [users, query]);
+
+  const adminCount = stats?.admins ?? users.filter((u) => u.is_admin).length;
 
   if (denied) {
     return (
@@ -404,12 +447,27 @@ export default function AdminPage() {
             value={nu.username}
             onChange={(e) => setNu({ ...nu, username: e.target.value })}
           />
-          <input
-            className={inputClass}
-            placeholder="Password"
-            value={nu.password}
-            onChange={(e) => setNu({ ...nu, password: e.target.value })}
-          />
+          {/* Masked by default: this is typed with the client watching, or with
+              the panel on screen in front of whoever happens to be nearby. */}
+          <div className="relative">
+            <input
+              className={`${inputClass} pr-10`}
+              type={showNewPassword ? "text" : "password"}
+              placeholder="Password"
+              autoComplete="new-password"
+              value={nu.password}
+              onChange={(e) => setNu({ ...nu, password: e.target.value })}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors cursor-pointer"
+              tabIndex={-1}
+              aria-label={showNewPassword ? "Hide password" : "Show password"}
+            >
+              {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
           <input
             className={inputClass}
             placeholder="Email (optional)"
@@ -575,7 +633,7 @@ export default function AdminPage() {
                     size="sm"
                     variant="secondary"
                     icon={<KeyRound size={13} />}
-                    onClick={() => void handleResetPassword(u)}
+                    onClick={() => setPwEdit(pwEdit?.id === u.id ? null : { id: u.id, value: "" })}
                   >
                     Password
                   </Button>
@@ -618,12 +676,50 @@ export default function AdminPage() {
                     size="sm"
                     variant="danger"
                     icon={<Trash2 size={13} />}
-                    onClick={() => void handleDelete(u)}
+                    onClick={() => setPendingDelete(u)}
                   >
                     Delete
                   </Button>
                 </div>
               </div>
+
+              {pwEdit?.id === u.id && (
+                <div className="mt-3 border-t border-dark-700 pt-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="password"
+                      autoFocus
+                      autoComplete="new-password"
+                      className={`${inputClass} max-w-xs`}
+                      placeholder="New password (4+ characters)"
+                      value={pwEdit.value}
+                      onChange={(e) => setPwEdit({ id: u.id, value: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void savePassword(u);
+                        if (e.key === "Escape") setPwEdit(null);
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      icon={<Check size={13} />}
+                      onClick={() => void savePassword(u)}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon={<X size={13} />}
+                      onClick={() => setPwEdit(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Saving signs {u.username} out of every device.
+                  </p>
+                </div>
+              )}
 
               {openDevices === u.id && (
                 <div className="mt-4 border-t border-dark-700 pt-3 space-y-2">
@@ -663,6 +759,49 @@ export default function AdminPage() {
           {filtered.length === 0 && (
             <p className="text-sm text-gray-500">No clients match that search.</p>
           )}
+        </div>
+      )}
+
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-dark-600 bg-dark-900 p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="mt-0.5 shrink-0 text-accent-red" />
+              <div>
+                <h3 className="text-sm font-semibold text-white break-all">
+                  Delete {pendingDelete.username}?
+                </h3>
+                <p className="mt-1 text-xs text-gray-400">
+                  Their sign-in is revoked immediately and this cannot be undone.
+                </p>
+                {pendingDelete.is_admin && (
+                  <p className="mt-2 text-xs text-accent-amber">
+                    {adminCount <= 1
+                      ? "This is the only administrator account. Deleting it leaves nobody able to reach this panel."
+                      : "This account is an administrator."}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setPendingDelete(null)}>
+                Keep account
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                icon={<Trash2 size={13} />}
+                loading={deletingId === pendingDelete.id}
+                onClick={() => void confirmDelete()}
+              >
+                Delete permanently
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
