@@ -197,6 +197,15 @@ export default function AdminPage() {
     await patch(u.id, { deviceLimit: n, allowMultiDevice: false }, `Device allowance set to ${n}`);
   };
 
+  // An account with an expiry date is refused at login the moment it passes.
+  // For an administrator that means locking the last way back into this panel,
+  // so clearing the date has to be reachable from here, not only from the DB.
+  const handleMakePermanent = async (u: AdminUserRow) => {
+    if (!confirm(`Remove the expiry date on ${u.username}? Their access stops running out.`))
+      return;
+    await patch(u.id, { expiryDate: null }, "Access made permanent");
+  };
+
   const handleExtend = async (u: AdminUserRow, days: number) => {
     await patch(u.id, { extendDays: days }, `Subscription extended by ${days} days`);
   };
@@ -306,8 +315,8 @@ export default function AdminPage() {
       )}
       {stats && (stats.expiringSoon > 0 || stats.expired > 0 || stats.suspended > 0) && (
         <p className="text-xs text-gray-500">
-          {stats.expiringSoon} expiring within 7 days · {stats.expired} expired ·{" "}
-          {stats.suspended} suspended
+          {stats.expiringSoon} expiring within 7 days · {stats.expired} expired · {stats.suspended}{" "}
+          suspended
         </p>
       )}
 
@@ -545,6 +554,15 @@ export default function AdminPage() {
                   <Button size="sm" variant="secondary" onClick={() => void handleExtend(u, 365)}>
                     +1y
                   </Button>
+                  {u.expiry_date && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void handleMakePermanent(u)}
+                    >
+                      Permanent
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="secondary"
