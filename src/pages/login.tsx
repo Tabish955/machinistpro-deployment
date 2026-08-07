@@ -473,8 +473,25 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Buy a subscription */}
+            <div className="mt-5 rounded-xl border border-accent-green/30 bg-accent-green/5 p-4 text-center">
+              <p className="text-sm font-semibold text-white">Don&apos;t have an account?</p>
+              <p className="text-[11px] text-gray-400 mt-0.5 mb-3">
+                Get instant licence credentials on WhatsApp · {SUPPORT_WHATSAPP_NUMBER}
+              </p>
+              <a
+                href={whatsappLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent-green px-4 py-3 text-sm font-semibold text-dark-950 transition-transform hover:scale-[1.02] active:scale-[0.99]"
+              >
+                <MessageCircle size={16} />
+                Buy Subscription Now
+              </a>
+            </div>
+
             {/* Info */}
-            <div className="flex items-start gap-2 rounded-lg bg-dark-700/50 p-3">
+            <div className="mt-5 flex items-start gap-2 rounded-lg bg-dark-700/50 p-3">
               <Shield size={14} className="text-accent-cyan mt-0.5 shrink-0" />
               <p className="text-[11px] text-gray-500 leading-relaxed">
                 Your credentials are encrypted and verified through our secure authentication
@@ -484,9 +501,18 @@ export default function LoginPage() {
           </div>
 
           {/* Footer */}
-          <p className="mt-6 text-center text-[11px] text-gray-700">
-            MachinistPro v1.0.0-rc1 · Precision Engineering Tools
-          </p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-accent-cyan"
+            >
+              <ArrowLeft size={13} /> Back to home
+            </Link>
+            <p className="text-center text-[11px] text-gray-700">
+              MachinistPro v1.0.0-rc1 · Precision Engineering Tools
+            </p>
+          </div>
+
         </div>
       </div>
     </div>
