@@ -1,4 +1,12 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   calculateG71,
   generateG71Code,
@@ -40,7 +48,8 @@ import { Backplot, SAMPLE } from "@/components/cnc/backplot";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Cpu, Copy, Check, AlertTriangle, Route } from "lucide-react";
+import { Cpu, Copy, Check, X, AlertTriangle, Route } from "lucide-react";
+import { copyText } from "@/lib/clipboard";
 
 const field =
   "w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm font-mono text-white placeholder:text-gray-700 focus:border-accent-cyan/50 focus:outline-none";
@@ -127,12 +136,16 @@ const SendToBackplot = createContext<((lines: string[]) => void) | null>(null);
 
 /** A generated program with the copy button beside it. */
 function Program({ lines, note }: { lines: string[]; note?: ReactNode }) {
-  const [copied, setCopied] = useState(false);
+  // Three states, not two. A copy that did not happen must not look like one
+  // that did: the operator would paste whatever was on the clipboard before
+  // into the control, believing it to be the blocks on screen.
+  const [copyState, setCopyState] = useState<"idle" | "done" | "failed">("idle");
   const plot = useContext(SendToBackplot);
-  const copy = () => {
-    navigator.clipboard?.writeText(lines.join("\n"));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const copy = async () => {
+    const ok = await copyText(lines.join("\n"));
+    setCopyState(ok ? "done" : "failed");
+    // Leave a failure up long enough to be read and acted on.
+    setTimeout(() => setCopyState("idle"), ok ? 1500 : 5000);
   };
 
   return (
@@ -149,19 +162,33 @@ function Program({ lines, note }: { lines: string[]; note?: ReactNode }) {
             </button>
           )}
           <button
-            onClick={copy}
+            onClick={() => void copy()}
             aria-label="Copy program blocks"
             className={`p-2 rounded-lg transition-all cursor-pointer ${
-              copied
+              copyState === "done"
                 ? "bg-accent-green/20 text-accent-green"
-                : "bg-dark-700/50 text-gray-500 hover:text-white"
+                : copyState === "failed"
+                  ? "bg-accent-red/20 text-accent-red"
+                  : "bg-dark-700/50 text-gray-500 hover:text-white"
             }`}
           >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copyState === "done" ? (
+              <Check size={14} />
+            ) : copyState === "failed" ? (
+              <X size={14} />
+            ) : (
+              <Copy size={14} />
+            )}
           </button>
         </div>
       </div>
-      <pre className="rounded-xl bg-dark-900 border border-dark-700 p-3 text-xs font-mono text-accent-cyan overflow-x-auto">
+      {copyState === "failed" && (
+        <p role="alert" className="mb-2 text-[11px] text-accent-red leading-relaxed">
+          The clipboard is not available here — nothing was copied. Select the blocks below and copy
+          them by hand. A browser only grants the clipboard over https, or on localhost.
+        </p>
+      )}
+      <pre className="select-all rounded-xl bg-dark-900 border border-dark-700 p-3 text-xs font-mono text-accent-cyan overflow-x-auto">
         {lines.join("\n")}
       </pre>
       {note && <p className="mt-2 text-[10px] text-gray-600 leading-relaxed">{note}</p>}
@@ -1297,15 +1324,66 @@ const TABS = [
   { id: "backplot", label: "Backplot", comp: null },
 ];
 
+const TAB_KEY = "mp_cnc_tab";
+
 export default function CNCPage() {
   const [tab, setTab] = useState("g71");
   const [program, setProgram] = useState(SAMPLE);
-  const Panel = TABS.find((t) => t.id === tab)!.comp;
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Come back to the cycle that was last open. Somebody working through a job
+  // moves between this page and the machine repeatedly, and landing on G71
+  // every time meant finding G76 again on each return.
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(TAB_KEY);
+    } catch {
+      return;
+    }
+    // Only a tab that still exists — a stored id from an older build must not
+    // leave the page with nothing to render.
+    if (saved && TABS.some((t) => t.id === saved)) setTab(saved);
+  }, []);
+
+  const selectTab = (id: string) => {
+    setTab(id);
+    try {
+      localStorage.setItem(TAB_KEY, id);
+    } catch {
+      // Storage being unavailable must not stop the tab changing.
+    }
+  };
+
+  // Arrow keys move between tabs, which is what a tablist is expected to do
+  // and the only way to reach them without a mouse on a shop terminal.
+  const onTabKeyDown = (e: React.KeyboardEvent, index: number) => {
+    const last = TABS.length - 1;
+    let next: number | null = null;
+    if (e.key === "ArrowRight") next = index === last ? 0 : index + 1;
+    else if (e.key === "ArrowLeft") next = index === 0 ? last : index - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    if (next === null) return;
+    e.preventDefault();
+    selectTab(TABS[next].id);
+    tabRefs.current[next]?.focus();
+  };
+
+  // Falls back rather than asserting: the stored id is validated above, but a
+  // non-null assertion here would turn any future miss into a blank page.
+  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const Panel = active.comp;
 
   const plot = useMemo(
     () => (lines: string[]) => {
       setProgram(lines.join("\n"));
       setTab("backplot");
+      try {
+        localStorage.setItem(TAB_KEY, "backplot");
+      } catch {
+        /* not worth failing the plot over */
+      }
     },
     [],
   );
@@ -1326,29 +1404,49 @@ export default function CNCPage() {
         </p>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              tab === t.id
-                ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
-                : "bg-dark-800/60 text-gray-500 border border-dark-700 hover:text-white hover:bg-dark-800"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div
+        role="tablist"
+        aria-label="Canned cycle"
+        className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+      >
+        {TABS.map((t, i) => {
+          const selected = t.id === active.id;
+          return (
+            <button
+              key={t.id}
+              id={`cnc-tab-${t.id}`}
+              ref={(el) => {
+                tabRefs.current[i] = el;
+              }}
+              role="tab"
+              aria-selected={selected}
+              aria-controls="cnc-tabpanel"
+              // Roving tabindex: Tab reaches the strip once, then the arrow
+              // keys move within it, rather than stopping on all eight.
+              tabIndex={selected ? 0 : -1}
+              onKeyDown={(e) => onTabKeyDown(e, i)}
+              onClick={() => selectTab(t.id)}
+              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                selected
+                  ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
+                  : "bg-dark-800/60 text-gray-500 border border-dark-700 hover:text-white hover:bg-dark-800"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {Panel ? (
-        <SendToBackplot.Provider value={plot}>
-          <Panel />
-        </SendToBackplot.Provider>
-      ) : (
-        <Backplot source={program} onSourceChange={setProgram} />
-      )}
+      <div id="cnc-tabpanel" role="tabpanel" aria-labelledby={`cnc-tab-${active.id}`}>
+        {Panel ? (
+          <SendToBackplot.Provider value={plot}>
+            <Panel />
+          </SendToBackplot.Provider>
+        ) : (
+          <Backplot source={program} onSourceChange={setProgram} />
+        )}
+      </div>
     </div>
   );
 }
