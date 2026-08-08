@@ -138,6 +138,8 @@ export default function AdminPage() {
       setAnn(s.announcement);
       setDenied(false);
       setFailure("");
+      setLastSync(new Date());
+
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       if (/not authoris|not authoriz|forbidden|401|403/i.test(message)) {
