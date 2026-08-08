@@ -641,9 +641,24 @@ export default function AdminPage() {
             </label>
           </div>
         </div>
-        <Button icon={<UserPlus size={14} />} onClick={() => void handleCreate()}>
-          Create account
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button icon={<UserPlus size={14} />} onClick={() => void handleCreate()}>
+            Create account
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<Copy size={14} />}
+            disabled={!nu.username || !nu.password}
+            onClick={() =>
+              void copyToClipboard(
+                `MachinistPro login\nUsername: ${nu.username}\nPassword: ${nu.password}`,
+                "Credentials",
+              )
+            }
+          >
+            Copy credentials
+          </Button>
+        </div>
       </Card>
 
       {/* Clients */}
@@ -657,6 +672,42 @@ export default function AdminPage() {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {(
+          [
+            ["all", `All ${users.length}`],
+            ["active", `Active ${users.filter((u) => u.is_active).length}`],
+            ["suspended", `Suspended ${users.filter((u) => !u.is_active).length}`],
+            ["admins", `Admins ${users.filter((u) => u.is_admin).length}`],
+            ["expiring", `Expiring ${stats?.expiringSoon ?? 0}`],
+            ["expired", `Expired ${stats?.expired ?? 0}`],
+          ] as [ClientFilter, string][]
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFilter(key)}
+            className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+              filter === key
+                ? "border-accent-cyan/60 bg-accent-cyan/10 text-accent-cyan"
+                : "border-dark-600 bg-dark-900 text-gray-400 hover:text-white"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        <select
+          className={`${inputClass} ml-auto w-auto text-xs`}
+          value={sort}
+          onChange={(e) => setSort(e.target.value as ClientSort)}
+        >
+          <option value="recent">Newest first</option>
+          <option value="name">Name A–Z</option>
+          <option value="expiry">Expiry soonest</option>
+          <option value="lastLogin">Recently active</option>
+        </select>
+      </div>
+
       {loading ? (
         <p className="text-sm text-gray-500">Loading…</p>
       ) : (
