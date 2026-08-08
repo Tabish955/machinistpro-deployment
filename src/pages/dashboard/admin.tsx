@@ -727,6 +727,13 @@ export default function AdminPage() {
                         ? "Unlimited devices"
                         : `${u.device_count}/${u.device_limit} devices`}
                     </Badge>
+                    {(() => {
+                      const d = daysLeft(u.expiry_date);
+                      if (d === null) return null;
+                      if (d < 0) return <Badge color="red">Expired</Badge>;
+                      if (d <= 7) return <Badge color="amber">{d}d left</Badge>;
+                      return <Badge color="green">{d}d left</Badge>;
+                    })()}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {u.subscription}
@@ -742,11 +749,20 @@ export default function AdminPage() {
                   <Button
                     size="sm"
                     variant="secondary"
+                    icon={<Copy size={13} />}
+                    onClick={() => void copyToClipboard(u.username, "Username")}
+                  >
+                    Copy user
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     icon={<Laptop size={13} />}
                     onClick={() => void toggleDevices(u)}
                   >
                     Devices
                   </Button>
+
                   <Button size="sm" variant="secondary" onClick={() => void handleDeviceLimit(u)}>
                     Set limit
                   </Button>
