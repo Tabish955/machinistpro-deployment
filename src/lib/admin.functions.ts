@@ -8,14 +8,9 @@ import type { Database } from "@/integrations/supabase/types";
 
 type UserPatch = Database["public"]["Tables"]["app_users"]["Update"];
 
-// The exact message thrown when the caller is not an administrator. The admin
-// page matches on this string to tell a refusal apart from a fault behind it,
-// so do not reword it on its own.
-export const NOT_AUTHORISED = "Not authorised";
-
 async function requireAdmin(token: string) {
   const session = await validateSession(token);
-  if (!session || !session.isAdmin) throw new Error(NOT_AUTHORISED);
+  if (!session || !session.isAdmin) throw new Error("Not authorised");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return { session, supabaseAdmin };
 }
@@ -207,30 +202,18 @@ export const adminUpdateUser = createServerFn({ method: "POST" })
     if (data.deviceLimit !== undefined) patch.device_limit = data.deviceLimit;
     if (data.resetHwid) patch.hwid = null;
 
-    // An admin must never be able to lock themselves out of the panel. Both of
-    // these bite immediately rather than at next sign-in: `validateSession`
-    // reads is_admin from the account rather than the session row, and deletes
-    // the session outright once the account stops being active. Suspending
-    // yourself is therefore a single click that ends your own session and
-    // leaves only another administrator able to undo it.
-    if (data.isAdmin !== undefined || data.isActive === false) {
+    // An admin must never be able to lock themselves out of the panel.
+    if (data.isAdmin !== undefined) {
       const { data: target } = await supabaseAdmin
         .from("app_users")
         .select("username")
         .eq("id", data.userId)
         .maybeSingle();
-      const isSelf = target?.username === session.username;
-      if (isSelf && data.isAdmin === false) {
+      if (!data.isAdmin && target?.username === session.username) {
         return { ok: false as const, error: "You cannot remove your own administrator rights." };
       }
-      if (isSelf && data.isActive === false) {
-        return {
-          ok: false as const,
-          error: "You cannot suspend the account you are signed in with.",
-        };
-      }
+      patch.is_admin = data.isAdmin;
     }
-    if (data.isAdmin !== undefined) patch.is_admin = data.isAdmin;
 
     const { error } = await supabaseAdmin.from("app_users").update(patch).eq("id", data.userId);
     if (error) {
@@ -274,6 +257,7 @@ export const adminRemoveDevice = createServerFn({ method: "POST" })
     await revokeUserSessions(data.userId);
     return { ok: true as const };
   });
+
 
 export const adminDeleteUser = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => tokenSchema.extend({ userId: z.string().uuid() }).parse(d))

@@ -26,7 +26,6 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { useCopy } from "@/hooks/use-copy";
 
 function fmt(n: number | undefined, d = 1): string {
   if (n === undefined) return "—";
@@ -35,14 +34,17 @@ function fmt(n: number | undefined, d = 1): string {
 }
 
 function CBtn({ text }: { text: string }) {
-  const { copied, failed, copy } = useCopy();
+  const [ok, setOk] = useState(false);
   return (
     <button
-      onClick={() => void copy(text)}
-      title={failed ? "Nothing was copied — the clipboard is unavailable here" : "Copy"}
-      className={`p-1.5 rounded-lg transition-all cursor-pointer ${copied ? "bg-accent-green/20 text-accent-green" : failed ? "bg-accent-red/20 text-accent-red" : "text-gray-600 hover:text-white hover:bg-dark-700"}`}
+      onClick={() => {
+        navigator.clipboard?.writeText(text);
+        setOk(true);
+        setTimeout(() => setOk(false), 1500);
+      }}
+      className={`p-1.5 rounded-lg transition-all cursor-pointer ${ok ? "bg-accent-green/20 text-accent-green" : "text-gray-600 hover:text-white hover:bg-dark-700"}`}
     >
-      {copied ? <Check size={12} /> : failed ? <X size={12} /> : <Copy size={12} />}
+      {ok ? <Check size={12} /> : <Copy size={12} />}
     </button>
   );
 }

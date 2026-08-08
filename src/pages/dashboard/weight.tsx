@@ -22,8 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
 import { formatMath } from "@/lib/core/math-symbols";
-import { Weight, ChevronDown, Info, DollarSign, Copy, Check, X, ChevronRight } from "lucide-react";
-import { useCopy } from "@/hooks/use-copy";
+import { Weight, ChevronDown, Info, DollarSign, Copy, Check, ChevronRight } from "lucide-react";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -169,7 +168,7 @@ export default function WeightPage() {
   const [showFormula, setShowFormula] = useState(false);
 
   // ── Copy state ──
-  const { copied, failed, copy } = useCopy();
+  const [copied, setCopied] = useState(false);
 
   // ── Parsed dimensions ──
   const parsedDims = useMemo(() => {
@@ -223,7 +222,10 @@ export default function WeightPage() {
 
   const handleCopy = () => {
     if (!result) return;
-    void copy(`${fmt(result.displayWeight)} ${weightUnit}`);
+    const text = `${fmt(result.displayWeight)} ${weightUnit}`;
+    navigator.clipboard?.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   // When shape changes, clear dims
@@ -427,13 +429,11 @@ export default function WeightPage() {
                     className={`w-full py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center justify-center gap-2 ${
                       copied
                         ? "bg-accent-green/20 text-accent-green"
-                        : failed
-                          ? "bg-accent-red/20 text-accent-red"
-                          : "bg-dark-700 text-gray-400 hover:text-white hover:bg-dark-600"
+                        : "bg-dark-700 text-gray-400 hover:text-white hover:bg-dark-600"
                     }`}
                   >
-                    {copied ? <Check size={14} /> : failed ? <X size={14} /> : <Copy size={14} />}
-                    {copied ? "Copied!" : failed ? "Nothing copied" : "Copy Result"}
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? "Copied!" : "Copy Result"}
                   </button>
                 </div>
               ) : calcError ? (

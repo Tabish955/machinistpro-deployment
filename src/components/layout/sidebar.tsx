@@ -9,45 +9,14 @@ import {
   workspaceModules,
   systemModules,
 } from "@/config/modules";
-import {
-  LayoutDashboard,
-  PanelLeftClose,
-  PanelLeft,
-  X,
-  ChevronDown,
-  ShieldCheck,
-} from "lucide-react";
+import { LayoutDashboard, PanelLeftClose, PanelLeft, X, ChevronDown, ShieldCheck } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface NavSection {
-  /** Stable identifier. Was derived from the title with `.toLowerCase()`, which
-   *  silently breaks the moment a title gains a space or changes case. */
-  key: string;
   title: string;
   items: typeof calculatorModules;
-  defaultOpen: boolean;
-}
-
-const SECTIONS: NavSection[] = [
-  { key: "calculators", title: "Calculators", items: calculatorModules, defaultOpen: true },
-  { key: "reference", title: "Reference", items: referenceModules, defaultOpen: true },
-  { key: "workspace", title: "Workspace", items: workspaceModules, defaultOpen: true },
-  { key: "system", title: "System", items: systemModules, defaultOpen: true },
-];
-
-const SECTION_STATE_KEY = "mp_sidebar_sections";
-
-/**
- * Derived from SECTIONS so a section can never be left out of the initial
- * state again. The object this replaces was written by hand and listed
- * calculators, reference and system but not workspace, so that heading read as
- * closed on every page load and hid both of its entries — the CAD Converter
- * and Projects — behind a click nobody knew to make. `defaultOpen` was
- * declared on every section and read nowhere, so it could not correct it.
- */
-function defaultSectionState(): Record<string, boolean> {
-  return Object.fromEntries(SECTIONS.map((s) => [s.key, s.defaultOpen]));
+  defaultOpen?: boolean;
 }
 
 export function Sidebar() {
@@ -55,48 +24,24 @@ export function Sidebar() {
   const { sidebarOpen, mobileSidebarOpen, toggleSidebar, closeMobileSidebar } = useAppStore();
   const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false);
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(defaultSectionState);
-
-  // Restored after mount rather than in the initial state: this app renders on
-  // the server, where localStorage does not exist, and reading it during the
-  // first render would make the client disagree with the server's markup.
-  useEffect(() => {
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(SECTION_STATE_KEY);
-    } catch {
-      return; // Storage can be disabled outright; navigation still works.
-    }
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as Record<string, unknown>;
-      setOpenSections((prev) => {
-        const next = { ...prev };
-        // Only keys we still ship, and only booleans — a stale or hand-edited
-        // value must not be able to introduce a section or a non-boolean.
-        for (const section of SECTIONS) {
-          if (typeof parsed[section.key] === "boolean") {
-            next[section.key] = parsed[section.key] as boolean;
-          }
-        }
-        return next;
-      });
-    } catch {
-      // A corrupt value must not take the whole navigation down with it.
-    }
-  }, []);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    calculators: true,
+    reference: true,
+    system: true,
+  });
 
   const toggleSection = (key: string) => {
-    const next = { ...openSections, [key]: !openSections[key] };
-    setOpenSections(next);
-    try {
-      localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(next));
-    } catch {
-      // Private browsing and a full quota must not swallow the click.
-    }
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const isActive = (href: string) => pathname === href;
+
+  const sections: NavSection[] = [
+    { title: "Calculators", items: calculatorModules, defaultOpen: true },
+    { title: "Reference", items: referenceModules, defaultOpen: true },
+    { title: "Workspace", items: workspaceModules, defaultOpen: true },
+    { title: "System", items: systemModules, defaultOpen: true },
+  ];
 
   const navContent = (
     <div className="flex flex-col h-full">
@@ -125,8 +70,6 @@ export function Sidebar() {
         <Link
           href="/dashboard"
           onClick={closeMobileSidebar}
-          title="Dashboard"
-          aria-current={isActive("/dashboard") ? "page" : undefined}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
             isActive("/dashboard")
               ? "bg-gradient-to-r from-accent-cyan/20 to-accent-cyan/5 text-accent-cyan border border-accent-cyan/20"
@@ -141,8 +84,6 @@ export function Sidebar() {
           <Link
             href="/dashboard/admin"
             onClick={closeMobileSidebar}
-            title="Admin Panel"
-            aria-current={isActive("/dashboard/admin") ? "page" : undefined}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
               isActive("/dashboard/admin")
                 ? "bg-gradient-to-r from-accent-purple/20 to-accent-purple/5 text-accent-purple border border-accent-purple/20"
@@ -155,73 +96,61 @@ export function Sidebar() {
         )}
 
         {/* Sections */}
-        {SECTIONS.map((section) => {
-          const open = openSections[section.key] ?? section.defaultOpen;
-          const panelId = `sidebar-section-${section.key}`;
+        {sections.map((section) => (
+          <div key={section.title} className="pt-4">
+            {sidebarOpen && (
+              <button
+                onClick={() => toggleSection(section.title.toLowerCase())}
+                className="flex items-center justify-between w-full px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-dark-300 hover:text-gray-400 transition-colors cursor-pointer"
+              >
+                {section.title}
+                <ChevronDown
+                  size={12}
+                  className={`transition-transform ${openSections[section.title.toLowerCase()] ? "" : "-rotate-90"}`}
+                />
+              </button>
+            )}
 
-          return (
-            <div key={section.key} className="pt-4">
-              {sidebarOpen && (
-                <button
-                  onClick={() => toggleSection(section.key)}
-                  aria-expanded={open}
-                  aria-controls={panelId}
-                  className="flex items-center justify-between w-full px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-dark-300 hover:text-gray-400 transition-colors cursor-pointer"
-                >
-                  {section.title}
-                  <ChevronDown
-                    size={12}
-                    className={`transition-transform ${open ? "" : "-rotate-90"}`}
-                  />
-                </button>
-              )}
+            {(openSections[section.title.toLowerCase()] || !sidebarOpen) && (
+              <div className="space-y-0.5">
+                {section.items.map((mod) => {
+                  const Icon = mod.icon;
+                  const active = isActive(mod.href);
 
-              {(open || !sidebarOpen) && (
-                <div id={panelId} className="space-y-0.5">
-                  {section.items.map((mod) => {
-                    const Icon = mod.icon;
-                    const active = isActive(mod.href);
-
-                    return (
-                      <Link
-                        key={mod.id}
-                        href={mod.href}
-                        onClick={closeMobileSidebar}
-                        // With the sidebar collapsed only the icon is drawn, and
-                        // nothing named it. Also carries the full name, which the
-                        // truncated label in the open sidebar may be hiding.
-                        title={mod.name}
-                        aria-current={active ? "page" : undefined}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group ${
-                          active
-                            ? "bg-gradient-to-r from-accent-cyan/20 to-accent-cyan/5 text-accent-cyan border border-accent-cyan/20"
-                            : "text-gray-400 hover:text-white hover:bg-dark-700"
-                        }`}
-                      >
-                        <Icon size={18} className={active ? "text-accent-cyan" : ""} />
-                        {sidebarOpen && (
-                          <>
-                            <span className="flex-1 truncate">{mod.shortName || mod.name}</span>
-                            {mod.status === "coming-soon" && (
-                              <Badge color="gray" className="text-[8px] px-1.5">
-                                Soon
-                              </Badge>
-                            )}
-                            {mod.status === "beta" && (
-                              <Badge color="purple" className="text-[8px] px-1.5">
-                                Beta
-                              </Badge>
-                            )}
-                          </>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                  return (
+                    <Link
+                      key={mod.id}
+                      href={mod.href}
+                      onClick={closeMobileSidebar}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group ${
+                        active
+                          ? "bg-gradient-to-r from-accent-cyan/20 to-accent-cyan/5 text-accent-cyan border border-accent-cyan/20"
+                          : "text-gray-400 hover:text-white hover:bg-dark-700"
+                      }`}
+                    >
+                      <Icon size={18} className={active ? "text-accent-cyan" : ""} />
+                      {sidebarOpen && (
+                        <>
+                          <span className="flex-1 truncate">{mod.shortName || mod.name}</span>
+                          {mod.status === "coming-soon" && (
+                            <Badge color="gray" className="text-[8px] px-1.5">
+                              Soon
+                            </Badge>
+                          )}
+                          {mod.status === "beta" && (
+                            <Badge color="purple" className="text-[8px] px-1.5">
+                              Beta
+                            </Badge>
+                          )}
+                        </>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}

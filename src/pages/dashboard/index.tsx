@@ -4,16 +4,9 @@ import { ModuleCard } from "@/components/dashboard/module-card";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
-import {
-  calculatorModules,
-  referenceModules,
-  allCalculatorModules,
-  getModuleById,
-} from "@/config/modules";
+import { calculatorModules, referenceModules, allCalculatorModules } from "@/config/modules";
 import { FORMULAS } from "@/lib/formulas";
 import { MATERIAL_PROFILES } from "@/lib/engdb/materials";
-import { useHistoryStore } from "@/store/history-store";
-import { relativeTime, type HistoryEntry } from "@/lib/core/history";
 import {
   Sparkles,
   Clock,
@@ -25,6 +18,7 @@ import {
   Sun,
   Moon,
   CloudSun,
+  Keyboard,
   Command,
 } from "lucide-react";
 import Link from "@/lib/next-compat";
@@ -50,120 +44,22 @@ function formatTime(): string {
   return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
-/**
- * The quick bar, ordered by how often a tool gets reached for rather than by
- * the registry's own order. Only the order is stated here — the label, the path
- * and the colour are read from the module registry, so a renamed tool or a
- * moved route cannot leave a stale entry behind.
- *
- * The six hand-written entries this replaces had already drifted: three of them
- * disagreed with the sidebar about what the same tool is called, and nothing
- * would have caught a changed href until somebody clicked it.
- *
- * An id that no longer exists, or a tool that stops being available, drops out
- * rather than rendering a link to nowhere.
- */
-const QUICK_LINK_IDS = ["scientific", "converter", "weight", "machining", "geometry", "formulas"];
-
-const QUICK_LINKS = QUICK_LINK_IDS.map((id) => getModuleById(id)).filter(
-  (m): m is NonNullable<typeof m> => !!m && m.status === "available",
-);
-
-/** Chip styling per module colour. Was rebuilt on every row of the map. */
-const QUICK_LINK_STYLES: Record<string, string> = {
-  cyan: "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/20",
-  blue: "bg-accent-blue/15 text-accent-blue border-accent-blue/20",
-  purple: "bg-accent-purple/15 text-accent-purple border-accent-purple/20",
-  red: "bg-accent-red/15 text-accent-red border-accent-red/20",
-  amber: "bg-accent-amber/15 text-accent-amber border-accent-amber/20",
-  orange: "bg-orange-500/15 text-orange-400 border-orange-500/20",
-  green: "bg-accent-green/15 text-accent-green border-accent-green/20",
-  pink: "bg-pink-500/15 text-pink-400 border-pink-500/20",
-};
+const QUICK_LINKS = [
+  { label: "Scientific", href: "/dashboard/scientific", color: "cyan" as const },
+  { label: "Converter", href: "/dashboard/converter", color: "blue" as const },
+  { label: "Weight", href: "/dashboard/weight", color: "purple" as const },
+  { label: "Machining", href: "/dashboard/machining", color: "red" as const },
+  { label: "Geometry", href: "/dashboard/geometry", color: "amber" as const },
+  { label: "Formulas", href: "/dashboard/formulas", color: "orange" as const },
+];
 
 const availableModules = allCalculatorModules.filter((m) => m.status === "available");
-
-/** How many rows each of the two activity cards shows before it stops. */
-const ACTIVITY_ROWS = 5;
-
-/**
- * One saved calculation, linking back to the module that produced it.
- *
- * The module id is looked up rather than pasted into a path: several ids do not
- * match their route, and a wrong guess here is a dead link on the first card a
- * user sees.
- */
-function EntryRow({ entry }: { entry: HistoryEntry }) {
-  const href = getModuleById(entry.module)?.href ?? "/dashboard/history";
-  return (
-    <Link
-      href={href}
-      className="group flex items-center gap-2 rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-dark-700/60"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs text-white">{entry.title}</p>
-        <p className="truncate text-[10px] text-gray-600">
-          {entry.moduleLabel} · {relativeTime(entry.timestamp)}
-        </p>
-      </div>
-      <ArrowRight
-        size={12}
-        className="shrink-0 text-gray-700 transition-colors group-hover:text-accent-cyan"
-      />
-    </Link>
-  );
-}
-
-/** Shared empty state so the two cards read the same when there is nothing yet. */
-function EmptyActivity({
-  icon: Icon,
-  title,
-  hint,
-}: {
-  icon: typeof Star;
-  title: string;
-  hint: string;
-}) {
-  return (
-    <div className="text-center py-5">
-      <Icon size={24} className="text-dark-500 mx-auto mb-2" />
-      <p className="text-sm text-gray-500">{title}</p>
-      <p className="text-[10px] text-gray-700 mt-1">{hint}</p>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const [time, setTime] = useState(formatTime());
   const greeting = getGreeting();
   const GIcon = greeting.icon;
-
-  // The history store was already being written to by every module; the
-  // dashboard was the one place that never read it back. Favourites rendered a
-  // fixed empty state whether or not any existed, and "Recent" appeared only in
-  // a comment.
-  const entries = useHistoryStore((s) => s.entries);
-  const recent = useMemo(() => entries.slice(0, ACTIVITY_ROWS), [entries]);
-  const favorites = useMemo(
-    () => entries.filter((e) => e.isFavorite).slice(0, ACTIVITY_ROWS),
-    [entries],
-  );
-
-  // A licence that runs out is the thing a user most needs warning about, and
-  // the tile read a hardcoded "Active" until the day it stopped letting them in.
-  const licence = useMemo(() => {
-    const plan = user?.subscription || "Standard";
-    const ms = user?.expiry ? new Date(user.expiry).getTime() : NaN;
-    if (!Number.isFinite(ms)) return { value: "Active", sub: plan, expiring: false };
-    const days = Math.ceil((ms - Date.now()) / 86_400_000);
-    if (days <= 0) return { value: "Expired", sub: `${plan} · renew to continue`, expiring: true };
-    return {
-      value: `${days}d`,
-      sub: `${plan} · until ${new Date(ms).toLocaleDateString()}`,
-      expiring: days <= 14,
-    };
-  }, [user]);
 
   useEffect(() => {
     const id = setInterval(() => setTime(formatTime()), 30000);
@@ -214,16 +110,25 @@ export default function DashboardPage() {
         className="flex gap-2 overflow-x-auto pb-1 scrollbar-none animate-fade-in"
         style={{ animationDelay: "0.05s", opacity: 0 }}
       >
-        {QUICK_LINKS.map((link) => (
-          <Link
-            key={link.id}
-            href={link.href}
-            title={link.name}
-            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold border transition-all hover:brightness-125 ${QUICK_LINK_STYLES[link.color] || QUICK_LINK_STYLES.cyan}`}
-          >
-            {link.shortName || link.name}
-          </Link>
-        ))}
+        {QUICK_LINKS.map((link) => {
+          const bgMap: Record<string, string> = {
+            cyan: "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/20",
+            blue: "bg-accent-blue/15 text-accent-blue border-accent-blue/20",
+            purple: "bg-accent-purple/15 text-accent-purple border-accent-purple/20",
+            red: "bg-accent-red/15 text-accent-red border-accent-red/20",
+            amber: "bg-accent-amber/15 text-accent-amber border-accent-amber/20",
+            orange: "bg-orange-500/15 text-orange-400 border-orange-500/20",
+          };
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold border transition-all hover:brightness-125 ${bgMap[link.color] || bgMap.cyan}`}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
       </div>
 
       {/* ═══ Stats ═══ */}
@@ -260,11 +165,11 @@ export default function DashboardPage() {
           },
           {
             icon: Clock,
-            label: "Licence",
-            value: licence.value,
-            sub: licence.sub,
-            color: licence.expiring ? "text-accent-amber" : "text-accent-green",
-            bg: licence.expiring ? "bg-accent-amber/10" : "bg-accent-green/10",
+            label: "Status",
+            value: "Active",
+            sub: user?.subscription || "Standard",
+            color: "text-accent-green",
+            bg: "bg-accent-green/10",
           },
         ].map((s) => {
           const Icon = s.icon;
@@ -287,47 +192,17 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left — Recent & Favorites */}
         <div className="space-y-5">
-          <div className="animate-fade-in" style={{ animationDelay: "0.12s", opacity: 0 }}>
-            <SectionHeader
-              title="Recent Activity"
-              action={recent.length ? { label: "View all", href: "/dashboard/history" } : undefined}
-            />
-            <Card variant="solid" padding="md" className="border-dark-600">
-              {recent.length ? (
-                <div className="space-y-0.5">
-                  {recent.map((e) => (
-                    <EntryRow key={e.id} entry={e} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyActivity
-                  icon={Clock}
-                  title="Nothing calculated yet"
-                  hint="Your recent work shows up here"
-                />
-              )}
-            </Card>
-          </div>
-
           <div className="animate-fade-in" style={{ animationDelay: "0.15s", opacity: 0 }}>
             <SectionHeader
               title="Favorites"
               action={{ label: "Manage", href: "/dashboard/favorites" }}
             />
             <Card variant="solid" padding="md" className="border-dark-600">
-              {favorites.length ? (
-                <div className="space-y-0.5">
-                  {favorites.map((e) => (
-                    <EntryRow key={e.id} entry={e} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyActivity
-                  icon={Star}
-                  title="Pin your go-to results"
-                  hint="Star any calculation from its history"
-                />
-              )}
+              <div className="text-center py-5">
+                <Star size={24} className="text-dark-500 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Pin your go-to tools</p>
+                <p className="text-[10px] text-gray-700 mt-1">Star any calculator from its page</p>
+              </div>
             </Card>
           </div>
 

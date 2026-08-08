@@ -24,7 +24,6 @@ import {
   ChevronDown,
   X,
 } from "lucide-react";
-import { useCopy } from "@/hooks/use-copy";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Category grid (selection screen)
@@ -227,7 +226,7 @@ function ConversionView({ category, onBack }: { category: CategoryDef; onBack: (
     category.units.length > 1 ? category.units[1] : category.units[0],
   );
   const [inputValue, setInputValue] = useState("1");
-  const { copied, failed, copy } = useCopy();
+  const [copied, setCopied] = useState(false);
 
   const { addRecent } = useConverterStore();
 
@@ -273,7 +272,11 @@ function ConversionView({ category, onBack }: { category: CategoryDef; onBack: (
   }, [result, inputValue, fromUnit, toUnit, category.id, addRecent]);
 
   const handleCopy = () => {
-    if (result !== null) void copy(formatValue(result));
+    if (result !== null) {
+      navigator.clipboard?.writeText(formatValue(result));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
   };
 
   return (
@@ -350,16 +353,13 @@ function ConversionView({ category, onBack }: { category: CategoryDef; onBack: (
               {result !== null && (
                 <button
                   onClick={handleCopy}
-                  title={failed ? "Nothing was copied — the clipboard is unavailable here" : "Copy"}
                   className={`absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl transition-all cursor-pointer ${
                     copied
                       ? "bg-accent-green/20 text-accent-green"
-                      : failed
-                        ? "bg-accent-red/20 text-accent-red"
-                        : "bg-dark-700/50 text-gray-500 hover:text-white hover:bg-dark-700"
+                      : "bg-dark-700/50 text-gray-500 hover:text-white hover:bg-dark-700"
                   }`}
                 >
-                  {copied ? <Check size={16} /> : failed ? <X size={16} /> : <Copy size={16} />}
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
                 </button>
               )}
             </div>

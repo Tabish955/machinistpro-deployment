@@ -1,18 +1,14 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
+import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
-// NOTE: `attachSupabaseAuth` is intentionally NOT imported or registered, and
-// this has now regressed twice (fixed in 141a341, reintroduced since). This app
-// uses its own session tokens (app_users + sessions tables), never Supabase
-// Auth, so the bearer token the attacher fetches is discarded server-side.
-//
-// The cost of keeping it is severe: the attacher runs in the BROWSER on every
-// createServerFn call and reads `supabase.auth.getSession()`, which lazily
-// builds the browser Supabase client from VITE_SUPABASE_*. If either variable
-// is absent from a production bundle it throws before the request is even sent,
-// taking down the whole admin panel and trial start/status with a misleading
-// "Missing Supabase environment variable(s)" error. Do not re-add it.
+// NOTE: `attachSupabaseAuth` is intentionally NOT registered. This app uses its
+// own session tokens (app_users + sessions tables), never Supabase Auth. The
+// generated attacher instantiates the browser Supabase client on every server
+// function call, which throws when VITE_SUPABASE_* is absent from a production
+// bundle and made every serverFn (trial start/status) fail. Do not re-add it.
+
 
 // Strong CSP + modern security headers on every response.
 const CSP = [
@@ -21,12 +17,6 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
-  // pdf.js starts its parser in a worker created from a blob URL, which is what
-  // keeps a large drawing from freezing the tab. Without this directive the
-  // browser falls back to script-src, which does not allow blob:, and blocks
-  // the worker outright — taking PDF import in the CAD Converter with it.
-  // Narrower than widening script-src: it permits workers only, not scripts.
-  "worker-src 'self' blob:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.lovable.dev https://*.lovable.app",
   "frame-ancestors 'self' https://*.lovable.dev https://*.lovable.app",
   "base-uri 'self'",
@@ -70,6 +60,6 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [],
+  functionMiddleware: [attachSupabaseAuth],
   requestMiddleware: [errorMiddleware, securityHeadersMiddleware],
 }));

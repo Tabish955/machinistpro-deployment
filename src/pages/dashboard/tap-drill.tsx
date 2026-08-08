@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { Drill, Search, Copy, Check, X } from "lucide-react";
-import { useCopy } from "@/hooks/use-copy";
+import { Drill, Search, Copy, Check } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,29 +18,25 @@ const SYSTEM_TABS: Array<{ id: "all" | ThreadSystem; label: string }> = [
 ];
 
 function CopyButton({ text, label }: { text: string; label: string }) {
-  // The toast here announced the drill size as copied whether or not it was,
-  // which is the same untruth as the tick but stated out loud.
-  const { copied, failed, copy } = useCopy(1200);
+  const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        void copy(text).then((ok) => {
-          if (ok) toast.success(label, text);
-          else toast.error("Nothing was copied", "The clipboard is not available here.");
-        });
+        navigator.clipboard?.writeText(text);
+        setCopied(true);
+        toast.success(label, text);
+        setTimeout(() => setCopied(false), 1200);
       }}
       aria-label={`Copy ${label}: ${text}`}
       className={`rounded p-1.5 transition-colors ${
         copied
           ? "bg-accent-green/20 text-accent-green"
-          : failed
-            ? "bg-accent-red/20 text-accent-red"
-            : "text-gray-500 hover:bg-dark-600 hover:text-accent-cyan"
+          : "text-gray-500 hover:bg-dark-600 hover:text-accent-cyan"
       }`}
     >
-      {copied ? <Check size={13} /> : failed ? <X size={13} /> : <Copy size={13} />}
+      {copied ? <Check size={13} /> : <Copy size={13} />}
     </button>
   );
 }
