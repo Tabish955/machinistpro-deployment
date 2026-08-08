@@ -1,7 +1,6 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 // NOTE: `attachSupabaseAuth` is intentionally NOT registered. This app uses its
 // own session tokens (app_users + sessions tables), never Supabase Auth. The
