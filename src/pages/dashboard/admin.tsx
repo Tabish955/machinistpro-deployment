@@ -104,6 +104,11 @@ export default function AdminPage() {
   /** Something went wrong that is not a question of permission. */
   const [failure, setFailure] = useState("");
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<ClientFilter>("all");
+  const [sort, setSort] = useState<ClientSort>("recent");
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+
 
   const [nu, setNu] = useState(emptyNewUser);
   const [maint, setMaint] = useState({ enabled: false, message: "" });
