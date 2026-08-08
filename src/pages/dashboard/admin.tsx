@@ -274,14 +274,105 @@ export default function AdminPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.username.toLowerCase().includes(q) ||
-        (u.email ?? "").toLowerCase().includes(q) ||
-        u.subscription.toLowerCase().includes(q),
-    );
-  }, [users, query]);
+    let rows = users.filter((u) => {
+      if (
+        q &&
+        !(
+          u.username.toLowerCase().includes(q) ||
+          (u.email ?? "").toLowerCase().includes(q) ||
+          u.subscription.toLowerCase().includes(q)
+        )
+      )
+        return false;
+      const d = daysLeft(u.expiry_date);
+      switch (filter) {
+        case "active":
+          return u.is_active;
+        case "suspended":
+          return !u.is_active;
+        case "admins":
+          return u.is_admin;
+        case "expiring":
+          return d !== null && d >= 0 && d <= 7;
+        case "expired":
+          return d !== null && d < 0;
+        default:
+          return true;
+      }
+    });
+    rows = [...rows].sort((a, b) => {
+      switch (sort) {
+        case "name":
+          return a.username.localeCompare(b.username);
+        case "expiry":
+          return (
+            (a.expiry_date ? new Date(a.expiry_date).getTime() : Infinity) -
+            (b.expiry_date ? new Date(b.expiry_date).getTime() : Infinity)
+          );
+        case "lastLogin":
+          return (
+            (b.last_login_at ? new Date(b.last_login_at).getTime() : 0) -
+            (a.last_login_at ? new Date(a.last_login_at).getTime() : 0)
+          );
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    return rows;
+  }, [users, query, filter, sort]);
+
+  /** Live mode: quietly re-pull the roster so device and session counts stay current. */
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => void refresh(), 20000);
+    return () => clearInterval(id);
+  }, [autoRefresh, refresh]);
+
+  const exportCsv = () => {
+    const header = [
+      "username",
+      "email",
+      "plan",
+      "expiry",
+      "admin",
+      "active",
+      "devices_used",
+      "device_limit",
+      "unlimited_devices",
+      "last_login",
+      "created",
+    ];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [
+      header.join(","),
+      ...filtered.map((u) =>
+        [
+          u.username,
+          u.email ?? "",
+          u.subscription,
+          u.expiry_date ?? "",
+          u.is_admin,
+          u.is_active,
+          u.device_count,
+          u.device_limit,
+          u.allow_multi_device,
+          u.last_login_at ?? "",
+          u.created_at,
+        ]
+          .map(esc)
+          .join(","),
+      ),
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `machinistpro-clients-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export ready", `${filtered.length} client records downloaded.`);
+  };
+
+
 
   if (denied) {
     return (
