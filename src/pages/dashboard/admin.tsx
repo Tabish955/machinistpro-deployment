@@ -571,12 +571,22 @@ export default function AdminPage() {
             value={nu.username}
             onChange={(e) => setNu({ ...nu, username: e.target.value })}
           />
-          <input
-            className={inputClass}
-            placeholder="Password"
-            value={nu.password}
-            onChange={(e) => setNu({ ...nu, password: e.target.value })}
-          />
+          <div className="flex gap-2">
+            <input
+              className={`${inputClass} flex-1`}
+              placeholder="Password"
+              value={nu.password}
+              onChange={(e) => setNu({ ...nu, password: e.target.value })}
+            />
+            <Button
+              variant="secondary"
+              icon={<Wand2 size={13} />}
+              onClick={() => setNu({ ...nu, password: generatePassword() })}
+            >
+              Generate
+            </Button>
+          </div>
+
           <input
             className={inputClass}
             placeholder="Email (optional)"
