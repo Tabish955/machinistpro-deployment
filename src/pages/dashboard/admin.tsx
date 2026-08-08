@@ -36,7 +36,38 @@ import {
   CalendarPlus,
   Pencil,
   Users,
+  Copy,
+  Download,
+  Wand2,
+  Radio,
 } from "lucide-react";
+
+/** Cryptographically strong, human-typeable licence password. */
+function generatePassword(length = 14): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint32Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
+async function copyToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success("Copied", `${label} copied to the clipboard.`);
+  } catch {
+    toast.error("Copy failed", "Your browser blocked clipboard access.");
+  }
+}
+
+/** Whole days until expiry; null when the account never expires. */
+function daysLeft(expiry: string | null): number | null {
+  if (!expiry) return null;
+  return Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
+}
+
+type ClientFilter = "all" | "active" | "suspended" | "admins" | "expiring" | "expired";
+type ClientSort = "recent" | "name" | "expiry" | "lastLogin";
+
 
 const inputClass =
   "w-full rounded-xl bg-dark-900 border border-dark-600 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-accent-cyan";
