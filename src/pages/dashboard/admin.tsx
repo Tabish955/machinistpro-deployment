@@ -36,7 +36,38 @@ import {
   CalendarPlus,
   Pencil,
   Users,
+  Copy,
+  Download,
+  Wand2,
+  Radio,
 } from "lucide-react";
+
+/** Cryptographically strong, human-typeable licence password. */
+function generatePassword(length = 14): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint32Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
+async function copyToClipboard(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success("Copied", `${label} copied to the clipboard.`);
+  } catch {
+    toast.error("Copy failed", "Your browser blocked clipboard access.");
+  }
+}
+
+/** Whole days until expiry; null when the account never expires. */
+function daysLeft(expiry: string | null): number | null {
+  if (!expiry) return null;
+  return Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
+}
+
+type ClientFilter = "all" | "active" | "suspended" | "admins" | "expiring" | "expired";
+type ClientSort = "recent" | "name" | "expiry" | "lastLogin";
+
 
 const inputClass =
   "w-full rounded-xl bg-dark-900 border border-dark-600 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-accent-cyan";
@@ -73,6 +104,11 @@ export default function AdminPage() {
   /** Something went wrong that is not a question of permission. */
   const [failure, setFailure] = useState("");
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<ClientFilter>("all");
+  const [sort, setSort] = useState<ClientSort>("recent");
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+
 
   const [nu, setNu] = useState(emptyNewUser);
   const [maint, setMaint] = useState({ enabled: false, message: "" });
@@ -102,6 +138,8 @@ export default function AdminPage() {
       setAnn(s.announcement);
       setDenied(false);
       setFailure("");
+      setLastSync(new Date());
+
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       if (/not authoris|not authoriz|forbidden|401|403/i.test(message)) {
@@ -236,14 +274,105 @@ export default function AdminPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.username.toLowerCase().includes(q) ||
-        (u.email ?? "").toLowerCase().includes(q) ||
-        u.subscription.toLowerCase().includes(q),
-    );
-  }, [users, query]);
+    let rows = users.filter((u) => {
+      if (
+        q &&
+        !(
+          u.username.toLowerCase().includes(q) ||
+          (u.email ?? "").toLowerCase().includes(q) ||
+          u.subscription.toLowerCase().includes(q)
+        )
+      )
+        return false;
+      const d = daysLeft(u.expiry_date);
+      switch (filter) {
+        case "active":
+          return u.is_active;
+        case "suspended":
+          return !u.is_active;
+        case "admins":
+          return u.is_admin;
+        case "expiring":
+          return d !== null && d >= 0 && d <= 7;
+        case "expired":
+          return d !== null && d < 0;
+        default:
+          return true;
+      }
+    });
+    rows = [...rows].sort((a, b) => {
+      switch (sort) {
+        case "name":
+          return a.username.localeCompare(b.username);
+        case "expiry":
+          return (
+            (a.expiry_date ? new Date(a.expiry_date).getTime() : Infinity) -
+            (b.expiry_date ? new Date(b.expiry_date).getTime() : Infinity)
+          );
+        case "lastLogin":
+          return (
+            (b.last_login_at ? new Date(b.last_login_at).getTime() : 0) -
+            (a.last_login_at ? new Date(a.last_login_at).getTime() : 0)
+          );
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    return rows;
+  }, [users, query, filter, sort]);
+
+  /** Live mode: quietly re-pull the roster so device and session counts stay current. */
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => void refresh(), 20000);
+    return () => clearInterval(id);
+  }, [autoRefresh, refresh]);
+
+  const exportCsv = () => {
+    const header = [
+      "username",
+      "email",
+      "plan",
+      "expiry",
+      "admin",
+      "active",
+      "devices_used",
+      "device_limit",
+      "unlimited_devices",
+      "last_login",
+      "created",
+    ];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [
+      header.join(","),
+      ...filtered.map((u) =>
+        [
+          u.username,
+          u.email ?? "",
+          u.subscription,
+          u.expiry_date ?? "",
+          u.is_admin,
+          u.is_active,
+          u.device_count,
+          u.device_limit,
+          u.allow_multi_device,
+          u.last_login_at ?? "",
+          u.created_at,
+        ]
+          .map(esc)
+          .join(","),
+      ),
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `machinistpro-clients-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export ready", `${filtered.length} client records downloaded.`);
+  };
+
+
 
   if (denied) {
     return (
@@ -287,23 +416,70 @@ export default function AdminPage() {
         iconColor="cyan"
       />
 
+      {/* Command bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAutoRefresh((v) => !v)}
+          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${
+            autoRefresh
+              ? "border-accent-cyan/60 bg-accent-cyan/10 text-accent-cyan"
+              : "border-dark-600 bg-dark-900 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Radio size={13} className={autoRefresh ? "animate-pulse" : ""} />
+          {autoRefresh ? "Live monitoring on" : "Live monitoring off"}
+        </button>
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<RefreshCw size={13} />}
+          onClick={() => void refresh()}
+        >
+          Refresh
+        </Button>
+        <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={exportCsv}>
+          Export CSV
+        </Button>
+        <span className="text-[11px] text-gray-600 ml-auto">
+          {lastSync ? `Synced ${lastSync.toLocaleTimeString()}` : "Not synced yet"}
+        </span>
+      </div>
+
       {/* Overview */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Clients", value: stats.total, icon: Users },
-            { label: "Active", value: stats.active, icon: ShieldCheck },
-            { label: "Live sessions", value: stats.activeSessions, icon: Laptop },
-            { label: "Trials issued", value: stats.trialsIssued, icon: CalendarPlus },
+            { label: "Clients", value: stats.total, icon: Users, tone: "text-accent-cyan" },
+            { label: "Active", value: stats.active, icon: ShieldCheck, tone: "text-accent-green" },
+            {
+              label: "Live sessions",
+              value: stats.activeSessions,
+              icon: Laptop,
+              tone: "text-accent-purple",
+            },
+            {
+              label: "Trials issued",
+              value: stats.trialsIssued,
+              icon: CalendarPlus,
+              tone: "text-accent-amber",
+            },
           ].map((s) => (
-            <Card key={s.label} variant="solid" padding="md" className="border-dark-600">
-              <s.icon size={16} className="text-accent-cyan mb-1.5" />
-              <p className="text-xl font-bold text-white leading-none">{s.value}</p>
+            <Card
+              key={s.label}
+              variant="solid"
+              padding="md"
+              className="border-dark-600 relative overflow-hidden transition-transform hover:-translate-y-0.5"
+            >
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-cyan/50 to-transparent" />
+              <s.icon size={16} className={`${s.tone} mb-1.5`} />
+              <p className="text-xl font-bold text-white leading-none tabular-nums">{s.value}</p>
               <p className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">{s.label}</p>
             </Card>
           ))}
         </div>
       )}
+
       {stats && (stats.expiringSoon > 0 || stats.expired > 0 || stats.suspended > 0) && (
         <p className="text-xs text-gray-500">
           {stats.expiringSoon} expiring within 7 days · {stats.expired} expired ·{" "}
@@ -395,12 +571,22 @@ export default function AdminPage() {
             value={nu.username}
             onChange={(e) => setNu({ ...nu, username: e.target.value })}
           />
-          <input
-            className={inputClass}
-            placeholder="Password"
-            value={nu.password}
-            onChange={(e) => setNu({ ...nu, password: e.target.value })}
-          />
+          <div className="flex gap-2">
+            <input
+              className={`${inputClass} flex-1`}
+              placeholder="Password"
+              value={nu.password}
+              onChange={(e) => setNu({ ...nu, password: e.target.value })}
+            />
+            <Button
+              variant="secondary"
+              icon={<Wand2 size={13} />}
+              onClick={() => setNu({ ...nu, password: generatePassword() })}
+            >
+              Generate
+            </Button>
+          </div>
+
           <input
             className={inputClass}
             placeholder="Email (optional)"
@@ -455,9 +641,24 @@ export default function AdminPage() {
             </label>
           </div>
         </div>
-        <Button icon={<UserPlus size={14} />} onClick={() => void handleCreate()}>
-          Create account
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button icon={<UserPlus size={14} />} onClick={() => void handleCreate()}>
+            Create account
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<Copy size={14} />}
+            disabled={!nu.username || !nu.password}
+            onClick={() =>
+              void copyToClipboard(
+                `MachinistPro login\nUsername: ${nu.username}\nPassword: ${nu.password}`,
+                "Credentials",
+              )
+            }
+          >
+            Copy credentials
+          </Button>
+        </div>
       </Card>
 
       {/* Clients */}
@@ -471,6 +672,42 @@ export default function AdminPage() {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {(
+          [
+            ["all", `All ${users.length}`],
+            ["active", `Active ${users.filter((u) => u.is_active).length}`],
+            ["suspended", `Suspended ${users.filter((u) => !u.is_active).length}`],
+            ["admins", `Admins ${users.filter((u) => u.is_admin).length}`],
+            ["expiring", `Expiring ${stats?.expiringSoon ?? 0}`],
+            ["expired", `Expired ${stats?.expired ?? 0}`],
+          ] as [ClientFilter, string][]
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFilter(key)}
+            className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+              filter === key
+                ? "border-accent-cyan/60 bg-accent-cyan/10 text-accent-cyan"
+                : "border-dark-600 bg-dark-900 text-gray-400 hover:text-white"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        <select
+          className={`${inputClass} ml-auto w-auto text-xs`}
+          value={sort}
+          onChange={(e) => setSort(e.target.value as ClientSort)}
+        >
+          <option value="recent">Newest first</option>
+          <option value="name">Name A–Z</option>
+          <option value="expiry">Expiry soonest</option>
+          <option value="lastLogin">Recently active</option>
+        </select>
+      </div>
+
       {loading ? (
         <p className="text-sm text-gray-500">Loading…</p>
       ) : (
@@ -490,6 +727,13 @@ export default function AdminPage() {
                         ? "Unlimited devices"
                         : `${u.device_count}/${u.device_limit} devices`}
                     </Badge>
+                    {(() => {
+                      const d = daysLeft(u.expiry_date);
+                      if (d === null) return null;
+                      if (d < 0) return <Badge color="red">Expired</Badge>;
+                      if (d <= 7) return <Badge color="amber">{d}d left</Badge>;
+                      return <Badge color="green">{d}d left</Badge>;
+                    })()}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {u.subscription}
@@ -505,11 +749,20 @@ export default function AdminPage() {
                   <Button
                     size="sm"
                     variant="secondary"
+                    icon={<Copy size={13} />}
+                    onClick={() => void copyToClipboard(u.username, "Username")}
+                  >
+                    Copy user
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     icon={<Laptop size={13} />}
                     onClick={() => void toggleDevices(u)}
                   >
                     Devices
                   </Button>
+
                   <Button size="sm" variant="secondary" onClick={() => void handleDeviceLimit(u)}>
                     Set limit
                   </Button>
