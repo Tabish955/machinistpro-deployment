@@ -416,23 +416,70 @@ export default function AdminPage() {
         iconColor="cyan"
       />
 
+      {/* Command bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAutoRefresh((v) => !v)}
+          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${
+            autoRefresh
+              ? "border-accent-cyan/60 bg-accent-cyan/10 text-accent-cyan"
+              : "border-dark-600 bg-dark-900 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Radio size={13} className={autoRefresh ? "animate-pulse" : ""} />
+          {autoRefresh ? "Live monitoring on" : "Live monitoring off"}
+        </button>
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<RefreshCw size={13} />}
+          onClick={() => void refresh()}
+        >
+          Refresh
+        </Button>
+        <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={exportCsv}>
+          Export CSV
+        </Button>
+        <span className="text-[11px] text-gray-600 ml-auto">
+          {lastSync ? `Synced ${lastSync.toLocaleTimeString()}` : "Not synced yet"}
+        </span>
+      </div>
+
       {/* Overview */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Clients", value: stats.total, icon: Users },
-            { label: "Active", value: stats.active, icon: ShieldCheck },
-            { label: "Live sessions", value: stats.activeSessions, icon: Laptop },
-            { label: "Trials issued", value: stats.trialsIssued, icon: CalendarPlus },
+            { label: "Clients", value: stats.total, icon: Users, tone: "text-accent-cyan" },
+            { label: "Active", value: stats.active, icon: ShieldCheck, tone: "text-accent-green" },
+            {
+              label: "Live sessions",
+              value: stats.activeSessions,
+              icon: Laptop,
+              tone: "text-accent-purple",
+            },
+            {
+              label: "Trials issued",
+              value: stats.trialsIssued,
+              icon: CalendarPlus,
+              tone: "text-accent-amber",
+            },
           ].map((s) => (
-            <Card key={s.label} variant="solid" padding="md" className="border-dark-600">
-              <s.icon size={16} className="text-accent-cyan mb-1.5" />
-              <p className="text-xl font-bold text-white leading-none">{s.value}</p>
+            <Card
+              key={s.label}
+              variant="solid"
+              padding="md"
+              className="border-dark-600 relative overflow-hidden transition-transform hover:-translate-y-0.5"
+            >
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-cyan/50 to-transparent" />
+              <s.icon size={16} className={`${s.tone} mb-1.5`} />
+              <p className="text-xl font-bold text-white leading-none tabular-nums">{s.value}</p>
               <p className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">{s.label}</p>
             </Card>
           ))}
         </div>
       )}
+
       {stats && (stats.expiringSoon > 0 || stats.expired > 0 || stats.suspended > 0) && (
         <p className="text-xs text-gray-500">
           {stats.expiringSoon} expiring within 7 days · {stats.expired} expired ·{" "}
