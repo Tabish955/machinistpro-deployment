@@ -3,6 +3,9 @@
  * Conversion to/from imperial is handled at the UI boundary.
  */
 
+import { bandMid } from "./types";
+import type { MachiningMaterial, Operation, SpeedBand, ToolMaterial, UnitSystem } from "./types";
+
 const PI = Math.PI;
 
 // ─── RPM ────────────────────────────────────────────────────────────────────
@@ -253,6 +256,81 @@ export function ipmToMmMin(ipm: number): number {
 }
 export function mmMinToIpm(mm: number): number {
   return mm / 25.4;
+}
+
+// ─── Cutting speed lookup ───────────────────────────────────────────────────
+
+/**
+ * The recommended speed band for a material, cutting it with a given tool
+ * material, in the unit the screen is currently showing.
+ *
+ * Every calculator used to reach into the material for a bare `smm`/`sfm`
+ * pair, which was an HSS figure with nothing saying so. Going through here
+ * means a screen cannot read a speed without having stated what the tool is
+ * made of.
+ */
+export function speedBand(
+  mat: MachiningMaterial,
+  tool: ToolMaterial,
+  op: Operation,
+  units: UnitSystem,
+): SpeedBand {
+  const b = mat.speeds[tool][op];
+  if (units === "metric") return b;
+  return { min: smmToSfm(b.min), max: smmToSfm(b.max) };
+}
+
+/**
+ * The figure an untouched input seeds itself with: the middle of the band,
+ * rounded to something a machinist would actually dial in rather than the
+ * full conversion tail.
+ */
+export function defaultCuttingSpeed(
+  mat: MachiningMaterial,
+  tool: ToolMaterial,
+  op: Operation,
+  units: UnitSystem,
+): number {
+  const b = speedBand(mat, tool, op, units);
+  const mid = bandMid(b);
+  return mid >= 100 ? Math.round(mid / 5) * 5 : Math.round(mid);
+}
+
+// ─── Spindle limit ──────────────────────────────────────────────────────────
+
+/**
+ * Whether a required speed is beyond what the machine can turn.
+ *
+ * A 3 mm cutter in aluminium asks for something near 19,000 RPM. Most machines
+ * in the shops this app is written for stop between 6,000 and 10,000, so the
+ * number is not reachable and the calculated feed that goes with it is wrong
+ * too. A limit of zero means the user has not told us, so nothing is claimed.
+ */
+export function overSpindleLimit(rpm: number, maxRpm: number): boolean {
+  return maxRpm > 0 && rpm > maxRpm;
+}
+
+/**
+ * The surface speed actually achieved once the spindle is pinned at its
+ * ceiling — what the tool really sees, as opposed to what was asked for.
+ */
+export function cappedSurfaceSpeed(maxRpm: number, diameter_mm: number): number {
+  return calcSurfaceSpeed(maxRpm, diameter_mm);
+}
+
+/**
+ * The speed the spindle will actually run at: what the cut asks for, or the
+ * machine's ceiling, whichever is lower.
+ *
+ * Everything downstream of a spindle speed — feed, removal rate, power, cycle
+ * time — has to be worked out from this and not from the requested figure. A
+ * feed calculated against an RPM the machine cannot reach is a wrong number
+ * that looks entirely reasonable, and it is wrong in the dangerous direction:
+ * the feed per tooth ends up far heavier than intended once the spindle tops
+ * out. A limit of zero means the user has not said, so nothing is clamped.
+ */
+export function clampToSpindle(rpm: number, maxRpm: number): number {
+  return overSpindleLimit(rpm, maxRpm) ? maxRpm : rpm;
 }
 
 // ─── Formatting ─────────────────────────────────────────────────────────────
