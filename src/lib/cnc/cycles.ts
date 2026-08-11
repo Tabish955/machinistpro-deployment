@@ -13,6 +13,9 @@
  *     not forty. A generated program that leaves them off is a crash.
  */
 
+import { profileCoordinates } from "./g71";
+import type { ProfileStep } from "./g71";
+
 /** Format a coordinate word so it always carries a decimal point. */
 export function word(value: number, decimals = 3): string {
   const rounded = Number(value.toFixed(decimals));
@@ -467,6 +470,33 @@ export interface PatternPass {
   offsetX: number;
   /** How far it sits off in Z, mm. */
   offsetZ: number;
+  /**
+   * Radial metal this pass actually takes off, mm.
+   *
+   * Not the same thing as the offset, and it is the one that decides whether
+   * the insert survives. The offset says where the pass sits; this says how
+   * much it is cutting to get there.
+   */
+  depth: number;
+}
+
+export interface G73Result {
+  passes: PatternPass[];
+  /**
+   * Radial depth each roughing pass removes, mm — reliefX / (divisions − 1).
+   *
+   * G71 and G72 are told the depth of cut. G73 is told a pass count instead
+   * and the depth falls out of it, so it has to be shown or the operator is
+   * choosing a depth of cut without being able to see what they picked.
+   */
+  depthPerPass: number;
+  /** The same figure on the diameter, which is how a control reads it. */
+  depthOnDiameter: number;
+  /**
+   * True when one pass is asked to take the whole relief. R1 is legal on a
+   * Fanuc and means exactly that; it is not a gentle setting.
+   */
+  singlePass: boolean;
 }
 
 /**
@@ -474,12 +504,16 @@ export interface PatternPass {
  * the relief distance to zero. It suits a casting or a forging that is already
  * near shape — G71 on the same blank would cut air for most of its travel.
  */
-export function calcG73(input: G73Input): { passes: PatternPass[] } {
+export function calcG73(input: G73Input): G73Result {
   const { reliefX, reliefZ, divisions } = input;
   if (!Number.isInteger(divisions) || divisions < 1) {
     throw new Error("Divisions must be a whole number, at least 1.");
   }
   if (reliefX < 0 || reliefZ < 0) throw new Error("Relief cannot be negative.");
+
+  // With one division there is no step between passes, so the single pass
+  // carries the entire relief rather than a share of it.
+  const depthPerPass = divisions === 1 ? reliefX : reliefX / (divisions - 1);
 
   const passes: PatternPass[] = [];
   for (let i = 1; i <= divisions; i += 1) {
@@ -490,23 +524,78 @@ export function calcG73(input: G73Input): { passes: PatternPass[] } {
       pass: i,
       offsetX: Number((reliefX * remaining).toFixed(4)),
       offsetZ: Number((reliefZ * remaining).toFixed(4)),
+      depth: Number(depthPerPass.toFixed(4)),
     });
   }
-  return { passes };
+  return {
+    passes,
+    depthPerPass: Number(depthPerPass.toFixed(4)),
+    depthOnDiameter: Number((depthPerPass * 2).toFixed(4)),
+    singlePass: divisions === 1,
+  };
 }
 
+/**
+ * How much oversize the blank really is, as a radius, given the stock diameter
+ * and the largest diameter on the finished profile.
+ *
+ * G73's relief is supposed to be that number. Set it smaller and the first pass
+ * starts inside the casting, taking a cut nobody planned; set it much larger
+ * and the early passes cut air, which is the waste G73 exists to avoid.
+ */
+export function patternOversize(stockDiameter: number, profile: { x: number }[]): number {
+  if (!(stockDiameter > 0) || !profile.length) return 0;
+  const largest = Math.max(...profile.map((p) => p.x));
+  return Number(((stockDiameter - largest) / 2).toFixed(4));
+}
+
+/**
+ * The two G73 header blocks, followed by the profile they call.
+ *
+ * The profile is the point. A G73 header on its own names blocks P to Q and
+ * then does not write them, so the control has nothing to follow: it either
+ * alarms on a missing sequence number or, worse, finds blocks left by an
+ * earlier program and cuts that shape instead. G71 and G72 both emit their
+ * profile; this used to be the only cycle that did not.
+ */
 export function generateG73Code(
   input: G73Input,
-  options: { startBlock?: number; endBlock?: number; feed?: number } = {},
+  options: {
+    startBlock?: number;
+    endBlock?: number;
+    feed?: number;
+    steps?: ProfileStep[];
+    /** Diameter the tool retreats to on the closing block. */
+    stockDiameter?: number;
+  } = {},
 ): string[] {
   calcG73(input);
   const ns = options.startBlock ?? 100;
   const nf = options.endBlock ?? 110;
   const feed = options.feed ?? 0.2;
-  return [
+
+  const header = [
     `G73 U${word(input.reliefX)} W${word(input.reliefZ)} R${Math.round(input.divisions)}`,
     `G73 P${ns} Q${nf} U${word(input.allowanceX)} W${word(input.allowanceZ)} F${word(feed)}`,
   ];
+
+  if (!options.steps?.length) {
+    // Never hand back something that looks like a whole program when the
+    // blocks it calls are missing. A Fanuc comment is legal in a program and
+    // says plainly what has to be supplied.
+    return [...header, `(PROFILE BLOCKS N${ns} TO N${nf} MUST FOLLOW — NONE DEFINED)`];
+  }
+
+  const points = profileCoordinates(options.steps);
+  const retreat = options.stockDiameter ?? Math.max(...points.map((p) => p.x));
+  const body = points.map((p, i) => {
+    if (i === 0) return `N${ns} G00 X${word(p.x)}`;
+    const previous = points[i - 1];
+    // A taper moves both words in one block; a shoulder moves X; a turn moves Z.
+    if (p.x !== previous.x && p.z !== previous.z) return `      G01 X${word(p.x)} Z${word(p.z)}`;
+    return p.z !== previous.z ? `      G01 Z${word(p.z)}` : `      X${word(p.x)}`;
+  });
+  return [...header, ...body, `N${nf} X${word(retreat)}`];
 }
 
 /* ── G70 · Finishing ───────────────────────────────────────────────────────── */
