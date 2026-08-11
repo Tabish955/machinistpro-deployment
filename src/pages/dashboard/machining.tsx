@@ -1,8 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, createContext, useContext } from "react";
 import {
   MATERIALS,
   MATERIAL_MAP,
+  TOOL_MATERIALS,
   THREAD_TABLES,
+  speedBand,
+  defaultCuttingSpeed,
+  overSpindleLimit,
+  cappedSurfaceSpeed,
+  clampToSpindle,
   calcRPM,
   calcSurfaceSpeed,
   calcFeedRate,
@@ -31,6 +37,8 @@ import {
   type MachiningMaterial,
   type UnitSystem,
   type ThreadEntry,
+  type ToolMaterial,
+  type Operation,
 } from "@/lib/machining";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -104,6 +112,139 @@ function ResultRow({
         {value}
         {unit ? <span className="text-gray-600 ml-1">{unit}</span> : null}
       </span>
+    </div>
+  );
+}
+
+/* ── Tooling, shared by every tab ──────────────────────────────────────────
+   Tool material sits at the page level rather than inside each calculator on
+   purpose: it describes what is physically in the holder, and that does not
+   change between working out an RPM and working out the feed that goes with
+   it. Five separate toggles would be five chances to leave one on HSS. */
+
+interface ToolingValue {
+  tool: ToolMaterial;
+  setTool: (t: ToolMaterial) => void;
+  /** Machine's maximum spindle speed, RPM. Empty means the user has not said. */
+  spindleMax: string;
+  setSpindleMax: (v: string) => void;
+}
+
+const ToolingContext = createContext<ToolingValue | null>(null);
+
+function useTooling(): ToolingValue {
+  const ctx = useContext(ToolingContext);
+  if (!ctx) throw new Error("useTooling must be used inside the machining page");
+  return ctx;
+}
+
+/**
+ * Seeded cutting speed plus the band it came from, for a given operation.
+ * Returns the band already converted to the units on screen.
+ */
+function useCuttingSpeed(mat: MachiningMaterial, op: Operation, units: UnitSystem) {
+  const { tool } = useTooling();
+  return {
+    tool,
+    band: speedBand(mat, tool, op, units),
+    seeded: defaultCuttingSpeed(mat, tool, op, units),
+  };
+}
+
+function ToolingBar() {
+  const { tool, setTool, spindleMax, setSpindleMax } = useTooling();
+  return (
+    <Card variant="solid" padding="md" className="border-dark-600">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div>
+          <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1.5 block">
+            Tool Material
+          </label>
+          <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600 w-fit">
+            {TOOL_MATERIALS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTool(t.id)}
+                className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  tool === t.id
+                    ? "bg-accent-red/20 text-accent-red"
+                    : "text-gray-500 hover:text-white"
+                }`}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1.5 block">
+            Machine Spindle Max
+          </label>
+          <div className="relative">
+            <input
+              value={spindleMax}
+              onChange={(e) => setSpindleMax(e.target.value)}
+              inputMode="decimal"
+              placeholder="optional"
+              className="w-40 px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-red/50 focus:outline-none"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">
+              RPM
+            </span>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-400 leading-relaxed max-w-xs">
+          Speeds change by 3–5× between HSS and carbide. Set this to match the tool actually in the
+          holder.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+/** The band a seeded speed came from, shown so the figure does not read as a law. */
+function BandNote({ band, unit }: { band: { min: number; max: number }; unit: string }) {
+  return (
+    <p className="text-[11px] text-gray-400 mt-1">
+      Recommended range {fmt(band.min, 0)}–{fmt(band.max, 0)} {unit}
+    </p>
+  );
+}
+
+/**
+ * Shown when the cut asks for more speed than the machine has.
+ *
+ * Every figure on the screen has already been recalculated at the capped
+ * speed by this point, so this says what was given up rather than warning
+ * about numbers that are still wrong.
+ */
+function SpindleWarning({
+  requiredRpm,
+  maxRpm,
+  diameterMm,
+  units,
+}: {
+  requiredRpm: number;
+  maxRpm: number;
+  diameterMm: number;
+  units: UnitSystem;
+}) {
+  if (!overSpindleLimit(requiredRpm, maxRpm)) return null;
+  const actual = cappedSurfaceSpeed(maxRpm, diameterMm);
+  const isM = units === "metric";
+  const shown = isM ? actual : smmToSfm(actual);
+  const loss = 1 - maxRpm / requiredRpm;
+  return (
+    <div className="my-3 p-3 rounded-lg bg-accent-red/10 border border-accent-red/30">
+      <p className="text-xs text-accent-red font-semibold">
+        Capped at the spindle limit — this cut wants {fmt(requiredRpm, 0)} RPM, the machine stops at{" "}
+        {fmt(maxRpm, 0)}.
+      </p>
+      <p className="text-[11px] text-gray-300 mt-1">
+        Every figure below is worked out at {fmt(maxRpm, 0)} RPM, so the tool sees {fmt(shown)}{" "}
+        {isM ? "m/min" : "SFM"} — {fmt(loss * 100, 0)}% under the recommended speed. Chip load is
+        held, so the feed has come down with it. A larger cutter would reach the speed properly.
+      </p>
     </div>
   );
 }
@@ -194,13 +335,18 @@ function RPMCalc() {
   const [csOverride, setCsOverride] = useState("");
 
   const isM = units === "metric";
-  const defaultCs = isM ? mat.smm : mat.sfm;
+  const { band, seeded: defaultCs } = useCuttingSpeed(mat, "mill", units);
+  const { spindleMax } = useTooling();
   const cs = parseFloat(csOverride) || defaultCs;
   const d = parseFloat(dia) || 0;
   const dMm = isM ? d : inToMm(d);
   const csMm = isM ? cs : sfmToSmm(cs);
 
-  const rpm = dMm > 0 ? calcRPM(csMm, dMm) : 0;
+  const maxRpm = parseFloat(spindleMax) || 0;
+  // What the cut asks for, then what the machine will actually give. Surface
+  // speed follows the second, since that is what the tool ends up seeing.
+  const requiredRpm = dMm > 0 ? calcRPM(csMm, dMm) : 0;
+  const rpm = clampToSpindle(requiredRpm, maxRpm);
   const surfSpeed = dMm > 0 && rpm > 0 ? calcSurfaceSpeed(rpm, dMm) : 0;
 
   return (
@@ -218,16 +364,20 @@ function RPMCalc() {
           suffix={isM ? "mm" : "in"}
           placeholder="e.g. 10"
         />
-        <Num
-          label={`Cutting Speed (override)`}
-          value={csOverride}
-          onChange={setCsOverride}
-          suffix={isM ? "m/min" : "SFM"}
-          placeholder={`default ${defaultCs}`}
-        />
+        <div>
+          <Num
+            label={`Cutting Speed (override)`}
+            value={csOverride}
+            onChange={setCsOverride}
+            suffix={isM ? "m/min" : "SFM"}
+            placeholder={`default ${defaultCs}`}
+          />
+          <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
+        </div>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
+        <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
         <ResultRow
           label="Surface Speed"
@@ -332,7 +482,9 @@ function MillingCalc() {
   const [csOverride, setCsOverride] = useState("");
   const [clOverride, setClOverride] = useState("");
 
-  const defaultCs = isM ? mat.smm : mat.sfm;
+  const { band, seeded: defaultCs } = useCuttingSpeed(mat, "mill", units);
+  const { spindleMax } = useTooling();
+  const maxRpm = parseFloat(spindleMax) || 0;
   const defaultCl = isM ? mat.chipMillMm : mat.chipMill;
   const cs = parseFloat(csOverride) || defaultCs;
   const cl = parseFloat(clOverride) || defaultCl;
@@ -349,7 +501,12 @@ function MillingCalc() {
   const apMm = isM ? ap : inToMm(ap);
   const aeMm = isM ? ae : inToMm(ae);
 
-  const rpm = dMm > 0 ? calcRPM(csMm, dMm) : 0;
+  // Feed, removal rate, power and time all hang off the spindle speed, so they
+  // are worked out at the speed the machine can actually hold. Chip load is
+  // what gets protected: holding it means the feed drops with the RPM, which
+  // is what a machinist would do by hand at the control.
+  const requiredRpm = dMm > 0 ? calcRPM(csMm, dMm) : 0;
+  const rpm = clampToSpindle(requiredRpm, maxRpm);
   const feed = rpm > 0 && z > 0 ? calcFeedRate(rpm, z, clMm) : 0;
   const time = feed > 0 && lenMm > 0 ? calcMachiningTime(lenMm, feed, 1) : 0;
   const mrr = apMm > 0 && aeMm > 0 && feed > 0 ? calcMRR(apMm, aeMm, feed) : 0;
@@ -388,9 +545,11 @@ function MillingCalc() {
             placeholder={`${defaultCl}`}
           />
         </div>
+        <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
+        <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
         <ResultRow
           label="Feed Rate"
@@ -448,7 +607,9 @@ function TurningCalc() {
   const [noseRadius, setNoseRadius] = useState("0.8");
   const [depthOfCut, setDepthOfCut] = useState("");
 
-  const defaultCs = isM ? mat.smm : mat.sfm;
+  const { band, seeded: defaultCs } = useCuttingSpeed(mat, "turn", units);
+  const { spindleMax } = useTooling();
+  const maxRpm = parseFloat(spindleMax) || 0;
   const defaultFeed = isM ? mat.chipTurnMm : mat.chipTurn;
   const cs = parseFloat(csOverride) || defaultCs;
   const fpr = parseFloat(feedOverride) || defaultFeed;
@@ -460,7 +621,10 @@ function TurningCalc() {
   const fprMm = isM ? fpr : inToMm(fpr);
   const lenMm = isM ? len : inToMm(len);
 
-  const rpm = dMm > 0 ? calcRPM(csMm, dMm) : 0;
+  // Feed per rev is held and the feed rate falls with the capped speed, so the
+  // finish stays as predicted while the cycle simply takes longer.
+  const requiredRpm = dMm > 0 ? calcRPM(csMm, dMm) : 0;
+  const rpm = clampToSpindle(requiredRpm, maxRpm);
   const feedRate = rpm > 0 ? rpm * fprMm : 0;
   const time = feedRate > 0 && lenMm > 0 ? calcMachiningTime(lenMm, feedRate, 1) : 0;
   const surfSpeed = rpm > 0 && dMm > 0 ? calcSurfaceSpeed(rpm, dMm) : 0;
@@ -514,9 +678,11 @@ function TurningCalc() {
             placeholder="0.8"
           />
         </div>
+        <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
+        <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
         <ResultRow
           label="Feed Rate"
@@ -569,9 +735,19 @@ function DrillCalc() {
   const depMm = isM ? dep : inToMm(dep);
   const angle = parseFloat(pointAngle) || 118;
 
-  const drillCs = isM ? mat.drillSmm : mat.drillSfm;
+  const { band, seeded: drillCs } = useCuttingSpeed(mat, "drill", units);
+  const { spindleMax } = useTooling();
+  const maxRpm = parseFloat(spindleMax) || 0;
   const drillCsMm = isM ? drillCs : sfmToSmm(drillCs);
-  const rpm = dMm > 0 ? calcRPM(drillCsMm, dMm) : 0;
+  // Feed per rev is held across the clamp, so the drill keeps its intended bite
+  // per revolution and simply takes longer. Scaling the feed up to recover the
+  // lost feed rate is what breaks small drills.
+  const requiredRpm = dMm > 0 ? calcRPM(drillCsMm, dMm) : 0;
+  const rpm = clampToSpindle(requiredRpm, maxRpm);
+  // What the drill actually sees, which is the seeded speed until the spindle
+  // runs out of revs and then something lower.
+  const achievedCsMm = rpm > 0 && dMm > 0 ? calcSurfaceSpeed(rpm, dMm) : drillCsMm;
+  const achievedCs = isM ? achievedCsMm : smmToSfm(achievedCsMm);
 
   // Feed per rev scales with diameter. This used to reuse the turning feed, a flat
   // 0.25 mm/rev for mild steel, which is far too much for a small drill.
@@ -640,12 +816,14 @@ function DrillCalc() {
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
+        <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
         <ResultRow
           label="Drill Cutting Speed"
-          value={isM ? fmt(drillCs) : fmt(mat.drillSfm)}
+          value={fmt(achievedCs)}
           unit={isM ? "m/min" : "SFM"}
         />
+        <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
         <ResultRow
           label="Feed / Rev"
           value={isM ? fmt(fprMm, 3) : fmt(mmToIn(fprMm), 4)}
@@ -981,37 +1159,48 @@ const TABS = [
 
 export default function MachiningPage() {
   const [activeTab, setActiveTab] = useState("rpm");
+  const [tool, setTool] = useState<ToolMaterial>("hss");
+  const [spindleMax, setSpindleMax] = useState("");
   const ActiveComp = TABS.find((t) => t.id === activeTab)!.comp;
+  const tooling = useMemo(() => ({ tool, setTool, spindleMax, setSpindleMax }), [tool, spindleMax]);
+
+  // Only the tabs that read a cutting speed care what the tool is made of.
+  const usesTooling = ["rpm", "milling", "turning", "drilling"].includes(activeTab);
 
   return (
-    <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
-      <PageHeader
-        title="Machining Calculator"
-        description="Speeds, feeds, threads, and CNC calculations"
-        icon={<Wrench size={22} className="text-accent-red" />}
-        iconColor="red"
-        status="available"
-      />
+    <ToolingContext.Provider value={tooling}>
+      <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
+        <PageHeader
+          title="Machining Calculator"
+          description="Speeds, feeds, threads, and CNC calculations"
+          icon={<Wrench size={22} className="text-accent-red" />}
+          iconColor="red"
+          status="available"
+        />
 
-      {/* Tab bar */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === tab.id
-                ? "bg-accent-red/20 text-accent-red border border-accent-red/30"
-                : "bg-dark-800/60 text-gray-500 border border-dark-700 hover:text-white hover:bg-dark-800"
-            }`}
-          >
-            {tab.name}
-          </button>
-        ))}
+        {/* Tab bar */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === tab.id
+                  ? "bg-accent-red/20 text-accent-red border border-accent-red/30"
+                  : "bg-dark-800/60 text-gray-500 border border-dark-700 hover:text-white hover:bg-dark-800"
+              }`}
+            >
+              {tab.name}
+            </button>
+          ))}
+        </div>
+
+        {/* What the cut is being made with — shared by every tab that uses a speed */}
+        {usesTooling && <ToolingBar />}
+
+        {/* Active calculator */}
+        <ActiveComp />
       </div>
-
-      {/* Active calculator */}
-      <ActiveComp />
-    </div>
+    </ToolingContext.Provider>
   );
 }

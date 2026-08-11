@@ -1,118 +1,189 @@
 import type { MachiningMaterial, ThreadEntry } from "./types";
 
 // ─── Material presets ───────────────────────────────────────────────────────
-// SFM / SMM values are mid-range recommendations for HSS tooling.
+//
+// Cutting speeds are m/min bands, by tool material and operation.
+//
+// Where they come from, so the next person can check them rather than trust
+// them. The milling and turning bands are CUTTING_DATA in src/lib/engdb —
+// the same table the Engineering Database page already shows the user, which
+// carries both an HSS and a carbide column. Until now the calculators read
+// only the HSS half and never said so on screen.
+//
+// The old single figure per material has been kept as a check, not thrown
+// away: every one of the eight sat inside its CUTTING_DATA HSS band, which is
+// what gives confidence that the HSS data was right all along and only the
+// carbide half was missing.
+//
+// Two entries are generic where CUTTING_DATA is specific. "Stainless Steel"
+// spans 304 and 316, and "Aluminum" spans 6061 and 7075, so each band runs
+// from the slower alloy's floor to the faster alloy's ceiling. That is wide
+// on purpose — a generic label should not imply a precision it does not have.
+//
+// Milling and turning share a band because the source does not separate them.
+// Drilling does not: it runs slower, the tool is buried in its own chips, and
+// CUTTING_DATA has no drill column at all, so those bands are set from the
+// drill figures this file already carried (HSS) and published solid-carbide
+// drill ranges (carbide). Drilling is the least-anchored data here and is
+// deliberately the most conservative.
 
 export const MATERIALS: MachiningMaterial[] = [
   {
     id: "mild_steel",
     name: "Mild Steel",
-    sfm: 100,
-    smm: 30,
+    speeds: {
+      hss: { mill: { min: 25, max: 37 }, turn: { min: 25, max: 37 }, drill: { min: 20, max: 30 } },
+      carbide: {
+        mill: { min: 90, max: 180 },
+        turn: { min: 90, max: 180 },
+        drill: { min: 80, max: 120 },
+      },
+    },
     chipMill: 0.004,
     chipMillMm: 0.1,
     chipTurn: 0.01,
     chipTurnMm: 0.25,
-    drillSfm: 80,
-    drillSmm: 25,
     drillFeedFactor: 0.02,
     kc: 1700,
   },
   {
     id: "stainless",
+    // 304 at the top of the band, 316 at the bottom.
     name: "Stainless Steel",
-    sfm: 65,
-    smm: 20,
+    speeds: {
+      hss: { mill: { min: 10, max: 25 }, turn: { min: 10, max: 25 }, drill: { min: 10, max: 20 } },
+      carbide: {
+        mill: { min: 40, max: 120 },
+        turn: { min: 40, max: 120 },
+        drill: { min: 40, max: 80 },
+      },
+    },
     chipMill: 0.003,
     chipMillMm: 0.08,
     chipTurn: 0.006,
     chipTurnMm: 0.15,
-    drillSfm: 50,
-    drillSmm: 15,
     drillFeedFactor: 0.015,
     kc: 2100,
   },
   {
     id: "aluminum",
+    // 7075 at the bottom of the band, 6061 at the top.
     name: "Aluminum",
-    sfm: 600,
-    smm: 180,
+    speeds: {
+      hss: {
+        mill: { min: 90, max: 245 },
+        turn: { min: 90, max: 245 },
+        drill: { min: 60, max: 120 },
+      },
+      carbide: {
+        mill: { min: 150, max: 600 },
+        turn: { min: 150, max: 600 },
+        drill: { min: 150, max: 300 },
+      },
+    },
     chipMill: 0.006,
     chipMillMm: 0.15,
     chipTurn: 0.012,
     chipTurnMm: 0.3,
-    drillSfm: 300,
-    drillSmm: 90,
     drillFeedFactor: 0.025,
     kc: 750,
   },
   {
     id: "brass",
     name: "Brass",
-    sfm: 300,
-    smm: 90,
+    speeds: {
+      hss: {
+        mill: { min: 60, max: 120 },
+        turn: { min: 60, max: 120 },
+        drill: { min: 45, max: 75 },
+      },
+      carbide: {
+        mill: { min: 120, max: 300 },
+        turn: { min: 120, max: 300 },
+        drill: { min: 100, max: 200 },
+      },
+    },
     chipMill: 0.005,
     chipMillMm: 0.13,
     chipTurn: 0.01,
     chipTurnMm: 0.25,
-    drillSfm: 200,
-    drillSmm: 60,
     drillFeedFactor: 0.025,
     kc: 650,
   },
   {
     id: "copper",
     name: "Copper",
-    sfm: 200,
-    smm: 60,
+    speeds: {
+      hss: { mill: { min: 30, max: 75 }, turn: { min: 30, max: 75 }, drill: { min: 35, max: 55 } },
+      carbide: {
+        mill: { min: 90, max: 215 },
+        turn: { min: 90, max: 215 },
+        drill: { min: 80, max: 150 },
+      },
+    },
     chipMill: 0.004,
     chipMillMm: 0.1,
     chipTurn: 0.008,
     chipTurnMm: 0.2,
-    drillSfm: 150,
-    drillSmm: 45,
     drillFeedFactor: 0.02,
     kc: 1000,
   },
   {
     id: "cast_iron",
     name: "Cast Iron",
-    sfm: 80,
-    smm: 25,
+    speeds: {
+      hss: { mill: { min: 15, max: 30 }, turn: { min: 15, max: 30 }, drill: { min: 15, max: 25 } },
+      carbide: {
+        mill: { min: 60, max: 150 },
+        turn: { min: 60, max: 150 },
+        drill: { min: 60, max: 120 },
+      },
+    },
     chipMill: 0.005,
     chipMillMm: 0.13,
     chipTurn: 0.01,
     chipTurnMm: 0.25,
-    drillSfm: 70,
-    drillSmm: 20,
     drillFeedFactor: 0.02,
     kc: 1150,
   },
   {
     id: "titanium",
+    // Grade 5 (Ti-6Al-4V), the one a shop is most likely to see.
     name: "Titanium",
-    sfm: 50,
-    smm: 15,
+    speeds: {
+      hss: { mill: { min: 8, max: 15 }, turn: { min: 8, max: 15 }, drill: { min: 6, max: 14 } },
+      carbide: {
+        mill: { min: 25, max: 60 },
+        turn: { min: 25, max: 60 },
+        drill: { min: 20, max: 40 },
+      },
+    },
     chipMill: 0.002,
     chipMillMm: 0.05,
     chipTurn: 0.004,
     chipTurnMm: 0.1,
-    drillSfm: 35,
-    drillSmm: 10,
     drillFeedFactor: 0.01,
     kc: 1400,
   },
   {
     id: "plastic",
     name: "Plastic / Delrin",
-    sfm: 500,
-    smm: 150,
+    speeds: {
+      hss: {
+        mill: { min: 90, max: 180 },
+        turn: { min: 90, max: 180 },
+        drill: { min: 60, max: 120 },
+      },
+      carbide: {
+        mill: { min: 150, max: 460 },
+        turn: { min: 150, max: 460 },
+        drill: { min: 150, max: 300 },
+      },
+    },
     chipMill: 0.008,
     chipMillMm: 0.2,
     chipTurn: 0.015,
     chipTurnMm: 0.4,
-    drillSfm: 300,
-    drillSmm: 90,
     drillFeedFactor: 0.03,
     kc: 200,
   },
