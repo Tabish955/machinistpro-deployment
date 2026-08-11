@@ -21,6 +21,7 @@ import {
   generateG72Code,
   calcG73,
   generateG73Code,
+  patternOversize,
   calcG74,
   generateG74Code,
   calcG75,
@@ -232,6 +233,113 @@ const pf = (v: string) => parseFloat(v);
 const pi = (v: string, fallback: number) =>
   Number.isFinite(parseInt(v, 10)) ? parseInt(v, 10) : fallback;
 
+/* ═══ Part profile ══════════════════════════════════════════════════════════ */
+
+/** One row of the profile table as it is typed, before it becomes a number. */
+export type ProfileRow = { d: string; l: string; e: string };
+
+/** The typed rows as steps, dropping any row not yet filled in. */
+function rowsToSteps(rows: ProfileRow[]): ProfileStep[] {
+  return rows
+    .map((r) => ({
+      diameter: pf(r.d),
+      length: pf(r.l),
+      // Blank means a parallel step; a value makes it a taper.
+      endDiameter: r.e.trim() === "" ? undefined : pf(r.e),
+    }))
+    .filter((s) => Number.isFinite(s.diameter) && Number.isFinite(s.length));
+}
+
+/**
+ * The shape of the finished part, shared by every cycle that roughs to a
+ * profile. G71 had this and G73 did not, which is why G73 could only ever
+ * illustrate a shape rather than cut the operator's own.
+ *
+ * Straight and tapered steps only. A radius needs a G02/G03 block and the
+ * pass planner walks straight segments to find where a pass stops, so arcs
+ * are a change to the geometry underneath this, not to the table.
+ */
+function ProfileEditor({
+  rows,
+  setRows,
+}: {
+  rows: ProfileRow[];
+  setRows: React.Dispatch<React.SetStateAction<ProfileRow[]>>;
+}) {
+  const setRow = (i: number, key: keyof ProfileRow, v: string) =>
+    setRows((cur) => cur.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
+
+  return (
+    <Card variant="solid" padding="md" className="border-dark-600">
+      <div className="flex items-center justify-between mb-3">
+        <SectionHeader title="Part Profile" className="!mb-0" />
+        <span className="text-[10px] text-gray-600">as dimensioned on the drawing</span>
+      </div>
+      <div className="space-y-2">
+        <div className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
+          <span>#</span>
+          <span>Diameter</span>
+          <span>Length</span>
+          <span>End Ø</span>
+          <span />
+        </div>
+        {rows.map((r, i) => (
+          <div key={i} className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 items-center">
+            <span className="font-mono text-xs text-gray-500">{i + 1}</span>
+            <input
+              className={field}
+              value={r.d}
+              inputMode="decimal"
+              aria-label={`Step ${i + 1} diameter`}
+              onChange={(e) =>
+                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "d", e.target.value)
+              }
+            />
+            <input
+              className={field}
+              value={r.l}
+              inputMode="decimal"
+              aria-label={`Step ${i + 1} length`}
+              onChange={(e) =>
+                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "l", e.target.value)
+              }
+            />
+            <input
+              className={field}
+              value={r.e}
+              inputMode="decimal"
+              placeholder="—"
+              aria-label={`Step ${i + 1} end diameter`}
+              onChange={(e) =>
+                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "e", e.target.value)
+              }
+            />
+            <button
+              onClick={() => setRows((c) => c.filter((_, j) => j !== i))}
+              disabled={rows.length < 2}
+              aria-label={`Remove step ${i + 1}`}
+              className="text-gray-600 hover:text-accent-red disabled:opacity-30 text-lg leading-none cursor-pointer"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={() => setRows((c) => [...c, { d: "", l: "", e: "" }])}
+        className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
+      >
+        + Add step
+      </button>
+      <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
+        Enter each step from the face outwards. Leave End Ø blank for a parallel step, or give it to
+        cut a taper. Z is worked out cumulatively, so step two runs to the sum of the lengths before
+        it — the part that is easy to get wrong by hand.
+      </p>
+    </Card>
+  );
+}
+
 /* ═══ G71 · OD roughing ═════════════════════════════════════════════════════ */
 
 function G71Panel() {
@@ -252,14 +360,7 @@ function G71Panel() {
     { d: "40", l: "25", e: "" },
   ]);
 
-  const steps: ProfileStep[] = rows
-    .map((r) => ({
-      diameter: pf(r.d),
-      length: pf(r.l),
-      // Blank means a parallel step; a value makes it a taper.
-      endDiameter: r.e.trim() === "" ? undefined : pf(r.e),
-    }))
-    .filter((s) => Number.isFinite(s.diameter) && Number.isFinite(s.length));
+  const steps: ProfileStep[] = rowsToSteps(rows);
 
   const profile = useMemo(() => {
     try {
@@ -282,9 +383,6 @@ function G71Panel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(rows), stock]);
-
-  const setRow = (i: number, key: "d" | "l" | "e", v: string) =>
-    setRows((cur) => cur.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
 
   const input: G71Input = {
     stockDiameter: pf(stock),
@@ -395,76 +493,7 @@ function G71Panel() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card variant="solid" padding="md" className="border-dark-600">
-          <div className="flex items-center justify-between mb-3">
-            <SectionHeader title="Part Profile" className="!mb-0" />
-            <span className="text-[10px] text-gray-600">as dimensioned on the drawing</span>
-          </div>
-          <div className="space-y-2">
-            <div className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
-              <span>#</span>
-              <span>Diameter</span>
-              <span>Length</span>
-              <span>End Ø</span>
-              <span />
-            </div>
-            {rows.map((r, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 items-center"
-              >
-                <span className="font-mono text-xs text-gray-500">{i + 1}</span>
-                <input
-                  className={field}
-                  value={r.d}
-                  inputMode="decimal"
-                  aria-label={`Step ${i + 1} diameter`}
-                  onChange={(e) =>
-                    /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "d", e.target.value)
-                  }
-                />
-                <input
-                  className={field}
-                  value={r.l}
-                  inputMode="decimal"
-                  aria-label={`Step ${i + 1} length`}
-                  onChange={(e) =>
-                    /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "l", e.target.value)
-                  }
-                />
-                <input
-                  className={field}
-                  value={r.e}
-                  inputMode="decimal"
-                  placeholder="—"
-                  aria-label={`Step ${i + 1} end diameter`}
-                  onChange={(e) =>
-                    /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "e", e.target.value)
-                  }
-                />
-                <button
-                  onClick={() => setRows((c) => c.filter((_, j) => j !== i))}
-                  disabled={rows.length < 2}
-                  aria-label={`Remove step ${i + 1}`}
-                  className="text-gray-600 hover:text-accent-red disabled:opacity-30 text-lg leading-none cursor-pointer"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={() => setRows((c) => [...c, { d: "", l: "", e: "" }])}
-            className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
-          >
-            + Add step
-          </button>
-          <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
-            Enter each step from the face outwards. Leave End Ø blank for a parallel step, or give
-            it to cut a taper. Z is worked out cumulatively, so step two runs to the sum of the
-            lengths before it — the part that is easy to get wrong by hand.
-          </p>
-        </Card>
+        <ProfileEditor rows={rows} setRows={setRows} />
 
         <Card variant="solid" padding="md" className="border-dark-600">
           <SectionHeader title="Profile Coordinates" />
@@ -657,12 +686,41 @@ function G72Panel() {
 /* ═══ G73 · Pattern repeat ══════════════════════════════════════════════════ */
 
 function G73Panel() {
+  // Defaults are a coherent job, not just plausible numbers: a 44 mm blank over
+  // a 38 mm largest diameter is 3 mm oversize on the radius, which is what the
+  // relief is set to. Anything else would greet the user with their own warning.
+  const [stock, setStock] = useState("44");
   const [reliefX, setReliefX] = useState("3");
   const [reliefZ, setReliefZ] = useState("1");
   const [divisions, setDivisions] = useState("4");
   const [allowX, setAllowX] = useState("0.5");
   const [allowZ, setAllowZ] = useState("0.1");
   const [feed, setFeed] = useState("0.2");
+  const [ns, setNs] = useState("100");
+  const [nf, setNf] = useState("110");
+
+  // The part itself, the same table G71 uses. Before this the cycle drew a
+  // fixed illustration, so the one thing an operator wanted to check — their
+  // own shape — was the one thing it could not show.
+  const [rows, setRows] = useState<ProfileRow[]>([
+    { d: "26", l: "18", e: "" },
+    { d: "38", l: "22", e: "" },
+  ]);
+
+  const steps: ProfileStep[] = rowsToSteps(rows);
+
+  const profile = useMemo(() => {
+    try {
+      return { points: profileCoordinates(steps), total: profileLength(steps), error: "" };
+    } catch (cause) {
+      return {
+        points: [],
+        total: 0,
+        error: cause instanceof Error ? cause.message : "Check the profile.",
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(rows)]);
 
   const input = {
     reliefX: pf(reliefX),
@@ -672,24 +730,23 @@ function G73Panel() {
     allowanceZ: pf(allowZ),
   };
 
-  // G73 follows whatever profile sits between P and Q, so the picture needs a
-  // shape to follow. This one is an illustration; the offsets it is drawn at are
-  // the ones the inputs above produce.
-  const examplePoints = useMemo(
-    () =>
-      profileCoordinates([
-        { diameter: 26, length: 18 },
-        { diameter: 38, length: 22 },
-      ]),
-    [],
-  );
-
   const out = useMemo(() => {
     try {
+      if (profile.error) throw new Error(profile.error);
       return {
         result: calcG73(input),
-        code: generateG73Code(input, { feed: pf(feed) || 0.2 }),
-        moves: buildG73Toolpath(input, examplePoints),
+        code: [
+          ...generateG73Code(input, {
+            startBlock: pi(ns, 100),
+            endBlock: pi(nf, 110),
+            feed: pf(feed) || 0.2,
+            steps: steps.length ? steps : undefined,
+            stockDiameter: pf(stock) || undefined,
+          }),
+          // Roughing leaves the allowance on. G70 is the block that takes it off.
+          ...generateG70Code(pi(ns, 100), pi(nf, 110)),
+        ],
+        moves: buildG73Toolpath(input, profile.points),
         error: "",
       };
     } catch (cause) {
@@ -701,7 +758,18 @@ function G73Panel() {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reliefX, reliefZ, divisions, allowX, allowZ, feed, examplePoints]);
+  }, [reliefX, reliefZ, divisions, allowX, allowZ, feed, ns, nf, stock, JSON.stringify(rows)]);
+
+  // What the blank actually is against what the relief claims it is. G73 only
+  // makes sense when those agree.
+  const oversize = patternOversize(pf(stock), profile.points);
+  const reliefShort = oversize > 0 && pf(reliefX) > 0 && pf(reliefX) < oversize - 0.001;
+  const reliefLong = oversize > 0 && pf(reliefX) > oversize * 2;
+
+  // A radial depth past this is more than a normal roughing pass on a lathe of
+  // the size this app is written for.
+  const HEAVY_DEPTH = 4;
+  const heavy = (out.result?.depthPerPass ?? 0) > HEAVY_DEPTH;
 
   return (
     <div className="space-y-4">
@@ -709,6 +777,13 @@ function G73Panel() {
         <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
           <SectionHeader title="G73 — Pattern Repeat" />
           <div className="grid grid-cols-2 gap-3">
+            <Num
+              label="Blank Ø"
+              value={stock}
+              onChange={setStock}
+              suffix="mm"
+              hint="the casting, not the finished size"
+            />
             <Num
               label="Relief X (U)"
               value={reliefX}
@@ -721,6 +796,8 @@ function G73Panel() {
             <Num label="Finish Allow. X (U)" value={allowX} onChange={setAllowX} suffix="mm" />
             <Num label="Finish Allow. Z (W)" value={allowZ} onChange={setAllowZ} suffix="mm" />
             <Num label="Feed (F)" value={feed} onChange={setFeed} suffix="mm/rev" />
+            <Num label="Start Block (P)" value={ns} onChange={setNs} suffix="N" />
+            <Num label="End Block (Q)" value={nf} onChange={setNf} suffix="N" />
           </div>
           <p className="text-[10px] text-gray-600 leading-relaxed">
             Every pass follows the finished shape, walking in from the relief distance to nothing.
@@ -736,27 +813,90 @@ function G73Panel() {
             <p className="text-sm text-accent-red py-4">{out.error}</p>
           ) : (
             out.result && (
-              <Table
-                head={["Pass", "Off X (rad)", "Off Z"]}
-                rows={out.result.passes.map((p) => [p.pass, p.offsetX, p.offsetZ])}
-              />
+              <>
+                <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                  <span className="text-gray-500">
+                    Depth per pass{" "}
+                    <span className="font-mono text-white">{out.result.depthPerPass}</span> mm
+                    radial
+                  </span>
+                  <span className="text-gray-500">
+                    <span className="font-mono text-white">{out.result.depthOnDiameter}</span> mm on
+                    diameter
+                  </span>
+                </div>
+                <Table
+                  head={["Pass", "Off X (rad)", "Off Z", "Cuts (rad)"]}
+                  rows={out.result.passes.map((p) => [p.pass, p.offsetX, p.offsetZ, p.depth])}
+                />
+                {out.result.singlePass && (
+                  <p className="mt-3 rounded-lg bg-accent-red/10 border border-accent-red/30 p-3 text-[11px] text-accent-red leading-relaxed">
+                    One division is one pass, and it takes the whole {out.result.depthPerPass} mm of
+                    relief in a single cut. R1 is legal but it is not a light setting — the zero
+                    offset in the table means the pass sits on the finished shape, not that there is
+                    nothing to remove.
+                  </p>
+                )}
+                {!out.result.singlePass && heavy && (
+                  <p className="mt-3 rounded-lg bg-accent-amber/10 border border-accent-amber/30 p-3 text-[11px] text-accent-amber leading-relaxed">
+                    {out.result.depthPerPass} mm on the radius per pass is a heavy roughing cut (
+                    {out.result.depthOnDiameter} mm on diameter). Raise the divisions to spread it —
+                    G71 and G72 ask for this depth outright, G73 only lets you choose it through the
+                    pass count.
+                  </p>
+                )}
+                {reliefShort && (
+                  <p className="mt-3 rounded-lg bg-accent-red/10 border border-accent-red/30 p-3 text-[11px] text-accent-red leading-relaxed">
+                    The blank is {oversize} mm oversize on the radius but the relief is only{" "}
+                    {pf(reliefX)} mm. The first pass would start inside the material and take a cut
+                    nobody planned. Set the relief to at least {oversize}.
+                  </p>
+                )}
+                {reliefLong && (
+                  <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
+                    The relief is well past the {oversize} mm the blank is actually oversize, so the
+                    early passes cut air — the waste G73 exists to avoid.
+                  </p>
+                )}
+              </>
             )
           )}
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ProfileEditor rows={rows} setRows={setRows} />
+        <Card variant="solid" padding="md" className="border-dark-600">
+          <SectionHeader title="Profile Coordinates" />
+          {profile.error ? (
+            <p className="text-sm text-accent-red py-4">{profile.error}</p>
+          ) : (
+            <>
+              <p className="mb-2 text-[11px] text-gray-500">
+                Overall length <span className="font-mono text-white">{profile.total}</span> mm
+              </p>
+              <Table
+                head={["X (Ø)", "Z", "Move"]}
+                rows={profile.points.map((p) => [p.x, p.z, p.move])}
+              />
+            </>
+          )}
+        </Card>
+      </div>
+
       <LatheSimulation
         moves={out.moves}
-        stockDiameter={38 + 2 * (pf(reliefX) || 0)}
-        length={40}
-        targetPoints={examplePoints}
+        stockDiameter={(pf(stock) || 0) > 0 ? pf(stock) : 38 + 2 * (pf(reliefX) || 0)}
+        length={profile.total || 40}
+        targetPoints={profile.points}
         error={out.error}
         passLabel={(p) => `pass ${p}`}
-        note="The shape here is an illustration — the offsets each pass is drawn at are the ones your relief and divisions produce. Watch every pass keep the same outline, which is what separates this cycle from G71."
+        note="Every pass keeps the same outline, which is what separates this cycle from G71 — there the passes are parallel slices, here they are copies of the finished shape stepped back from it."
       />
       {!out.error && (
         <Program
           lines={out.code}
-          note="The profile blocks between P and Q are the same ones G71 would use — write them once and either cycle can call them."
+          note="The profile blocks between P and Q are written out here. A G73 header on its own names blocks it never defines, and the control either alarms or follows whatever shape those numbers happen to hold from an earlier program."
         />
       )}
     </div>

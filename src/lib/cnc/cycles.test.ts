@@ -12,6 +12,7 @@ import {
   calcG72,
   generateG72Code,
   calcG73,
+  patternOversize,
   generateG73Code,
   generateG70Code,
   calcSimpleCycle,
@@ -275,7 +276,35 @@ describe("G73 pattern repeat", () => {
 
   it("puts a single division straight on shape", () => {
     const r = calcG73({ reliefX: 3, reliefZ: 1, divisions: 1, allowanceX: 0, allowanceZ: 0 });
-    expect(r.passes).toEqual([{ pass: 1, offsetX: 0, offsetZ: 0 }]);
+    expect(r.passes).toEqual([{ pass: 1, offsetX: 0, offsetZ: 0, depth: 3 }]);
+  });
+
+  /**
+   * The zero offset above is the trap. It reads as "nothing to remove" when it
+   * means the opposite: the one pass sits on the finished shape because it has
+   * already taken the entire relief in a single cut.
+   */
+  it("reports a single division as cutting the whole relief, not nothing", () => {
+    const r = calcG73({ reliefX: 3, reliefZ: 1, divisions: 1, allowanceX: 0, allowanceZ: 0 });
+    expect(r.singlePass).toBe(true);
+    expect(r.depthPerPass).toBe(3);
+    expect(r.depthOnDiameter).toBe(6);
+    expect(r.passes[0].offsetX).toBe(0);
+  });
+
+  it("divides the relief across the gaps between passes, not the passes", () => {
+    // Four passes have three steps between them, so 3 mm of relief is 1 mm a pass.
+    const r = calcG73({ reliefX: 3, reliefZ: 1, divisions: 4, allowanceX: 0, allowanceZ: 0 });
+    expect(r.depthPerPass).toBe(1);
+    expect(r.depthOnDiameter).toBe(2);
+    expect(r.passes.map((p) => p.offsetX)).toEqual([3, 2, 1, 0]);
+  });
+
+  it("makes a coarse pass count show up as a heavy cut", () => {
+    // Two divisions is the whole relief in one bite, whatever the relief is.
+    const r = calcG73({ reliefX: 6, reliefZ: 1, divisions: 2, allowanceX: 0, allowanceZ: 0 });
+    expect(r.depthPerPass).toBe(6);
+    expect(r.depthOnDiameter).toBe(12);
   });
 
   it("writes the divisions at R as a whole number", () => {
@@ -294,6 +323,81 @@ describe("G73 pattern repeat", () => {
     expect(() =>
       calcG73({ reliefX: 3, reliefZ: 1, divisions: 2.5, allowanceX: 0, allowanceZ: 0 }),
     ).toThrow("whole number");
+  });
+
+  /**
+   * The defect this cycle shipped with. The two header blocks name a range of
+   * sequence numbers and then did not write them, so the program could not run:
+   * a Fanuc alarms on the missing number, or finds blocks left by an earlier
+   * program under those numbers and cuts that shape instead.
+   */
+  describe("the profile the headers call", () => {
+    const input = { reliefX: 3, reliefZ: 1, divisions: 4, allowanceX: 0.5, allowanceZ: 0.1 };
+    const steps = [
+      { diameter: 26, length: 18 },
+      { diameter: 38, length: 22 },
+    ];
+
+    it("writes the blocks between P and Q", () => {
+      const code = generateG73Code(input, { steps, stockDiameter: 46, feed: 0.2 });
+      expect(code.some((l) => l.startsWith("N100"))).toBe(true);
+      expect(code.some((l) => l.startsWith("N110"))).toBe(true);
+    });
+
+    it("defines every sequence number the header asks for", () => {
+      const code = generateG73Code(input, { startBlock: 20, endBlock: 30, steps });
+      const header = code.find((l) => l.includes("P20"))!;
+      expect(header).toContain("Q30");
+      // Both ends of the range must exist as real blocks, not just be named.
+      expect(code.some((l) => l.startsWith("N20"))).toBe(true);
+      expect(code.some((l) => l.startsWith("N30"))).toBe(true);
+    });
+
+    it("follows the profile it was given", () => {
+      const code = generateG73Code(input, { steps, stockDiameter: 46 }).join("\n");
+      expect(code).toContain("X26.0");
+      expect(code).toContain("Z-18.0");
+      expect(code).toContain("X38.0");
+      expect(code).toContain("Z-40.0");
+    });
+
+    it("retreats to the blank rather than the largest turned diameter", () => {
+      const code = generateG73Code(input, { steps, stockDiameter: 46 });
+      expect(code[code.length - 1]).toBe("N110 X46.0");
+    });
+
+    it("says so plainly when it has no profile, instead of looking complete", () => {
+      const code = generateG73Code(input);
+      // Still only the headers, but it can no longer be mistaken for runnable.
+      expect(code.join("\n")).toContain("MUST FOLLOW");
+      expect(code.some((l) => l.startsWith("N100 G00"))).toBe(false);
+    });
+  });
+
+  describe("patternOversize", () => {
+    const profile = [{ x: 26 }, { x: 26 }, { x: 38 }, { x: 38 }];
+
+    it("measures the blank against the largest diameter on the part", () => {
+      // (46 − 38) / 2 = 4 mm on the radius.
+      expect(patternOversize(46, profile)).toBe(4);
+    });
+
+    it("is what the relief should be set to", () => {
+      const oversize = patternOversize(46, profile);
+      const r = calcG73({
+        reliefX: oversize,
+        reliefZ: 1,
+        divisions: 5,
+        allowanceX: 0.5,
+        allowanceZ: 0.1,
+      });
+      expect(r.passes[0].offsetX).toBe(oversize);
+      expect(r.depthPerPass).toBe(1);
+    });
+
+    it("returns nothing to check when there is no stock figure", () => {
+      expect(patternOversize(0, profile)).toBe(0);
+    });
   });
 });
 
