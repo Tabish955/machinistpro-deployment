@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Copy, Check, ChevronRight, Info } from "lucide-react";
+import { Copy, Check, X, ChevronRight, Info } from "lucide-react";
+import { useCopy } from "@/hooks/use-copy";
 import { formatMath } from "@/lib/core/math-symbols";
 
 interface ResultRowProps {
@@ -24,25 +25,27 @@ export function ResultRow({ label, value, unit, accent }: ResultRowProps) {
 }
 
 export function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const { copied, failed, copy } = useCopy();
 
   return (
     <button
-      onClick={handleCopy}
+      onClick={() => void copy(text)}
       className={`p-2 rounded-lg transition-all cursor-pointer ${
         copied
           ? "bg-accent-green/20 text-accent-green"
-          : "bg-dark-700/50 text-gray-600 hover:text-white"
+          : failed
+            ? "bg-accent-red/20 text-accent-red"
+            : "bg-dark-700/50 text-gray-600 hover:text-white"
       }`}
-      title={copied ? "Copied!" : "Copy"}
+      title={
+        copied
+          ? "Copied!"
+          : failed
+            ? "Nothing was copied — the clipboard is unavailable here"
+            : "Copy"
+      }
     >
-      {copied ? <Check size={14} /> : <Copy size={14} />}
+      {copied ? <Check size={14} /> : failed ? <X size={14} /> : <Copy size={14} />}
     </button>
   );
 }

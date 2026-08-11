@@ -11,6 +11,9 @@ const bodySchema = z.object({
   signals: clientSignalsSchema.optional(),
 });
 
+const USER_COLUMNS =
+  "id,username,email,password_hash,subscription,expiry_date,is_admin,is_active,hwid,allow_multi_device,device_limit";
+
 function fail(error: string, status = 401) {
   return Response.json({ success: false, error }, { status });
 }
@@ -32,13 +35,48 @@ export const Route = createFileRoute("/api/auth/login")({
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const ident = username.toLowerCase();
-          const { data: user } = await supabaseAdmin
-            .from("app_users")
-            .select(
-              "id,username,email,password_hash,subscription,expiry_date,is_admin,is_active,hwid,allow_multi_device,device_limit",
-            )
-            .or(`username.ilike.${ident},email.ilike.${ident}`)
-            .maybeSingle();
+
+          // Find the account by username, then by email, as two separate reads.
+          //
+          // This was one `.or("username.ilike.<id>,email.ilike.<id>")` ending in
+          // `maybeSingle()`, which has two faults. It errors outright when more
+          // than one row matches, and one identifier can legitimately match two:
+          // the account whose username is that string, and another carrying it
+          // as an email. The error was discarded along with the row, so both
+          // holders were told their password was wrong — permanently, with
+          // nothing anywhere saying why. Username is unique, so asking about it
+          // first and on its own settles the ordinary case unambiguously.
+          //
+          // The identifier was also interpolated into the filter expression,
+          // where a comma begins another condition and `*` is a wildcard, so a
+          // login form could steer the query. Passing it as an operand means it
+          // can only be read as a value. PostgREST has no ESCAPE clause for
+          // `ilike`, so `%` and `_` still widen the pattern — the match is
+          // re-checked exactly below rather than trusted.
+          const lookup = async (column: "username" | "email") => {
+            const { data, error } = await supabaseAdmin
+              .from("app_users")
+              .select(USER_COLUMNS)
+              .ilike(column, ident)
+              .order("created_at", { ascending: true })
+              .limit(5);
+            if (error) {
+              console.error(`[/api/auth/login] lookup by ${column} failed:`, error.message);
+              return null;
+            }
+            const matches = (data ?? []).filter(
+              (row) =>
+                (column === "username" ? row.username : (row.email ?? "")).toLowerCase() === ident,
+            );
+            if (matches.length > 1) {
+              console.error(
+                `[/api/auth/login] ${matches.length} accounts share one ${column}; using the oldest. Deduplicate them.`,
+              );
+            }
+            return matches[0] ?? null;
+          };
+
+          const user = (await lookup("username")) ?? (await lookup("email"));
 
           if (!user) return fail("Invalid username or password");
           const ok = await verifyPassword(password, user.password_hash);
@@ -104,7 +142,6 @@ export const Route = createFileRoute("/api/auth/login")({
             // exactly one session alive.
             if (limit === 1) await revokeUserSessions(user.id);
           }
-
 
           const issued = await issueSession({
             username: user.username,

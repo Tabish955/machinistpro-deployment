@@ -3,7 +3,8 @@ import * as I from "@/lib/industrial/formulas";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Factory, Copy, Check, ChevronRight, Info, AlertTriangle } from "lucide-react";
+import { Factory, Copy, Check, X, ChevronRight, Info, AlertTriangle } from "lucide-react";
+import { useCopy } from "@/hooks/use-copy";
 import { formatMath } from "@/lib/core/math-symbols";
 
 /* ═══ Shared ═════════════════════════════════════════════════════════════════ */
@@ -102,17 +103,14 @@ function Formula({ formula }: { formula: string }) {
 }
 
 function CBtn({ text }: { text: string }) {
-  const [ok, setOk] = useState(false);
+  const { copied, failed, copy } = useCopy();
   return (
     <button
-      onClick={() => {
-        navigator.clipboard?.writeText(text);
-        setOk(true);
-        setTimeout(() => setOk(false), 1500);
-      }}
-      className={`p-2 rounded-lg transition-all cursor-pointer ${ok ? "bg-accent-green/20 text-accent-green" : "bg-dark-700/50 text-gray-600 hover:text-white"}`}
+      onClick={() => void copy(text)}
+      title={failed ? "Nothing was copied — the clipboard is unavailable here" : "Copy"}
+      className={`p-2 rounded-lg transition-all cursor-pointer ${copied ? "bg-accent-green/20 text-accent-green" : failed ? "bg-accent-red/20 text-accent-red" : "bg-dark-700/50 text-gray-600 hover:text-white"}`}
     >
-      {ok ? <Check size={14} /> : <Copy size={14} />}
+      {copied ? <Check size={14} /> : failed ? <X size={14} /> : <Copy size={14} />}
     </button>
   );
 }

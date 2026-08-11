@@ -3,6 +3,7 @@ import { useCalculatorStore } from "@/store/calculator-store";
 import { X, Search, Trash2, Star, Copy, Clock, Check } from "lucide-react";
 import type { CalculationResult } from "@/lib/calculator/types";
 import { formatMath } from "@/lib/core/math-symbols";
+import { copyText } from "@/lib/clipboard";
 
 export function HistoryPanel({ onLoadItem }: { onLoadItem?: (item: CalculationResult) => void }) {
   const {
@@ -19,6 +20,7 @@ export function HistoryPanel({ onLoadItem }: { onLoadItem?: (item: CalculationRe
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"history" | "favorites">("history");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [failedId, setFailedId] = useState<string | null>(null);
 
   const items = activeTab === "history" ? history : favorites;
 
@@ -31,9 +33,17 @@ export function HistoryPanel({ onLoadItem }: { onLoadItem?: (item: CalculationRe
     : items;
 
   const handleCopy = async (item: (typeof history)[0]) => {
-    await navigator.clipboard?.writeText(item.displayResult.replace(/,/g, ""));
-    setCopiedId(item.id);
-    setTimeout(() => setCopiedId(null), 1500);
+    // `await navigator.clipboard?.writeText(...)` awaits undefined when the
+    // clipboard is absent, so it resolved happily having copied nothing and
+    // the row still ticked green.
+    const ok = await copyText(item.displayResult.replace(/,/g, ""));
+    if (ok) {
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } else {
+      setFailedId(item.id);
+      setTimeout(() => setFailedId(null), 4000);
+    }
   };
 
   const formatTime = (timestamp: number) => {
@@ -185,11 +195,23 @@ export function HistoryPanel({ onLoadItem }: { onLoadItem?: (item: CalculationRe
                       className={`p-1.5 rounded-lg transition-all ${
                         copiedId === item.id
                           ? "text-accent-green bg-accent-green/10"
-                          : "text-gray-600 hover:text-white hover:bg-dark-700"
+                          : failedId === item.id
+                            ? "text-accent-red bg-accent-red/10"
+                            : "text-gray-600 hover:text-white hover:bg-dark-700"
                       }`}
-                      title="Copy"
+                      title={
+                        failedId === item.id
+                          ? "Nothing was copied — the clipboard is unavailable here"
+                          : "Copy"
+                      }
                     >
-                      {copiedId === item.id ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedId === item.id ? (
+                        <Check size={14} />
+                      ) : failedId === item.id ? (
+                        <X size={14} />
+                      ) : (
+                        <Copy size={14} />
+                      )}
                     </button>
                     <button
                       onClick={() => toggleFavorite(item.id)}
