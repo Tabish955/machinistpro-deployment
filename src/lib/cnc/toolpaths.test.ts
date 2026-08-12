@@ -7,7 +7,7 @@ import {
   buildG76Toolpath,
   buildSimpleToolpath,
 } from "./toolpaths";
-import { applyCut, createStock } from "./simulate";
+import { applyCut, createNearNetStock, createStock } from "./simulate";
 import { profileCoordinates } from "./g71";
 
 /** Remaining radius nearest a given Z. */
@@ -294,5 +294,57 @@ describe("the single-block cycles in motion", () => {
       expect(cut.style).toBe("groove");
       expect(cut.width).toBeCloseTo(1.25, 6);
     }
+  });
+});
+
+/**
+ * The G73 picture used to disagree with the pass table printed beside it.
+ * Against a solid Ø44 cylinder the first pass appeared to take 6 mm off the
+ * radius at the small end and nothing at the large end, while the table
+ * correctly read 1 mm on every pass. The blank is a casting, not bar.
+ */
+describe("G73 blank is a casting, not a bar", () => {
+  const profile = profileCoordinates([
+    { diameter: 26, length: 18 },
+    { diameter: 38, length: 22 },
+  ]);
+  const relief = 3;
+
+  it("starts the material at the finished shape plus the relief", () => {
+    const stock = createNearNetStock(profile, relief, 40, 44);
+    // Ø26 region: 13 mm radius + 3 mm relief = 16 mm.
+    expect(radiusAt(stock, -9)).toBeCloseTo(16, 3);
+    // Ø38 region: 19 + 3 = 22, which is also the Ø44 bar it was cast within.
+    expect(radiusAt(stock, -30)).toBeCloseTo(22, 3);
+  });
+
+  it("never claims more material than the blank the casting came from", () => {
+    const stock = createNearNetStock(profile, 20, 40, 44);
+    for (const r of stock.radii) expect(r).toBeLessThanOrEqual(22 + 1e-9);
+  });
+
+  it("leaves the first pass skimming, which is the whole point of the cycle", () => {
+    const stock = createNearNetStock(profile, relief, 40, 44);
+    const before = radiusAt(stock, -9);
+    const moves = buildG73Toolpath(
+      { reliefX: relief, reliefZ: 0, divisions: 4, allowanceX: 0, allowanceZ: 0 },
+      profile,
+    );
+    // Play only the first pass into the material.
+    let cursor = { x: 60, z: 5 };
+    for (const m of moves.filter((x) => x.pass === 1)) {
+      if (m.cutting) applyCut(stock, cursor, m, m);
+      cursor = { x: m.x, z: m.z };
+    }
+    const after = radiusAt(stock, -9);
+    // It sits on the casting's own surface, so it takes off next to nothing —
+    // not the 6 mm a solid bar would have shown.
+    expect(before - after).toBeLessThan(0.5);
+  });
+
+  it("still models plain bar as a cylinder for every other cycle", () => {
+    const bar = createStock(44, 40);
+    expect(radiusAt(bar, -9)).toBeCloseTo(22, 3);
+    expect(radiusAt(bar, -30)).toBeCloseTo(22, 3);
   });
 });
