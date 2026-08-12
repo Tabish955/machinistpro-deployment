@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { reachableZ, buildToolpath, createStock, applyCut, simulate } from "./simulate";
+import {
+  reachableZ,
+  buildToolpath,
+  createStock,
+  applyCut,
+  simulate,
+  toolpathFromProgram,
+  stockFromProgram,
+} from "./simulate";
 import { profileCoordinates } from "./g71";
 
 const input = {
@@ -140,5 +148,100 @@ describe("stock removal", () => {
     expect(radiusAt(-5)).toBeCloseTo(10, 1);
     expect(radiusAt(-25)).toBeCloseTo(15, 1);
     expect(radiusAt(-50)).toBeCloseTo(20, 1);
+  });
+});
+
+describe("a parsed program as material motion", () => {
+  it("keeps a straight move as one move, and its source line", () => {
+    const out = toolpathFromProgram([
+      { kind: "rapid", x: 50, z: 2, line: 4 },
+      { kind: "feed", x: 50, z: -20, line: 5 },
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[0].cutting).toBe(false);
+    expect(out[1].cutting).toBe(true);
+    // The pass number carries the line, so the caption names the real block.
+    expect(out[1].pass).toBe(5);
+  });
+
+  /**
+   * An arc handed to applyCut whole would take metal off along its chord and
+   * leave the curve standing, so it has to arrive already split.
+   */
+  it("splits an arc into legs that all sit on the true radius", () => {
+    const out = toolpathFromProgram([
+      { kind: "feed", x: 10, z: -20, line: 8 },
+      { kind: "arcCW", x: 30, z: -30, centre: { x: 30, z: -20 }, line: 9 },
+    ]);
+    const legs = out.filter((m) => m.pass === 9);
+    expect(legs.length).toBeGreaterThan(4);
+    for (const leg of legs) {
+      const distance = Math.hypot(leg.z - -20, leg.x / 2 - 15);
+      expect(distance).toBeCloseTo(10, 3);
+    }
+  });
+
+  it("lands the arc exactly on the point the block asked for", () => {
+    const out = toolpathFromProgram([
+      { kind: "feed", x: 10, z: -20, line: 1 },
+      { kind: "arcCW", x: 30, z: -30, centre: { x: 30, z: -20 }, line: 2 },
+    ]);
+    const last = out[out.length - 1];
+    expect(last.x).toBe(30);
+    expect(last.z).toBe(-30);
+  });
+
+  it("draws an arc with no centre as a straight move rather than dropping it", () => {
+    const out = toolpathFromProgram([{ kind: "arcCCW", x: 20, z: -5, line: 3 }]);
+    expect(out).toHaveLength(1);
+    expect(out[0].cutting).toBe(true);
+  });
+});
+
+describe("the bar a program is cutting from", () => {
+  // The worked example: approach Ø52, cut in to Ø40, along 20, out to Ø50,
+  // then retract clear to X60 Z50.
+  const program = [
+    { kind: "rapid" as const, x: 52, z: 2 },
+    { kind: "feed" as const, x: 40, z: 2 },
+    { kind: "feed" as const, x: 40, z: -20 },
+    { kind: "feed" as const, x: 50, z: -20 },
+    { kind: "rapid" as const, x: 60, z: 50 },
+  ];
+
+  it("measures the cuts, not the retracts", () => {
+    const { diameter, length } = stockFromProgram(program);
+    // Taking the whole path gave Ø60 and 70 mm, which drew a huge blank with
+    // a nick in the corner instead of a part.
+    expect(diameter).toBe(52);
+    expect(length).toBe(20);
+  });
+
+  it("counts the diameter a cut starts from, not only where it ends", () => {
+    // Feeding in from Ø52 to Ø40 means there was Ø52 of metal in front of it.
+    expect(stockFromProgram(program).diameter).toBe(52);
+  });
+
+  it("treats cutting in front of the face as air rather than more bar", () => {
+    const { length } = stockFromProgram([
+      { kind: "rapid" as const, x: 30, z: 5 },
+      { kind: "feed" as const, x: 20, z: 5 },
+      { kind: "feed" as const, x: 20, z: -10 },
+    ]);
+    expect(length).toBe(10);
+  });
+
+  it("gives the finished shape for the dashed target line", () => {
+    expect(stockFromProgram(program).target).toEqual([
+      { x: 40, z: 0 },
+      { x: 40, z: -20 },
+      { x: 50, z: -20 },
+    ]);
+  });
+
+  it("never asks for a bar of nothing when a program cuts nothing", () => {
+    const { diameter, length } = stockFromProgram([{ kind: "rapid" as const, x: 50, z: 5 }]);
+    expect(diameter).toBeGreaterThan(0);
+    expect(length).toBeGreaterThan(0);
   });
 });

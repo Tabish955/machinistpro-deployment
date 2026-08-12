@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseGCode, pathBounds, type GMove } from "@/lib/cnc/parse";
 import { checkProgram } from "@/lib/cnc/check";
+import { stockFromProgram, toolpathFromProgram } from "@/lib/cnc/simulate";
+import { LatheSimulation } from "@/components/cnc/simulation";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { AlertTriangle, Check, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
@@ -53,6 +55,8 @@ export function Backplot({
   const source = controlledSource ?? ownSource;
   const setSource = onSourceChange ?? setOwnSource;
   const [progress, setProgress] = useState(1);
+  const [barDiameter, setBarDiameter] = useState("");
+  const [barLength, setBarLength] = useState("");
   const [playing, setPlaying] = useState(false);
   const frame = useRef(0);
 
@@ -161,10 +165,18 @@ export function Backplot({
 
   const activeText = plan.moves.find((m) => m.line === activeLine)?.text ?? "";
 
+  // The bar the program appears to be cutting from, measured off the cuts
+  // rather than the whole path — a retract to X60 Z50 is not the size of the
+  // blank, and taking it as one drew a huge bar with a nick in the corner.
+  const blank = useMemo(() => stockFromProgram(plan.moves), [plan.moves]);
+  const suggestedBar = blank.diameter;
+  const suggestedLength = blank.length;
+  const materialMoves = useMemo(() => toolpathFromProgram(plan.moves), [plan.moves]);
+
   return (
     <Card variant="solid" padding="md" className="border-dark-600">
       <div className="flex items-center justify-between mb-2">
-        <SectionHeader title="Backplot — paste a program" className="!mb-0" />
+        <SectionHeader title="Backplot" className="!mb-0" />
         <span className="text-[10px] text-gray-600">{plan.moves.length} moves</span>
       </div>
 
@@ -320,6 +332,59 @@ export function Backplot({
         where each line takes the tool. It draws the path the words describe — it does not model the
         machine, so it will not catch a crash into the chuck or a tool that cannot reach.
       </p>
+
+      {/* The path above says where the tool goes; this says what comes off. It
+          needs a bar to cut, and the program never states one — the tool's
+          furthest retract is only a guess at it, so it is offered as a filled
+          default rather than assumed. */}
+      <div className="mt-4 border-t border-dark-700 pt-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              Bar Ø
+            </label>
+            <input
+              value={barDiameter}
+              onChange={(e) =>
+                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setBarDiameter(e.target.value)
+              }
+              inputMode="decimal"
+              aria-label="Bar diameter"
+              placeholder={String(suggestedBar)}
+              className="w-28 rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 font-mono text-sm text-white focus:border-accent-cyan/50 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              Bar Length
+            </label>
+            <input
+              value={barLength}
+              onChange={(e) =>
+                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setBarLength(e.target.value)
+              }
+              inputMode="decimal"
+              aria-label="Bar length"
+              placeholder={String(suggestedLength)}
+              className="w-28 rounded-lg border border-dark-600 bg-dark-900 px-3 py-2 font-mono text-sm text-white focus:border-accent-cyan/50 focus:outline-none"
+            />
+          </div>
+          <p className="max-w-sm text-[10px] leading-relaxed text-gray-600">
+            Taken from the path when left blank, which is only a guess: the furthest the tool
+            retracts is not necessarily the size of the bar.
+          </p>
+        </div>
+      </div>
+
+      <LatheSimulation
+        moves={materialMoves}
+        stockDiameter={Number(barDiameter) || suggestedBar}
+        length={Number(barLength) || suggestedLength}
+        targetPoints={blank.target}
+        passLabel={(n) => `line ${n}`}
+        title="Material"
+        note="Metal coming off the blocks as written. A canned cycle is one block the control expands into many passes, so a G71 here cuts its contour once rather than roughing it — that cycle's own tab shows the passes."
+      />
     </Card>
   );
 }
