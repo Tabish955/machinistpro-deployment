@@ -1433,6 +1433,18 @@ export function createDxf(
   for (const path of paths)
     layerNames.add(path.layer?.replace(/[^A-Za-z0-9_-]/g, "_") || "GEOMETRY");
 
+  // The drawing sits from the origin out to width/height once px()/py() have
+  // moved it, so its centre is simply half of each.
+  const drawnWidth = bounds.width * scale;
+  const drawnHeight = bounds.height * scale;
+  const viewCentreX = drawnWidth / 2;
+  const viewCentreY = drawnHeight / 2;
+  /** Width-to-height of the saved viewport, DXF group code 41. */
+  const VIEW_ASPECT = 1.5;
+  // A drawing with no extent at all — one point, or a single vertical line —
+  // would otherwise ask for a view of zero height, which shows nothing.
+  const viewHeight = Math.max(drawnHeight, drawnWidth / VIEW_ASPECT, 1) * 1.1;
+
   const tables: Pair[] = [];
   const entities: Pair[] = [];
   const blocks: Pair[] = [];
@@ -1454,8 +1466,14 @@ export function createDxf(
     [21, "1.0"],
     // Where the view is centred and how much of the drawing it shows, so the
     // file opens looking at the part rather than at empty paper.
-    [12, px(bounds.maxX)],
-    [22, py(bounds.minY)],
+    //
+    // This is the centre of the drawing, not a corner of it. Writing maxX/minY
+    // here put the saved view on the top-right corner with the geometry hanging
+    // off the bottom-left, so AutoCAD opened on mostly empty space — about a
+    // fifth of the drawing visible, and none of it at all when the geometry sat
+    // away from that corner. It reads as a file that will not open.
+    [12, viewCentreX.toFixed(6)],
+    [22, viewCentreY.toFixed(6)],
     [13, "0.0"],
     [23, "0.0"],
     [14, "10.0"],
@@ -1468,8 +1486,11 @@ export function createDxf(
     [17, "0.0"],
     [27, "0.0"],
     [37, "0.0"],
-    [40, (bounds.height * scale).toFixed(6)],
-    [41, "1.5"],
+    // View height must cover the drawing in both directions: a part wider than
+    // the viewport's aspect ratio is clipped left and right if only its height
+    // is considered. The margin keeps the outline off the edge of the window.
+    [40, viewHeight.toFixed(6)],
+    [41, VIEW_ASPECT.toFixed(1)],
     [42, "50.0"],
     [43, "0.0"],
     [44, "0.0"],
