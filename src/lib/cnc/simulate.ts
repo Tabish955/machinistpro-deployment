@@ -270,6 +270,42 @@ export function toolpathFromProgram(
   return out;
 }
 
+/**
+ * The bar a program appears to be cutting from, and the shape it leaves.
+ *
+ * Taken from the cutting moves alone. Sizing it from the whole path instead
+ * measures the retracts: a program that finishes `G00 X60.0 Z50.0` would be
+ * given a Ø60 bar 70 mm long to cut a Ø50 part 20 mm deep, and the picture
+ * comes out as a huge blank with a nick in one corner — which is why it read
+ * as a line drawing rather than a machining simulation.
+ */
+export function stockFromProgram(
+  program: Array<{ kind: "rapid" | "feed" | "arcCW" | "arcCCW"; x: number; z: number }>,
+): { diameter: number; length: number; target: { x: number; z: number }[] } {
+  let widest = 0;
+  let deepest = 0;
+  const target: { x: number; z: number }[] = [];
+  let from = { x: 0, z: 0 };
+
+  for (const move of program) {
+    if (move.kind !== "rapid") {
+      // Both ends of the cut count: a move in from the approach diameter has
+      // to have had that much metal in front of it.
+      widest = Math.max(widest, from.x, move.x);
+      // Only what is in front of the face is bar; a cut at positive Z is air.
+      deepest = Math.min(deepest, Math.min(from.z, move.z));
+      target.push({ x: move.x, z: Math.min(0, move.z) });
+    }
+    from = { x: move.x, z: move.z };
+  }
+
+  return {
+    diameter: Math.max(1, Math.ceil(widest)),
+    length: Math.max(1, Math.ceil(-deepest)),
+    target,
+  };
+}
+
 /** Cut a straight move into the stock, lowering every sample it passes over. */
 export function applyCut(
   stock: StockModel,

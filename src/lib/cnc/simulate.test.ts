@@ -6,6 +6,7 @@ import {
   applyCut,
   simulate,
   toolpathFromProgram,
+  stockFromProgram,
 } from "./simulate";
 import { profileCoordinates } from "./g71";
 
@@ -194,5 +195,53 @@ describe("a parsed program as material motion", () => {
     const out = toolpathFromProgram([{ kind: "arcCCW", x: 20, z: -5, line: 3 }]);
     expect(out).toHaveLength(1);
     expect(out[0].cutting).toBe(true);
+  });
+});
+
+describe("the bar a program is cutting from", () => {
+  // The worked example: approach Ø52, cut in to Ø40, along 20, out to Ø50,
+  // then retract clear to X60 Z50.
+  const program = [
+    { kind: "rapid" as const, x: 52, z: 2 },
+    { kind: "feed" as const, x: 40, z: 2 },
+    { kind: "feed" as const, x: 40, z: -20 },
+    { kind: "feed" as const, x: 50, z: -20 },
+    { kind: "rapid" as const, x: 60, z: 50 },
+  ];
+
+  it("measures the cuts, not the retracts", () => {
+    const { diameter, length } = stockFromProgram(program);
+    // Taking the whole path gave Ø60 and 70 mm, which drew a huge blank with
+    // a nick in the corner instead of a part.
+    expect(diameter).toBe(52);
+    expect(length).toBe(20);
+  });
+
+  it("counts the diameter a cut starts from, not only where it ends", () => {
+    // Feeding in from Ø52 to Ø40 means there was Ø52 of metal in front of it.
+    expect(stockFromProgram(program).diameter).toBe(52);
+  });
+
+  it("treats cutting in front of the face as air rather than more bar", () => {
+    const { length } = stockFromProgram([
+      { kind: "rapid" as const, x: 30, z: 5 },
+      { kind: "feed" as const, x: 20, z: 5 },
+      { kind: "feed" as const, x: 20, z: -10 },
+    ]);
+    expect(length).toBe(10);
+  });
+
+  it("gives the finished shape for the dashed target line", () => {
+    expect(stockFromProgram(program).target).toEqual([
+      { x: 40, z: 0 },
+      { x: 40, z: -20 },
+      { x: 50, z: -20 },
+    ]);
+  });
+
+  it("never asks for a bar of nothing when a program cuts nothing", () => {
+    const { diameter, length } = stockFromProgram([{ kind: "rapid" as const, x: 50, z: 5 }]);
+    expect(diameter).toBeGreaterThan(0);
+    expect(length).toBeGreaterThan(0);
   });
 });

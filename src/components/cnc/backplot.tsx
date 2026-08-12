@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseGCode, pathBounds, type GMove } from "@/lib/cnc/parse";
 import { checkProgram } from "@/lib/cnc/check";
-import { toolpathFromProgram } from "@/lib/cnc/simulate";
+import { stockFromProgram, toolpathFromProgram } from "@/lib/cnc/simulate";
 import { LatheSimulation } from "@/components/cnc/simulation";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -165,10 +165,12 @@ export function Backplot({
 
   const activeText = plan.moves.find((m) => m.line === activeLine)?.text ?? "";
 
-  // A sensible bar to cut from, when the operator has not said. Rounded up so
-  // the material starts a little proud of the widest thing the tool did.
-  const suggestedBar = Math.max(1, Math.ceil(plan.bounds.maxX));
-  const suggestedLength = Math.max(1, Math.ceil(plan.bounds.maxZ - plan.bounds.minZ));
+  // The bar the program appears to be cutting from, measured off the cuts
+  // rather than the whole path — a retract to X60 Z50 is not the size of the
+  // blank, and taking it as one drew a huge bar with a nick in the corner.
+  const blank = useMemo(() => stockFromProgram(plan.moves), [plan.moves]);
+  const suggestedBar = blank.diameter;
+  const suggestedLength = blank.length;
   const materialMoves = useMemo(() => toolpathFromProgram(plan.moves), [plan.moves]);
 
   return (
@@ -378,6 +380,7 @@ export function Backplot({
         moves={materialMoves}
         stockDiameter={Number(barDiameter) || suggestedBar}
         length={Number(barLength) || suggestedLength}
+        targetPoints={blank.target}
         passLabel={(n) => `line ${n}`}
         title="Material"
         note="Metal coming off the blocks as written. A canned cycle is one block the control expands into many passes, so a G71 here cuts its contour once rather than roughing it — that cycle's own tab shows the passes."
