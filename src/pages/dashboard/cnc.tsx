@@ -889,9 +889,14 @@ function G73Panel() {
         stockDiameter={(pf(stock) || 0) > 0 ? pf(stock) : 38 + 2 * (pf(reliefX) || 0)}
         length={profile.total || 40}
         targetPoints={profile.points}
+        // The blank is a casting that already follows the shape, oversize by
+        // the relief. Drawn as a solid bar instead, the first pass appeared to
+        // hog metal that was never there and contradicted the depth per pass
+        // printed beside it.
+        nearNetOversize={pf(reliefX) || 0}
         error={out.error}
         passLabel={(p) => `pass ${p}`}
-        note="Every pass keeps the same outline, which is what separates this cycle from G71 — there the passes are parallel slices, here they are copies of the finished shape stepped back from it."
+        note="The blank starts as the finished shape plus the relief, which is the casting or forging this cycle is written for. Every pass keeps that same outline, which is what separates it from G71 — there the passes are parallel slices, here they are copies of the shape stepped back from it."
       />
       {!out.error && (
         <Program

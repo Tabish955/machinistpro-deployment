@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applyCut, buildToolpath, createStock, type Move } from "@/lib/cnc/simulate";
+import {
+  applyCut,
+  buildToolpath,
+  createNearNetStock,
+  createStock,
+  type Move,
+} from "@/lib/cnc/simulate";
 import { profileCoordinates, profileLength, type G71Input, type ProfileStep } from "@/lib/cnc/g71";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -31,6 +37,16 @@ export interface LatheSimulationProps {
   length: number;
   /** Finished shape drawn underneath as a dashed target, if the cycle has one. */
   targetPoints?: { x: number; z: number }[];
+  /**
+   * Oversize on the radius of a blank that already follows the finished shape,
+   * mm — a casting or forging rather than bar. Given, the material starts as
+   * the target profile grown by this much instead of as a solid cylinder.
+   *
+   * Only G73 uses it, because only G73 is written for that blank. Without it
+   * the picture shows the first pass hogging metal the casting never had, and
+   * disagrees with the depth-per-pass figure printed beside it.
+   */
+  nearNetOversize?: number;
   /** Where the tool starts. Clear of the stock at the face when left out. */
   start?: { x: number; z: number };
   /** Names a pass for the caption. */
@@ -54,6 +70,7 @@ export function LatheSimulation({
   stockDiameter,
   length,
   targetPoints,
+  nearNetOversize,
   start,
   passLabel,
   error,
@@ -109,7 +126,10 @@ export function LatheSimulation({
   // playing forwards.
   const state = useMemo(() => {
     if (!plan.total || !(length > 0) || !(stockDiameter > 0)) return null;
-    const stock = createStock(stockDiameter, length);
+    const stock =
+      nearNetOversize !== undefined && nearNetOversize >= 0 && targetPoints?.length
+        ? createNearNetStock(targetPoints, nearNetOversize, length, stockDiameter)
+        : createStock(stockDiameter, length);
     const target = progress * plan.total;
     let tool = origin;
     let activePass = 0;
@@ -131,7 +151,7 @@ export function LatheSimulation({
       activePass = c.move.pass;
     }
     return { stock, tool, activePass, trail };
-  }, [plan, progress, stockDiameter, length, origin]);
+  }, [plan, progress, stockDiameter, length, origin, nearNetOversize, targetPoints]);
 
   useEffect(() => {
     if (!playing || !plan.total) return;

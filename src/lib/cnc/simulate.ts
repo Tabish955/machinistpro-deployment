@@ -141,6 +141,63 @@ export function createStock(stockDiameter: number, length: number, samples = 240
   };
 }
 
+/**
+ * A blank that already follows the finished shape, oversize by a fixed amount
+ * all the way along — a casting or a forging rather than a length of bar.
+ *
+ * G73 exists for exactly this blank, so drawing a solid cylinder for it shows
+ * the one case the cycle is not for. Worse, it makes the picture disagree with
+ * the pass table beside it: against a Ø44 cylinder the first pass appears to
+ * take 6 mm off the radius at the small end and nothing at the large end,
+ * while the table correctly reads 1 mm on every pass.
+ *
+ * The radius at each sample is the profile's radius there plus the oversize,
+ * capped at the bar the casting was poured no larger than.
+ */
+export function createNearNetStock(
+  profile: { x: number; z: number }[],
+  oversizeRadius: number,
+  length: number,
+  maxDiameter?: number,
+  samples = 240,
+): StockModel {
+  const zs = Array.from({ length: samples + 1 }, (_, i) => -(length * i) / samples);
+  if (!profile.length) {
+    return { zs, radii: zs.map(() => oversizeRadius), bores: zs.map(() => 0), facedZ: 0 };
+  }
+  const ceiling = maxDiameter === undefined ? Infinity : maxDiameter / 2;
+  return {
+    zs,
+    radii: zs.map((z) => Math.min(ceiling, profileRadiusAt(profile, z) + oversizeRadius)),
+    bores: zs.map(() => 0),
+    facedZ: 0,
+  };
+}
+
+/**
+ * Radius of the finished profile at a given Z, interpolated between points.
+ *
+ * The profile runs from the face backwards, so Z falls as the points advance.
+ * Past either end the nearest point holds, which keeps the casting solid
+ * behind the last shoulder rather than collapsing to nothing.
+ */
+function profileRadiusAt(profile: { x: number; z: number }[], z: number): number {
+  const first = profile[0];
+  if (z >= first.z) return first.x / 2;
+  for (let i = 1; i < profile.length; i++) {
+    const a = profile[i - 1];
+    const b = profile[i];
+    if (z <= a.z && z >= b.z) {
+      const span = b.z - a.z;
+      // A shoulder has no Z span; the larger of the two is what stands there.
+      if (Math.abs(span) < 1e-9) return Math.max(a.x, b.x) / 2;
+      const t = (z - a.z) / span;
+      return (a.x + t * (b.x - a.x)) / 2;
+    }
+  }
+  return profile[profile.length - 1].x / 2;
+}
+
 /** Cut a straight move into the stock, lowering every sample it passes over. */
 export function applyCut(
   stock: StockModel,
