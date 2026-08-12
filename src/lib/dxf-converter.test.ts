@@ -571,3 +571,72 @@ describe("more bugs found reviewing the first version", () => {
     expect(() => createDxf(drawn, NaN, "mm")).toThrow("positive");
   });
 });
+
+/**
+ * The saved view is the difference between a file that opens on the part and
+ * one that opens on black. AutoCAD honours the VPORT record, so a view aimed
+ * at a corner reads to the user as a DXF that will not open at all.
+ */
+describe("the saved view opens on the drawing", () => {
+  /** Pull a group code's value out of the *Active viewport record. */
+  const vport = (dxf: string, code: number): number => {
+    const lines = dxf.split("\r\n");
+    const active = lines.findIndex((l, i) => l === "*Active" && lines[i - 1].trim() === "2");
+    for (let i = active; i < lines.length - 1; i += 1) {
+      if (lines[i].trim() === String(code) && lines[i - 1] !== undefined) {
+        // Group codes appear on even offsets from the record start; take the
+        // first match after *Active, which is the viewport's own value.
+        return Number(lines[i + 1]);
+      }
+      if (lines[i] === "ENDTAB") break;
+    }
+    return NaN;
+  };
+
+  const wide = [
+    {
+      points: [
+        { x: 0, y: 0 },
+        { x: 200, y: 0 },
+        { x: 200, y: 40 },
+        { x: 0, y: 40 },
+        { x: 0, y: 0 },
+      ],
+    },
+  ];
+
+  it("centres the view on the middle of the drawing, not a corner", () => {
+    const dxf = createDxf(wide, 1, "mm");
+    // 200 x 40 drawing moved to the origin: centre is (100, 20).
+    expect(vport(dxf, 12)).toBeCloseTo(100, 3);
+    expect(vport(dxf, 22)).toBeCloseTo(20, 3);
+  });
+
+  it("shows the whole drawing, including one wider than the viewport", () => {
+    const dxf = createDxf(wide, 1, "mm");
+    const height = vport(dxf, 40);
+    const aspect = vport(dxf, 41);
+    const width = height * aspect;
+    // The window has to reach both extents from the centre, with margin.
+    expect(width).toBeGreaterThanOrEqual(200);
+    expect(height).toBeGreaterThanOrEqual(40);
+  });
+
+  it("never asks for a view of zero height on degenerate geometry", () => {
+    const line = [
+      {
+        points: [
+          { x: 5, y: 0 },
+          { x: 5, y: 0 },
+        ],
+      },
+    ];
+    expect(vport(createDxf(line, 1, "mm"), 40)).toBeGreaterThan(0);
+  });
+
+  it("scales the view with the drawing", () => {
+    const big = vport(createDxf(wide, 10, "mm"), 40);
+    const small = vport(createDxf(wide, 1, "mm"), 40);
+    expect(big).toBeCloseTo(small * 10, 3);
+  });
+});
