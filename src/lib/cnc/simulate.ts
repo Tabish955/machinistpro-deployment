@@ -210,6 +210,66 @@ function profileRadiusAt(profile: { x: number; z: number }[], z: number): number
   return profile[profile.length - 1].x / 2;
 }
 
+/**
+ * The motion of a parsed program, in the form the material model reads.
+ *
+ * The backplot draws where the tool goes; this is what lets it also show what
+ * comes off. Arcs are split into short straight legs on the way through,
+ * because `applyCut` lowers the stock along a straight move — an arc handed
+ * over whole would take metal off along its chord and leave the curve standing.
+ *
+ * Each move keeps its source line as the pass number, so the caption under the
+ * picture names the block doing the cutting rather than an invented pass.
+ */
+export function toolpathFromProgram(
+  program: Array<{
+    kind: "rapid" | "feed" | "arcCW" | "arcCCW";
+    x: number;
+    z: number;
+    centre?: { x: number; z: number };
+    line: number;
+  }>,
+): Move[] {
+  const out: Move[] = [];
+  let from = { x: 0, z: 0 };
+
+  for (const move of program) {
+    const cutting = move.kind !== "rapid";
+    if ((move.kind === "arcCW" || move.kind === "arcCCW") && move.centre) {
+      const centre = { z: move.centre.z, r: move.centre.x / 2 };
+      const start = Math.atan2(from.x / 2 - centre.r, from.z - centre.z);
+      const end = Math.atan2(move.x / 2 - centre.r, move.z - centre.z);
+      const radius = Math.hypot(from.z - centre.z, from.x / 2 - centre.r);
+      let sweep = end - start;
+      // Take the turn the way the block asked for it, not the short way.
+      if (move.kind === "arcCW") while (sweep > 0) sweep -= Math.PI * 2;
+      else while (sweep < 0) sweep += Math.PI * 2;
+
+      const legs = Math.max(4, Math.min(180, Math.ceil(Math.abs(sweep) / (Math.PI / 60))));
+      for (let i = 1; i <= legs; i++) {
+        const angle = start + (sweep * i) / legs;
+        out.push({
+          kind: "feed",
+          x: i === legs ? move.x : (centre.r + radius * Math.sin(angle)) * 2,
+          z: i === legs ? move.z : centre.z + radius * Math.cos(angle),
+          pass: move.line,
+          cutting,
+        });
+      }
+    } else {
+      out.push({
+        kind: move.kind === "rapid" ? "rapid" : "feed",
+        x: move.x,
+        z: move.z,
+        pass: move.line,
+        cutting,
+      });
+    }
+    from = { x: move.x, z: move.z };
+  }
+  return out;
+}
+
 /** Cut a straight move into the stock, lowering every sample it passes over. */
 export function applyCut(
   stock: StockModel,
