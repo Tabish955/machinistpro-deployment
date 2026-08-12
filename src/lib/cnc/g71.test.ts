@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  arcGeometry,
+  arcPoints,
   calculateG71,
   generateG71Code,
   profileCoordinates,
   profileLength,
   profileDrawing,
+  profileReversal,
 } from "./g71";
 
 const base = {
@@ -249,5 +252,132 @@ describe("profile drawing", () => {
 
   it("needs something to draw", () => {
     expect(() => profileDrawing([], 50)).toThrow("at least one step");
+  });
+});
+
+describe("arcs", () => {
+  it("puts the centre where Fanuc's positive R says, taking the minor arc", () => {
+    // Ø10 at Z-20 blending out to Ø30 at Z-30 on R10, clockwise — the shoulder
+    // fillet from the worked example.
+    const arc = arcGeometry({ z: -20, r: 5 }, { z: -30, r: 15 }, 10, "cw");
+    expect(arc.centre.z).toBeCloseTo(-20, 6);
+    expect(arc.centre.r).toBeCloseTo(15, 6);
+    expect((arc.sweep * 180) / Math.PI).toBeCloseTo(-90, 6);
+  });
+
+  it("puts the other direction on the other centre", () => {
+    const arc = arcGeometry({ z: -20, r: 5 }, { z: -30, r: 15 }, 10, "ccw");
+    expect(arc.centre.z).toBeCloseTo(-30, 6);
+    expect(arc.centre.r).toBeCloseTo(5, 6);
+    expect((arc.sweep * 180) / Math.PI).toBeCloseTo(90, 6);
+  });
+
+  it("refuses a radius too small to span its own ends", () => {
+    // The ends are 14.14 apart, so nothing under 7.07 can reach.
+    expect(() => arcGeometry({ z: -20, r: 5 }, { z: -30, r: 15 }, 5, "cw")).toThrow("at least");
+  });
+
+  it("holds every leg within a micron of the true curve, at any radius", () => {
+    for (const radius of [2, 6.25, 10, 50, 200]) {
+      const from = { z: 0, r: 0 };
+      const to = { z: -radius, r: radius };
+      const arc = arcGeometry(from, to, radius, "ccw");
+      let previous = from;
+      for (const point of arcPoints(from, to, radius, "ccw")) {
+        const mid = { z: (previous.z + point.z) / 2, r: (previous.r + point.r) / 2 };
+        const distance = Math.hypot(mid.z - arc.centre.z, mid.r - arc.centre.r);
+        expect(Math.abs(radius - distance)).toBeLessThanOrEqual(0.0011);
+        previous = point;
+      }
+    }
+  });
+
+  it("lands the last leg exactly on the point asked for", () => {
+    const legs = arcPoints({ z: 0, r: 5 }, { z: -8, r: 13 }, 8, "cw");
+    const last = legs[legs.length - 1];
+    expect(last.z).toBe(-8);
+    expect(last.r).toBe(13);
+  });
+
+  it("writes one G02 block, not the legs it is carried as", () => {
+    const code = generateG71Code(
+      {
+        stockDiameter: 60,
+        finishDiameter: 10,
+        length: 60,
+        depthOfCut: 2,
+        retract: 1,
+        finishAllowanceX: 0.4,
+        finishAllowanceZ: 0.1,
+      },
+      {
+        startBlock: 70,
+        endBlock: 110,
+        feed: 0.25,
+        steps: [
+          { diameter: 10, length: 20 },
+          { diameter: 10, length: 10, endDiameter: 30, arcRadius: 10, arcDirection: "cw" },
+          { diameter: 30, length: 20, endDiameter: 50 },
+          { diameter: 50, length: 10 },
+        ],
+      },
+    );
+    expect(code).toContain("      G02 X30.0 Z-30.0 R10.0");
+    expect(code.filter((l) => l.includes("G02"))).toHaveLength(1);
+    // And the null shoulder blocks the old writer emitted are gone.
+    expect(code.some((l) => /^ +X10\.0$/.test(l))).toBe(false);
+  });
+
+  it("writes G03 for an anticlockwise arc", () => {
+    const code = generateG71Code(
+      {
+        stockDiameter: 60,
+        finishDiameter: 10,
+        length: 30,
+        depthOfCut: 2,
+        retract: 1,
+        finishAllowanceX: 0.4,
+        finishAllowanceZ: 0.1,
+      },
+      {
+        steps: [{ diameter: 10, length: 10, endDiameter: 30, arcRadius: 10, arcDirection: "ccw" }],
+      },
+    );
+    expect(code.some((l) => l.includes("G03 X30.0 Z-10.0 R10.0"))).toBe(true);
+  });
+});
+
+describe("profiles the cycle cannot actually cut", () => {
+  it("says nothing about a shape that only grows", () => {
+    const points = profileCoordinates([
+      { diameter: 10, length: 20 },
+      { diameter: 30, length: 20 },
+      { diameter: 50, length: 10 },
+    ]);
+    expect(profileReversal(points)).toBeNull();
+  });
+
+  it("catches a ball on a stem, which needs Type II", () => {
+    // The pawn: out to the ball, back in to the neck, out again to the base.
+    const points = profileCoordinates([
+      { diameter: 0.5, length: 6.25, endDiameter: 12.5, arcRadius: 6.25, arcDirection: "ccw" },
+      { diameter: 12.5, length: 6.25, endDiameter: 7, arcRadius: 6.25, arcDirection: "ccw" },
+      { diameter: 7, length: 11.5, endDiameter: 25 },
+    ]);
+    const reversal = profileReversal(points);
+    expect(reversal).not.toBeNull();
+    // It turns back just past the ball's widest point, which the arc carries
+    // slightly above the diameter its two ends were given.
+    expect(reversal!.diameter).toBeGreaterThan(12);
+    expect(reversal!.diameter).toBeLessThan(13);
+  });
+
+  it("catches a plain undercut with no arcs in it at all", () => {
+    const points = profileCoordinates([
+      { diameter: 30, length: 10 },
+      { diameter: 20, length: 10 },
+      { diameter: 40, length: 10 },
+    ]);
+    expect(profileReversal(points)).not.toBeNull();
   });
 });

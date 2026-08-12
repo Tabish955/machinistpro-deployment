@@ -164,6 +164,15 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
 
 /* ── Profile coordinates ──────────────────────────────────────────────────── */
 
+/**
+ * Which way an arc bows, in the sense the control means it.
+ *
+ * Looking at the front of the machine with X up and Z to the right, G02 sweeps
+ * clockwise and G03 anticlockwise. Between the same two points those are two
+ * different shapes: a rounded shoulder and a fillet into a corner.
+ */
+export type ArcDirection = "cw" | "ccw";
+
 /** One step of the finished part, as it would be dimensioned on a drawing. */
 export interface ProfileStep {
   /** Diameter at the start of this step, mm. */
@@ -175,6 +184,18 @@ export interface ProfileStep {
    * making it equal to `diameter` — turns a parallel step.
    */
   endDiameter?: number;
+  /**
+   * Radius of the blend, mm — a true radius, not a diameter. Given, the step
+   * curves from `diameter` to `endDiameter` instead of running straight.
+   *
+   * This is the R word the control reads, so it carries Fanuc's meaning: the
+   * arc is the minor one, 180° or less. A radius smaller than half the straight
+   * line between the two ends cannot reach, and is refused rather than quietly
+   * opened out to something that would cut a different part.
+   */
+  arcRadius?: number;
+  /** Which way the arc bows. Clockwise when left out, which is G02. */
+  arcDirection?: ArcDirection;
 }
 
 export interface ProfilePoint {
@@ -183,7 +204,144 @@ export interface ProfilePoint {
   /** Z from the face, negative into the part. */
   z: number;
   /** What this move does, for reading the table against the drawing. */
-  move: "face" | "shoulder" | "turn" | "taper";
+  move: "face" | "shoulder" | "turn" | "taper" | "arc";
+}
+
+/* ── Arcs ─────────────────────────────────────────────────────────────────── */
+
+/** A point in the plane the profile is actually drawn in: Z across, radius up. */
+interface RZ {
+  z: number;
+  r: number;
+}
+
+export interface ArcGeometry {
+  centre: RZ;
+  radius: number;
+  /** Angle at the start and end, radians, measured about the centre. */
+  startAngle: number;
+  /** Signed sweep: positive anticlockwise, negative clockwise. */
+  sweep: number;
+}
+
+/**
+ * Where the centre of an arc sits, and how far it turns.
+ *
+ * Two circles of a given radius pass through any two points. Fanuc picks
+ * between them with the sign of R: positive takes the minor arc, 180° or less,
+ * which is the one a blend on a turned part almost always is. That is the rule
+ * used here, so the shape the app draws is the shape the control will cut.
+ */
+export function arcGeometry(
+  from: RZ,
+  to: RZ,
+  radius: number,
+  direction: ArcDirection,
+): ArcGeometry {
+  const dz = to.z - from.z;
+  const dr = to.r - from.r;
+  const chord = Math.hypot(dz, dr);
+  if (!(radius > 0)) throw new Error("An arc radius must be greater than zero.");
+  if (chord < 1e-9) throw new Error("An arc must start and finish at different points.");
+  if (radius < chord / 2 - 1e-6) {
+    throw new Error(
+      `A radius of ${radius} mm cannot reach across this step: it needs to be at least ` +
+        `${(chord / 2).toFixed(3)} mm to span the ${chord.toFixed(3)} mm between its ends.`,
+    );
+  }
+
+  const half = chord / 2;
+  const offset = Math.sqrt(Math.max(0, radius * radius - half * half));
+  const mid: RZ = { z: (from.z + to.z) / 2, r: (from.r + to.r) / 2 };
+  // The chord turned a quarter turn, which is the line the two centres sit on.
+  const perp: RZ = { z: -dr / chord, r: dz / chord };
+
+  const candidates: RZ[] = [
+    { z: mid.z + offset * perp.z, r: mid.r + offset * perp.r },
+    { z: mid.z - offset * perp.z, r: mid.r - offset * perp.r },
+  ];
+
+  for (const centre of candidates) {
+    const startAngle = Math.atan2(from.r - centre.r, from.z - centre.z);
+    const endAngle = Math.atan2(to.r - centre.r, to.z - centre.z);
+    const turn = normaliseTurn(endAngle - startAngle, direction);
+    // The minor arc is the one Fanuc means by a positive R.
+    if (Math.abs(turn) <= Math.PI + 1e-9) {
+      return { centre, radius, startAngle, sweep: turn };
+    }
+  }
+  // Both candidates turn more than half a circle only when the two points are a
+  // full diameter apart, where the centres coincide and either answer is right.
+  const centre = candidates[0];
+  const startAngle = Math.atan2(from.r - centre.r, from.z - centre.z);
+  const endAngle = Math.atan2(to.r - centre.r, to.z - centre.z);
+  return {
+    centre,
+    radius,
+    startAngle,
+    sweep: normaliseTurn(endAngle - startAngle, direction),
+  };
+}
+
+/** How far a straight leg may sag from the curve it stands in for, mm. */
+const ARC_SAG = 0.001;
+
+/** A turn from one angle to another, taken the way the direction asks for. */
+function normaliseTurn(delta: number, direction: ArcDirection): number {
+  const twoPi = Math.PI * 2;
+  if (direction === "ccw") {
+    let turn = delta;
+    while (turn < 0) turn += twoPi;
+    while (turn >= twoPi) turn -= twoPi;
+    return turn;
+  }
+  let turn = delta;
+  while (turn > 0) turn -= twoPi;
+  while (turn <= -twoPi) turn += twoPi;
+  return turn;
+}
+
+/**
+ * An arc broken into short straight legs.
+ *
+ * Everything downstream — the pass planner, the backplot, the material model —
+ * reads the profile as a polyline. Splitting the curve here means all three
+ * follow it without any of them needing to know what an arc is, while the
+ * generated program still writes a single G02 or G03 block.
+ */
+export function arcPoints(
+  from: RZ,
+  to: RZ,
+  radius: number,
+  direction: ArcDirection,
+  segments?: number,
+): RZ[] {
+  const arc = arcGeometry(from, to, radius, direction);
+  // Split by how far the straight leg sags away from the curve rather than by a
+  // fixed angle: a fixed angle is far too coarse on a big radius. One micron of
+  // sag is finer than a lathe holds and finer than the 0.0001 mm the coordinates
+  // are rounded to, so the polyline is exact as far as anything downstream can
+  // tell. The legs needed for it scale with the square root of the radius.
+  const count =
+    segments ??
+    Math.max(
+      4,
+      Math.min(
+        512,
+        Math.ceil(Math.abs(arc.sweep) / (2 * Math.acos(Math.max(-1, 1 - ARC_SAG / radius)))),
+      ),
+    );
+  const out: RZ[] = [];
+  for (let i = 1; i <= count; i++) {
+    const angle = arc.startAngle + (arc.sweep * i) / count;
+    out.push({
+      z: arc.centre.z + radius * Math.cos(angle),
+      r: arc.centre.r + radius * Math.sin(angle),
+    });
+  }
+  // The last leg lands exactly on the point asked for rather than a rounding of it.
+  out[out.length - 1] = { z: to.z, r: to.r };
+  return out;
 }
 
 /**
@@ -218,7 +376,28 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
       move: index === 0 ? "face" : "shoulder",
     });
 
+    const startZ = z;
     z -= step.length;
+
+    if (step.arcRadius !== undefined) {
+      // The curve is walked as short legs so the pass planner, the backplot and
+      // the material model all follow it without knowing it is an arc.
+      const legs = arcPoints(
+        { z: startZ, r: step.diameter / 2 },
+        { z, r: endDiameter / 2 },
+        step.arcRadius,
+        step.arcDirection ?? "cw",
+      );
+      for (const leg of legs) {
+        points.push({
+          x: Number((leg.r * 2).toFixed(4)),
+          z: Number(leg.z.toFixed(4)),
+          move: "arc",
+        });
+      }
+      return;
+    }
+
     // A taper changes X and Z together in one move; a parallel step holds X.
     points.push({
       x: Number(endDiameter.toFixed(4)),
@@ -227,6 +406,90 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
     });
   });
   return points;
+}
+
+/**
+ * The blocks between P and Q for a profile, shared by every cycle that calls one.
+ *
+ * Written from the steps rather than from the tessellated points, so an arc
+ * comes out as the single G02 or G03 block the operator expects instead of the
+ * seventy short moves the geometry is carried as.
+ */
+export function profileBlocks(
+  steps: ProfileStep[],
+  startBlock: number,
+  endBlock: number,
+  feed: number,
+  exitDiameter: number,
+): string[] {
+  const num = (v: number) => wordValue(v);
+  const lines: string[] = [];
+  let z = 0;
+  let currentDiameter = steps[0].diameter;
+
+  steps.forEach((step, index) => {
+    const endDiameter = step.endDiameter ?? step.diameter;
+
+    if (index === 0) {
+      lines.push(`N${startBlock} G00 X${num(step.diameter)}`);
+    } else if (Math.abs(step.diameter - currentDiameter) > 1e-9) {
+      // A shoulder only earns a block when it actually moves. Writing one for a
+      // step that starts where the last finished put null moves in the contour.
+      // X alone, since G01 is modal and already in force.
+      lines.push(`      X${num(step.diameter)}`);
+    }
+    currentDiameter = step.diameter;
+
+    z -= step.length;
+    if (step.arcRadius !== undefined) {
+      const code = (step.arcDirection ?? "cw") === "cw" ? "G02" : "G03";
+      lines.push(`      ${code} X${num(endDiameter)} Z${num(z)} R${num(step.arcRadius)}`);
+    } else if (Math.abs(endDiameter - step.diameter) > 1e-9) {
+      lines.push(`      G01 X${num(endDiameter)} Z${num(z)}`);
+    } else {
+      lines.push(`      G01 Z${num(z)}`);
+    }
+    currentDiameter = endDiameter;
+  });
+
+  lines.push(`N${endBlock} X${num(exitDiameter)}`);
+  return lines;
+}
+
+/** Coordinate words carry a decimal point; a Fanuc reads one without in microns. */
+function wordValue(value: number, decimals = 3): string {
+  const fixed = value.toFixed(decimals).replace(/0+$/, "");
+  return fixed.endsWith(".") ? `${fixed}0` : fixed;
+}
+
+/**
+ * Where a profile turns back on itself, if it does.
+ *
+ * G71 and G73 as written here are Type I: the diameter has to move one way
+ * along the whole part. A shape that grows and then shrinks — a ball on a
+ * stem, a barrel, anything with an undercut behind it — has a face the tool
+ * cannot reach coming in from the front, and Type I roughing drives straight
+ * through it. The cycle still plans, and the numbers still look reasonable,
+ * which is exactly why this has to be said out loud rather than left to the
+ * operator to notice.
+ *
+ * Returns the Z where the direction first reverses, or null for a profile the
+ * cycle can actually cut.
+ */
+export function profileReversal(points: ProfilePoint[]): { z: number; diameter: number } | null {
+  let direction = 0;
+  for (let i = 1; i < points.length; i++) {
+    const step = points[i].x - points[i - 1].x;
+    // Ignore the parallel runs; only a genuine change of diameter has a sense.
+    if (Math.abs(step) < 1e-9) continue;
+    const sense = Math.sign(step);
+    if (direction === 0) {
+      direction = sense;
+    } else if (sense !== direction) {
+      return { z: points[i].z, diameter: points[i].x };
+    }
+  }
+  return null;
 }
 
 /** Total length of the profile along Z, mm. */
@@ -268,15 +531,7 @@ export function generateG71Code(
     ];
   }
 
-  const points = profileCoordinates(options.steps);
-  const body = points.map((p, i) => {
-    if (i === 0) return `N${ns} G00 X${word(p.x)}`;
-    const previous = points[i - 1];
-    // A taper moves both words in one block; a shoulder moves X; a turn moves Z.
-    if (p.x !== previous.x && p.z !== previous.z) return `      G01 X${word(p.x)} Z${word(p.z)}`;
-    return p.z !== previous.z ? `      G01 Z${word(p.z)}` : `      X${word(p.x)}`;
-  });
-  return [...header, ...body, `N${nf} X${word(input.stockDiameter)}`];
+  return [...header, ...profileBlocks(options.steps, ns, nf, feed, input.stockDiameter)];
 }
 
 /* ── Drawing ──────────────────────────────────────────────────────────────── */

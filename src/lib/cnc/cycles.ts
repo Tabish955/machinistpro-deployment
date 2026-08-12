@@ -13,7 +13,7 @@
  *     not forty. A generated program that leaves them off is a crash.
  */
 
-import { profileCoordinates } from "./g71";
+import { profileBlocks, profileCoordinates } from "./g71";
 import type { ProfileStep } from "./g71";
 
 /** Format a coordinate word so it always carries a decimal point. */
@@ -588,14 +588,7 @@ export function generateG73Code(
 
   const points = profileCoordinates(options.steps);
   const retreat = options.stockDiameter ?? Math.max(...points.map((p) => p.x));
-  const body = points.map((p, i) => {
-    if (i === 0) return `N${ns} G00 X${word(p.x)}`;
-    const previous = points[i - 1];
-    // A taper moves both words in one block; a shoulder moves X; a turn moves Z.
-    if (p.x !== previous.x && p.z !== previous.z) return `      G01 X${word(p.x)} Z${word(p.z)}`;
-    return p.z !== previous.z ? `      G01 Z${word(p.z)}` : `      X${word(p.x)}`;
-  });
-  return [...header, ...body, `N${nf} X${word(retreat)}`];
+  return [...header, ...profileBlocks(options.steps, ns, nf, feed, retreat)];
 }
 
 /* ── G70 · Finishing ───────────────────────────────────────────────────────── */
