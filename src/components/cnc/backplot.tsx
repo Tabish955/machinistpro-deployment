@@ -1,26 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseGCode, pathBounds, type GMove } from "@/lib/cnc/parse";
+import { checkProgram } from "@/lib/cnc/check";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { AlertTriangle, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
+import { AlertTriangle, Check, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
 
 const W = 620;
 const H = 300;
 const PAD = 30;
 
+/**
+ * Every coordinate here carries a decimal point, and that is the point of it.
+ *
+ * This sample used to be written X52, Z-15, U2 and so on. A Fanuc reads a word
+ * without a decimal point in microns, so that program asks for a 0.052 mm bar
+ * and a 15 micron cut. As the first thing anyone sees on this page it was
+ * teaching the exact habit the rest of the app warns about — and the checker
+ * now sitting under it flagged all eleven of them on its first run.
+ */
 export const SAMPLE = `(THREE STEP SHAFT)
 G21 G97 S900 M03
 T0101
-G00 X52 Z2
-G71 U2 R1
+G00 X52.0 Z2.0
+G71 U2.0 R1.0
 G71 P100 Q110 U0.5 W0.1 F0.25
-N100 G00 X20
-     G01 Z-15
-     X30
-     Z-35
-     X40
-N110 Z-60
-G00 X60 Z50
+N100 G00 X20.0
+     G01 Z-15.0
+     X30.0
+     Z-35.0
+     X40.0
+N110 Z-60.0
+G00 X60.0 Z50.0
 M30`;
 
 /** Length of a move in the drawing plane, X halved because it is a diameter. */
@@ -52,6 +62,10 @@ export function Backplot({
     setProgress(1);
     setPlaying(false);
   }, [source]);
+
+  // Checked against what a control would do with the blocks, which is a
+  // different question from whether the backplot can draw them.
+  const diagnostics = useMemo(() => checkProgram(source), [source]);
 
   const plan = useMemo(() => {
     const { moves, warnings } = parseGCode(source);
@@ -164,6 +178,49 @@ export function Backplot({
         spellCheck={false}
         className="w-full min-h-36 rounded-xl bg-dark-900 border border-dark-600 px-3 py-2.5 text-xs font-mono text-white focus:border-accent-cyan/50 focus:outline-none"
       />
+
+      {/* What a control would refuse or silently misread, checked block by
+          block. Separate from the parser's own warnings above: those say what
+          the backplot could not draw, these say what the machine would do
+          with it. */}
+      {diagnostics.length === 0 ? (
+        <p className="mt-2 flex items-center gap-2 rounded-xl border border-accent-green/25 bg-accent-green/[0.06] px-3 py-2 text-[11px] text-accent-green">
+          <Check size={12} className="shrink-0" />
+          Nothing wrong with the blocks. That is not the same as the right part — it means the
+          program is well formed, not that it cuts what you meant.
+        </p>
+      ) : (
+        <div className="mt-2 space-y-1.5">
+          {diagnostics.map((d, i) => (
+            <div
+              key={i}
+              className={`rounded-xl border px-3 py-2 ${
+                d.severity === "error"
+                  ? "border-accent-red/30 bg-accent-red/[0.07]"
+                  : "border-accent-amber/25 bg-accent-amber/[0.06]"
+              }`}
+            >
+              <p className="flex gap-2 text-[11px]">
+                <AlertTriangle
+                  size={12}
+                  className={`shrink-0 mt-0.5 ${d.severity === "error" ? "text-accent-red" : "text-accent-amber"}`}
+                />
+                <span>
+                  <span
+                    className={`font-semibold ${d.severity === "error" ? "text-accent-red" : "text-accent-amber"}`}
+                  >
+                    Line {d.line}
+                  </span>
+                  <span className="text-gray-300"> — {d.message}</span>
+                </span>
+              </p>
+              {d.text && (
+                <pre className="mt-1 ml-5 font-mono text-[10px] text-gray-500">{d.text}</pre>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {plan.warnings.length > 0 && (
         <div className="mt-2 rounded-xl border border-accent-amber/25 bg-accent-amber/[0.06] px-3 py-2">
