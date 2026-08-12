@@ -73,26 +73,38 @@ export function buildToolpath(
   const startZ = approach;
 
   for (const pass of rough.passes) {
-    // The pass leaves the X allowance on, so it is blocked by the profile plus
-    // that allowance, not by the finished line itself.
-    const stopZ = reachableZ(points, pass.diameter + input.finishAllowanceX, rough.roughedZ);
-    moves.push({ kind: "rapid", x: pass.diameter, z: startZ, pass: pass.pass, cutting: false });
-    moves.push({ kind: "feed", x: pass.diameter, z: stopZ, pass: pass.pass, cutting: true });
-    // Fanuc lifts away at 45° by R rather than pulling straight back along the cut.
-    moves.push({
-      kind: "retract",
-      x: pass.diameter + 2 * input.retract,
-      z: stopZ + input.retract,
-      pass: pass.pass,
-      cutting: false,
-    });
-    moves.push({
-      kind: "rapid",
-      x: pass.diameter + 2 * input.retract,
-      z: startZ,
-      pass: pass.pass,
-      cutting: false,
-    });
+    // A pass is one cut on a Type I part and several on a Type II one, with
+    // standing metal between them. Driving each stretch separately is what
+    // makes the picture agree with the pass table: a Type II pass that cut
+    // straight through from the face would be showing metal coming off a
+    // collar the tool actually has to lift over.
+    for (const span of pass.spans) {
+      moves.push({
+        kind: "rapid",
+        x: pass.diameter,
+        // The first stretch comes in clear of the face; a later one drops in
+        // over the standing material at the Z where it starts.
+        z: span.from >= -1e-9 ? startZ : span.from,
+        pass: pass.pass,
+        cutting: false,
+      });
+      moves.push({ kind: "feed", x: pass.diameter, z: span.to, pass: pass.pass, cutting: true });
+      // Fanuc lifts away at 45° by R rather than pulling straight back along the cut.
+      moves.push({
+        kind: "retract",
+        x: pass.diameter + 2 * input.retract,
+        z: span.to + input.retract,
+        pass: pass.pass,
+        cutting: false,
+      });
+      moves.push({
+        kind: "rapid",
+        x: pass.diameter + 2 * input.retract,
+        z: startZ,
+        pass: pass.pass,
+        cutting: false,
+      });
+    }
   }
 
   if (options.finish !== false) {

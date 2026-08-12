@@ -8,6 +8,9 @@ import {
   profileLength,
   profileDrawing,
   profileReversal,
+  profileDiameterAt,
+  reachableSpans,
+  type ProfileStep,
 } from "./g71";
 
 const base = {
@@ -379,5 +382,86 @@ describe("profiles the cycle cannot actually cut", () => {
       { diameter: 40, length: 10 },
     ]);
     expect(profileReversal(points)).not.toBeNull();
+  });
+});
+
+describe("Type II", () => {
+  // A raised collar with a pocket behind it: Ø20, out to Ø40, back to Ø20,
+  // out to Ø40 again. A Type I pass meets the first collar and stops.
+  const pocketed = profileCoordinates([
+    { diameter: 20, length: 10 },
+    { diameter: 40, length: 10 },
+    { diameter: 20, length: 10 },
+    { diameter: 40, length: 10 },
+  ]);
+  const base = {
+    stockDiameter: 50,
+    finishDiameter: 20,
+    length: 40,
+    depthOfCut: 5,
+    retract: 1,
+    finishAllowanceX: 0.4,
+    finishAllowanceZ: 0.1,
+  };
+
+  it("splits a pass into the stretches that actually have metal", () => {
+    const spans = reachableSpans(pocketed, 30, -40);
+    expect(spans).toHaveLength(2);
+    expect(spans[0]).toEqual({ from: 0, to: -10 });
+    expect(spans[1]).toEqual({ from: -20, to: -30 });
+  });
+
+  it("gives one span above everything, where nothing blocks the tool", () => {
+    expect(reachableSpans(pocketed, 45, -40)).toEqual([{ from: 0, to: -40 }]);
+  });
+
+  it("stops Type I at the first standing metal", () => {
+    const result = calculateG71({ ...base, type: "I" }, pocketed);
+    expect(result.mostSpansInAPass).toBe(1);
+    // The pass that meets the collar cuts only as far as it.
+    const blocked = result.passes.find((p) => p.diameter < 40)!;
+    expect(blocked.spans).toEqual([{ from: 0, to: -10 }]);
+  });
+
+  it("lets Type II reach the pocket behind it", () => {
+    const result = calculateG71({ ...base, type: "II" }, pocketed);
+    expect(result.mostSpansInAPass).toBe(2);
+    const blocked = result.passes.find((p) => p.diameter < 40)!;
+    expect(blocked.spans).toEqual([
+      { from: 0, to: -10 },
+      { from: -20, to: -30 },
+    ]);
+  });
+
+  it("agrees with Type I on a profile that never turns back", () => {
+    const plain = profileCoordinates([
+      { diameter: 20, length: 15 },
+      { diameter: 30, length: 20 },
+      { diameter: 40, length: 25 },
+    ]);
+    const one = calculateG71({ ...base, length: 60, type: "I" }, plain);
+    const two = calculateG71({ ...base, length: 60, type: "II" }, plain);
+    expect(two.mostSpansInAPass).toBe(1);
+    expect(two.passes.map((p) => p.spans)).toEqual(one.passes.map((p) => p.spans));
+  });
+
+  it("marks the first block with a Z so the control reads it as Type II", () => {
+    const steps: ProfileStep[] = [
+      { diameter: 20, length: 10 },
+      { diameter: 40, length: 10 },
+    ];
+    const one = generateG71Code({ ...base, type: "I" }, { steps });
+    const two = generateG71Code({ ...base, type: "II" }, { steps });
+    expect(one[2]).toBe("N100 G00 X20.0");
+    // X and Z together is the marker; without it the control runs Type I and
+    // cuts the pockets straight through.
+    expect(two[2]).toBe("N100 G00 X20.0 Z0.0");
+  });
+
+  it("reads the diameter along the profile, taking the larger at a shoulder", () => {
+    expect(profileDiameterAt(pocketed, -5)).toBeCloseTo(20, 6);
+    expect(profileDiameterAt(pocketed, -15)).toBeCloseTo(40, 6);
+    // The shoulder at Z-10 stands at both 20 and 40; the metal is 40.
+    expect(profileDiameterAt(pocketed, -10)).toBeCloseTo(40, 6);
   });
 });
