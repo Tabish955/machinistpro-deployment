@@ -15,6 +15,7 @@ import {
   profileDrawing,
   profileReversal,
   type G71Input,
+  type G71Type,
   type ProfileStep,
   type ArcDirection,
 } from "@/lib/cnc/g71";
@@ -277,19 +278,59 @@ function rowsToSteps(rows: ProfileRow[]): ProfileStep[] {
  * face the tool cannot reach from the front — and the cycle will still plan a
  * full set of passes for it, which is why this has to be on screen.
  */
-function TypeIIWarning({ points }: { points: { x: number; z: number; move: string }[] }) {
+function TypeIIWarning({
+  points,
+  type,
+  onUseTypeII,
+}: {
+  points: { x: number; z: number; move: string }[];
+  /** Which form the cycle is set to, when the panel offers the choice. */
+  type?: G71Type;
+  onUseTypeII?: () => void;
+}) {
   const reversal = points.length ? profileReversal(points as never) : null;
   if (!reversal) return null;
+
+  // Type II is exactly the answer to this, so once it is selected the profile
+  // is no longer a problem — it is the shape the cycle was chosen for.
+  if (type === "II") {
+    return (
+      <div className="mt-3 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 p-3">
+        <p className="text-xs font-semibold text-accent-cyan">
+          Type II: the pocket behind Z{fmtNum(reversal.z)} is roughed as its own cut.
+        </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
+          Passes that meet standing metal lift over it and drop back in beyond, so a pass can be
+          several separate cuts. The first block after P carries a Z as well as an X, which is what
+          tells the control to read the profile this way.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-3 rounded-lg border border-accent-red/30 bg-accent-red/10 p-3">
       <p className="text-xs font-semibold text-accent-red">
         This profile turns back on itself at Z{fmtNum(reversal.z)}, Ø{fmtNum(reversal.diameter)}.
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
-        These cycles are Type I: the diameter has to run one way along the part. Behind that point
-        is a face the tool cannot reach coming in from the front, so the passes below would drive
-        through it. A shape like a ball on a stem needs G71 Type II, which this page does not write.
+        Type I needs the diameter to run one way along the part. Behind that point is a face the
+        tool cannot reach coming in from the front, so a Type I pass stops at it and the metal
+        beyond is never taken off.
       </p>
+      {onUseTypeII && (
+        <button
+          onClick={onUseTypeII}
+          className="mt-2 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-[11px] font-semibold text-accent-cyan hover:bg-accent-cyan/20 cursor-pointer"
+        >
+          Use Type II
+        </button>
+      )}
+      {!onUseTypeII && (
+        <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
+          G73 has no Type II. Rough this shape with G71 Type II on its own tab.
+        </p>
+      )}
     </div>
   );
 }
@@ -427,6 +468,7 @@ function G71Panel() {
   const [feed, setFeed] = useState("0.25");
   const [ns, setNs] = useState("100");
   const [nf, setNf] = useState("110");
+  const [cycleType, setCycleType] = useState<G71Type>("I");
   // The part as it is dimensioned on the drawing: a diameter and a length per step.
   const [rows, setRows] = useState<ProfileRow[]>([
     { ...emptyRow(), d: "20", l: "15" },
@@ -466,6 +508,7 @@ function G71Panel() {
     finishAllowanceX: pf(allowX),
     finishAllowanceZ: pf(allowZ),
     retract: pf(retract),
+    type: cycleType,
   };
 
   const { result, code, error } = useMemo(() => {
@@ -497,13 +540,44 @@ function G71Panel() {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stock, finish, length, doc, allowX, allowZ, retract, feed, ns, nf, JSON.stringify(rows)]);
+  }, [
+    stock,
+    finish,
+    length,
+    doc,
+    allowX,
+    allowZ,
+    retract,
+    feed,
+    ns,
+    nf,
+    cycleType,
+    JSON.stringify(rows),
+  ]);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-          <SectionHeader title="G71 — OD Roughing (Type I)" />
+          <div className="flex items-center justify-between">
+            <SectionHeader title="G71 — OD Roughing" className="!mb-0" />
+            <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600">
+              {(["I", "II"] as G71Type[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setCycleType(t)}
+                  aria-label={`Type ${t}`}
+                  className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                    cycleType === t
+                      ? "bg-accent-cyan/20 text-accent-cyan"
+                      : "text-gray-500 hover:text-white"
+                  }`}
+                >
+                  Type {t}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Num label="Stock Ø" value={stock} onChange={setStock} suffix="mm" />
             <Num
@@ -558,8 +632,26 @@ function G71Panel() {
                 </span>
               </div>
               <Table
-                head={["Pass", "X (Ø)", "Depth (rad)", "Z"]}
-                rows={result.passes.map((p) => [p.pass, p.diameter, p.depth, p.z])}
+                // The Z column is where the pass finishes. On a Type II pass
+                // that is the end of the last stretch, not one unbroken cut
+                // from the face — so the stretches are spelled out beside it
+                // rather than left to be read as travel through the collar.
+                head={
+                  result.mostSpansInAPass > 1
+                    ? ["Pass", "X (Ø)", "Depth (rad)", "Z", "Cuts"]
+                    : ["Pass", "X (Ø)", "Depth (rad)", "Z"]
+                }
+                rows={result.passes.map((p) =>
+                  result.mostSpansInAPass > 1
+                    ? [
+                        p.pass,
+                        p.diameter,
+                        p.depth,
+                        p.z,
+                        p.spans.map((s) => `${s.from}→${s.to}`).join("  "),
+                      ]
+                    : [p.pass, p.diameter, p.depth, p.z],
+                )}
               />
             </>
           ) : null}
@@ -569,7 +661,11 @@ function G71Panel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <ProfileEditor rows={rows} setRows={setRows} />
-          <TypeIIWarning points={profile.error ? [] : profile.points} />
+          <TypeIIWarning
+            points={profile.error ? [] : profile.points}
+            type={cycleType}
+            onUseTypeII={() => setCycleType("II")}
+          />
         </div>
 
         <Card variant="solid" padding="md" className="border-dark-600">

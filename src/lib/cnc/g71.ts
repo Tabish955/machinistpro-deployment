@@ -30,7 +30,19 @@ export interface G71Input {
   finishAllowanceZ: number;
   /** Retract after each pass — radius value, mm. This is R on the first line. */
   retract: number;
+  /** Which form of the cycle to plan. Type I when left out, as before. */
+  type?: G71Type;
 }
+
+/**
+ * Which form of the cycle the control is being asked for.
+ *
+ * Type I needs the diameter to run one way along the part, and is what the
+ * first block after P having only an X word tells the control to expect. Type
+ * II is selected by that block carrying both X and Z, and will rough a profile
+ * that dips and rises — the pockets a Type I cycle drives straight through.
+ */
+export type G71Type = "I" | "II";
 
 export interface G71Pass {
   pass: number;
@@ -40,6 +52,12 @@ export interface G71Pass {
   depth: number;
   /** Z the pass runs to, mm, negative into the part. */
   z: number;
+  /**
+   * Every stretch this pass cuts. A Type I pass has exactly one, from the face
+   * to `z`; a Type II pass over a pocket has several with metal left standing
+   * between them, and the tool lifts over and comes back down for each.
+   */
+  spans: CutSpan[];
 }
 
 export interface G71Result {
@@ -50,6 +68,10 @@ export interface G71Result {
   roughedDiameter: number;
   /** Z the roughing runs to, leaving the Z allowance. */
   roughedZ: number;
+  /** Which form the passes were planned for. */
+  type: G71Type;
+  /** The most separate cuts any one pass makes; more than one needs Type II. */
+  mostSpansInAPass: number;
 }
 
 /**
@@ -79,6 +101,92 @@ export function reachableZ(points: ProfilePoint[], passDiameter: number, limitZ:
     return Math.max(Math.min(z, crossZ), limitZ);
   }
   return Math.max(z, limitZ);
+}
+
+/**
+ * The finished diameter at a Z, taken along the profile as a polyline.
+ *
+ * A shoulder stands at one Z with two diameters; the larger is what matters,
+ * because that is the metal the tool has to clear.
+ */
+export function profileDiameterAt(points: ProfilePoint[], z: number): number {
+  if (z >= points[0].z) return points[0].x;
+  const last = points[points.length - 1];
+  if (z <= last.z) return last.x;
+
+  let widest = -Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const hi = Math.max(a.z, b.z);
+    const lo = Math.min(a.z, b.z);
+    if (z > hi || z < lo) continue;
+    if (Math.abs(b.z - a.z) < 1e-12) {
+      widest = Math.max(widest, a.x, b.x);
+      continue;
+    }
+    const t = (z - a.z) / (b.z - a.z);
+    widest = Math.max(widest, a.x + t * (b.x - a.x));
+  }
+  return widest === -Infinity ? last.x : widest;
+}
+
+/** One stretch of Z a single pass actually cuts through. */
+export interface CutSpan {
+  /** Z the cut starts at, nearer the face. */
+  from: number;
+  /** Z the cut runs to, further into the part. */
+  to: number;
+}
+
+/**
+ * Every stretch of Z a pass at this diameter has metal to remove in.
+ *
+ * Type I profiles give exactly one span, starting at the face — which is all
+ * `reachableZ` ever needed to return. A Type II profile dips below the pass and
+ * back above it, so the same pass cuts two or more separate stretches with
+ * standing material between them, and the tool has to lift over and come back
+ * down. That list is the whole difference between the two types.
+ */
+export function reachableSpans(
+  points: ProfilePoint[],
+  passDiameter: number,
+  limitZ: number,
+): CutSpan[] {
+  // Every Z worth testing: the profile's own corners, plus wherever it crosses
+  // the pass diameter. Between two neighbouring boundaries the answer cannot
+  // change, so one probe in the middle settles each interval.
+  const boundaries = new Set<number>([0, limitZ]);
+  for (const p of points) if (p.z <= 0 && p.z >= limitZ) boundaries.add(p.z);
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const low = Math.min(a.x, b.x);
+    const high = Math.max(a.x, b.x);
+    if (passDiameter < low || passDiameter > high) continue;
+    if (Math.abs(b.x - a.x) < 1e-12) continue;
+    const t = (passDiameter - a.x) / (b.x - a.x);
+    const z = a.z + t * (b.z - a.z);
+    if (z <= 0 && z >= limitZ) boundaries.add(Number(z.toFixed(6)));
+  }
+
+  const edges = [...boundaries].sort((m, n) => n - m);
+  const spans: CutSpan[] = [];
+  for (let i = 1; i < edges.length; i++) {
+    const from = edges[i - 1];
+    const to = edges[i];
+    if (from - to < 1e-9) continue;
+    // Material is here when the finished part is narrower than the pass.
+    if (profileDiameterAt(points, (from + to) / 2) >= passDiameter - 1e-9) continue;
+    const previous = spans[spans.length - 1];
+    // Neighbouring intervals that both cut are one cut, not two.
+    if (previous && Math.abs(previous.to - from) < 1e-9) previous.to = to;
+    else spans.push({ from, to });
+  }
+  return spans.map((s) => ({
+    from: Number(s.from.toFixed(4)),
+    to: Number(s.to.toFixed(4)),
+  }));
 }
 
 /**
@@ -133,6 +241,7 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
   const radialStock = (stockDiameter - roughedDiameter) / 2;
   const roughedZ = -(length - finishAllowanceZ);
 
+  const type: G71Type = input.type ?? "I";
   const passCount = Math.ceil(radialStock / depthOfCut);
   const passes: G71Pass[] = [];
   for (let i = 1; i <= passCount; i++) {
@@ -141,16 +250,27 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
     const cumulative = Math.min(i * depthOfCut, radialStock);
     const previous = Math.min((i - 1) * depthOfCut, radialStock);
     const diameter = Number((stockDiameter - 2 * cumulative).toFixed(4));
-    // Each pass runs until the profile stops it, so the table shows the same Z
-    // the tool will actually reach rather than the full length for every pass.
-    const passZ = profile?.length
-      ? reachableZ(profile, diameter + finishAllowanceX, roughedZ)
-      : roughedZ;
+
+    let spans: CutSpan[];
+    if (!profile?.length) {
+      spans = [{ from: 0, to: roughedZ }];
+    } else {
+      const all = reachableSpans(profile, diameter + finishAllowanceX, roughedZ);
+      // Type I cuts in from the face and stops at the first standing metal. It
+      // cannot lift over a pocket and come back down, so anything past that
+      // wall is simply not cut — which is the whole reason a pocketed part
+      // needs Type II rather than a hopeful Type I.
+      spans = type === "II" ? all : all.slice(0, 1);
+    }
+
     passes.push({
       pass: i,
       diameter,
       depth: Number((cumulative - previous).toFixed(4)),
-      z: Number(passZ.toFixed(4)),
+      // The far end of the last stretch this pass cuts, which for Type I is
+      // simply where it stopped.
+      z: Number((spans.length ? spans[spans.length - 1].to : roughedZ).toFixed(4)),
+      spans,
     });
   }
 
@@ -159,6 +279,8 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
     radialStock: Number(radialStock.toFixed(4)),
     roughedDiameter: Number(roughedDiameter.toFixed(4)),
     roughedZ: Number(roughedZ.toFixed(4)),
+    type,
+    mostSpansInAPass: passes.reduce((most, p) => Math.max(most, p.spans.length), 0),
   };
 }
 
@@ -421,6 +543,7 @@ export function profileBlocks(
   endBlock: number,
   feed: number,
   exitDiameter: number,
+  type: G71Type = "I",
 ): string[] {
   const num = (v: number) => wordValue(v);
   const lines: string[] = [];
@@ -431,7 +554,15 @@ export function profileBlocks(
     const endDiameter = step.endDiameter ?? step.diameter;
 
     if (index === 0) {
-      lines.push(`N${startBlock} G00 X${num(step.diameter)}`);
+      // The first block after P is what tells the control which form it is
+      // reading. X alone means Type I; X and Z together means Type II. This is
+      // not decoration — a Type II profile written with an X-only first block
+      // is run as Type I and the pockets are cut straight through.
+      lines.push(
+        type === "II"
+          ? `N${startBlock} G00 X${num(step.diameter)} Z0.0`
+          : `N${startBlock} G00 X${num(step.diameter)}`,
+      );
     } else if (Math.abs(step.diameter - currentDiameter) > 1e-9) {
       // A shoulder only earns a block when it actually moves. Writing one for a
       // step that starts where the last finished put null moves in the contour.
@@ -531,7 +662,10 @@ export function generateG71Code(
     ];
   }
 
-  return [...header, ...profileBlocks(options.steps, ns, nf, feed, input.stockDiameter)];
+  return [
+    ...header,
+    ...profileBlocks(options.steps, ns, nf, feed, input.stockDiameter, input.type ?? "I"),
+  ];
 }
 
 /* ── Drawing ──────────────────────────────────────────────────────────────── */
