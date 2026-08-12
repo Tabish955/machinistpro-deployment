@@ -13,8 +13,10 @@ import {
   profileCoordinates,
   profileLength,
   profileDrawing,
+  profileReversal,
   type G71Input,
   type ProfileStep,
+  type ArcDirection,
 } from "@/lib/cnc/g71";
 import {
   calcG72,
@@ -236,28 +238,74 @@ const pi = (v: string, fallback: number) =>
 /* ═══ Part profile ══════════════════════════════════════════════════════════ */
 
 /** One row of the profile table as it is typed, before it becomes a number. */
-export type ProfileRow = { d: string; l: string; e: string };
+export type ProfileRow = {
+  d: string;
+  l: string;
+  e: string;
+  /** Blend radius, blank for a straight step. */
+  r: string;
+  /** Which way the blend bows: G02 clockwise or G03 anticlockwise. */
+  dir: ArcDirection;
+};
+
+export const emptyRow = (): ProfileRow => ({ d: "", l: "", e: "", r: "", dir: "cw" });
 
 /** The typed rows as steps, dropping any row not yet filled in. */
 function rowsToSteps(rows: ProfileRow[]): ProfileStep[] {
   return rows
-    .map((r) => ({
-      diameter: pf(r.d),
-      length: pf(r.l),
-      // Blank means a parallel step; a value makes it a taper.
-      endDiameter: r.e.trim() === "" ? undefined : pf(r.e),
-    }))
+    .map((row) => {
+      const radius = row.r.trim() === "" ? undefined : pf(row.r);
+      return {
+        diameter: pf(row.d),
+        length: pf(row.l),
+        // Blank means a parallel step; a value makes it a taper.
+        endDiameter: row.e.trim() === "" ? undefined : pf(row.e),
+        // A radius only means anything once there is an end diameter to curve
+        // to; a blend from a diameter to itself is a straight line.
+        arcRadius: Number.isFinite(radius as number) && (radius as number) > 0 ? radius : undefined,
+        arcDirection: row.dir,
+      };
+    })
     .filter((s) => Number.isFinite(s.diameter) && Number.isFinite(s.length));
 }
+
+/**
+ * What the cycle cannot cut, said in the operator's terms.
+ *
+ * G71 and G73 here are Type I, so the diameter has to run one way along the
+ * whole part. A ball on a stem or anything with an undercut behind it has a
+ * face the tool cannot reach from the front — and the cycle will still plan a
+ * full set of passes for it, which is why this has to be on screen.
+ */
+function TypeIIWarning({ points }: { points: { x: number; z: number; move: string }[] }) {
+  const reversal = points.length ? profileReversal(points as never) : null;
+  if (!reversal) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-accent-red/30 bg-accent-red/10 p-3">
+      <p className="text-xs font-semibold text-accent-red">
+        This profile turns back on itself at Z{fmtNum(reversal.z)}, Ø{fmtNum(reversal.diameter)}.
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
+        These cycles are Type I: the diameter has to run one way along the part. Behind that point
+        is a face the tool cannot reach coming in from the front, so the passes below would drive
+        through it. A shape like a ball on a stem needs G71 Type II, which this page does not write.
+      </p>
+    </div>
+  );
+}
+
+/** Trim a coordinate for a sentence rather than a program block. */
+const fmtNum = (v: number) => Number(v.toFixed(3)).toString();
 
 /**
  * The shape of the finished part, shared by every cycle that roughs to a
  * profile. G71 had this and G73 did not, which is why G73 could only ever
  * illustrate a shape rather than cut the operator's own.
  *
- * Straight and tapered steps only. A radius needs a G02/G03 block and the
- * pass planner walks straight segments to find where a pass stops, so arcs
- * are a change to the geometry underneath this, not to the table.
+ * A step can run parallel, taper, or blend on a radius. The radius is carried
+ * as a fine polyline underneath so the pass planner, the backplot and the
+ * material model all follow the curve, while the program still gets the single
+ * G02 or G03 block an operator expects to read.
  */
 function ProfileEditor({
   rows,
@@ -276,15 +324,20 @@ function ProfileEditor({
         <span className="text-[10px] text-gray-600">as dimensioned on the drawing</span>
       </div>
       <div className="space-y-2">
-        <div className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
+        <div className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1fr_3.4rem_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
           <span>#</span>
           <span>Diameter</span>
           <span>Length</span>
           <span>End Ø</span>
+          <span>Radius</span>
+          <span>Arc</span>
           <span />
         </div>
         {rows.map((r, i) => (
-          <div key={i} className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1.6rem] gap-2 items-center">
+          <div
+            key={i}
+            className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1fr_3.4rem_1.6rem] gap-2 items-center"
+          >
             <span className="font-mono text-xs text-gray-500">{i + 1}</span>
             <input
               className={field}
@@ -314,6 +367,25 @@ function ProfileEditor({
                 /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "e", e.target.value)
               }
             />
+            <input
+              className={field}
+              value={r.r}
+              inputMode="decimal"
+              placeholder="—"
+              aria-label={`Step ${i + 1} blend radius`}
+              onChange={(e) =>
+                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "r", e.target.value)
+              }
+            />
+            <button
+              type="button"
+              disabled={r.r.trim() === ""}
+              aria-label={`Step ${i + 1} arc direction`}
+              onClick={() => setRow(i, "dir", r.dir === "cw" ? "ccw" : "cw")}
+              className="rounded-lg border border-dark-600 bg-dark-900 px-1 py-2 font-mono text-[11px] text-gray-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-default"
+            >
+              {r.dir === "cw" ? "G02" : "G03"}
+            </button>
             <button
               onClick={() => setRows((c) => c.filter((_, j) => j !== i))}
               disabled={rows.length < 2}
@@ -326,15 +398,17 @@ function ProfileEditor({
         ))}
       </div>
       <button
-        onClick={() => setRows((c) => [...c, { d: "", l: "", e: "" }])}
+        onClick={() => setRows((c) => [...c, emptyRow()])}
         className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
       >
         + Add step
       </button>
       <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
         Enter each step from the face outwards. Leave End Ø blank for a parallel step, or give it to
-        cut a taper. Z is worked out cumulatively, so step two runs to the sum of the lengths before
-        it — the part that is easy to get wrong by hand.
+        cut a taper. Add a Radius to blend to that end diameter on a curve instead of a straight
+        line — G02 bows one way, G03 the other, and between the same two points those are different
+        shapes. Z is worked out cumulatively, so step two runs to the sum of the lengths before it —
+        the part that is easy to get wrong by hand.
       </p>
     </Card>
   );
@@ -354,10 +428,10 @@ function G71Panel() {
   const [ns, setNs] = useState("100");
   const [nf, setNf] = useState("110");
   // The part as it is dimensioned on the drawing: a diameter and a length per step.
-  const [rows, setRows] = useState<Array<{ d: string; l: string; e: string }>>([
-    { d: "20", l: "15", e: "" },
-    { d: "30", l: "20", e: "" },
-    { d: "40", l: "25", e: "" },
+  const [rows, setRows] = useState<ProfileRow[]>([
+    { ...emptyRow(), d: "20", l: "15" },
+    { ...emptyRow(), d: "30", l: "20" },
+    { ...emptyRow(), d: "40", l: "25" },
   ]);
 
   const steps: ProfileStep[] = rowsToSteps(rows);
@@ -493,7 +567,10 @@ function G71Panel() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ProfileEditor rows={rows} setRows={setRows} />
+        <div>
+          <ProfileEditor rows={rows} setRows={setRows} />
+          <TypeIIWarning points={profile.error ? [] : profile.points} />
+        </div>
 
         <Card variant="solid" padding="md" className="border-dark-600">
           <SectionHeader title="Profile Coordinates" />
@@ -703,8 +780,8 @@ function G73Panel() {
   // fixed illustration, so the one thing an operator wanted to check — their
   // own shape — was the one thing it could not show.
   const [rows, setRows] = useState<ProfileRow[]>([
-    { d: "26", l: "18", e: "" },
-    { d: "38", l: "22", e: "" },
+    { ...emptyRow(), d: "26", l: "18" },
+    { ...emptyRow(), d: "38", l: "22" },
   ]);
 
   const steps: ProfileStep[] = rowsToSteps(rows);
@@ -865,7 +942,10 @@ function G73Panel() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ProfileEditor rows={rows} setRows={setRows} />
+        <div>
+          <ProfileEditor rows={rows} setRows={setRows} />
+          <TypeIIWarning points={profile.error ? [] : profile.points} />
+        </div>
         <Card variant="solid" padding="md" className="border-dark-600">
           <SectionHeader title="Profile Coordinates" />
           {profile.error ? (
