@@ -9,6 +9,7 @@
 
 import type { G71Input, ProfileStep } from "./g71";
 import { calculateG71, profileCoordinates, profileLength, reachableZ } from "./g71";
+import { arcPointAt, arcSweep } from "./parse";
 
 // Lives with the pass planner now, since the planner needs it to stop each pass
 // at the profile. Re-exported so the callers here keep their import.
@@ -235,23 +236,17 @@ export function toolpathFromProgram(
 
   for (const move of program) {
     const cutting = move.kind !== "rapid";
-    if ((move.kind === "arcCW" || move.kind === "arcCCW") && move.centre) {
-      const centre = { z: move.centre.z, r: move.centre.x / 2 };
-      const start = Math.atan2(from.x / 2 - centre.r, from.z - centre.z);
-      const end = Math.atan2(move.x / 2 - centre.r, move.z - centre.z);
-      const radius = Math.hypot(from.z - centre.z, from.x / 2 - centre.r);
-      let sweep = end - start;
-      // Take the turn the way the block asked for it, not the short way.
-      if (move.kind === "arcCW") while (sweep > 0) sweep -= Math.PI * 2;
-      else while (sweep < 0) sweep += Math.PI * 2;
-
-      const legs = Math.max(4, Math.min(180, Math.ceil(Math.abs(sweep) / (Math.PI / 60))));
+    const arc = arcSweep(move, from);
+    if (arc && move.centre) {
+      const legs = Math.max(4, Math.min(180, Math.ceil(Math.abs(arc.sweep) / (Math.PI / 60))));
       for (let i = 1; i <= legs; i++) {
-        const angle = start + (sweep * i) / legs;
+        const on = arcPointAt(arc, move.centre, i / legs);
         out.push({
           kind: "feed",
-          x: i === legs ? move.x : (centre.r + radius * Math.sin(angle)) * 2,
-          z: i === legs ? move.z : centre.z + radius * Math.cos(angle),
+          // The last leg lands on the point the block asked for rather than a
+          // rounding of it, which also keeps an inconsistent I/K from drifting.
+          x: i === legs ? move.x : on.x,
+          z: i === legs ? move.z : on.z,
           pass: move.line,
           cutting,
         });

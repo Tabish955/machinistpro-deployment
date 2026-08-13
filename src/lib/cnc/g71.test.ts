@@ -4,6 +4,7 @@ import {
   arcPoints,
   calculateG71,
   generateG71Code,
+  profileBlocks,
   profileCoordinates,
   profileLength,
   profileDrawing,
@@ -200,16 +201,11 @@ describe("taper turning", () => {
       { diameter: 20, length: 10, endDiameter: 30 },
       { diameter: 30, length: 20 },
     ]);
-    expect(pts.map((p) => p.move)).toEqual([
-      "face",
-      "turn",
-      "shoulder",
-      "taper",
-      "shoulder",
-      "turn",
-    ]);
+    // No shoulders here: each step carries on from the diameter the last one
+    // finished at, and a shoulder that does not move is a point repeated.
+    expect(pts.map((p) => p.move)).toEqual(["face", "turn", "taper", "turn"]);
     // Z still accumulates across all three: 15, then 25, then 45.
-    expect(pts.map((p) => p.z)).toEqual([0, -15, -15, -25, -25, -45]);
+    expect(pts.map((p) => p.z)).toEqual([0, -15, -25, -45]);
   });
 
   it("refuses a bad end diameter", () => {
@@ -275,7 +271,47 @@ describe("arcs", () => {
     expect((arc.sweep * 180) / Math.PI).toBeCloseTo(90, 6);
   });
 
-  it("refuses a radius too small to span its own ends", () => {
+  /**
+   * Which code cuts which shape, fixed without appealing to any convention.
+   *
+   * Where the centre sits is not a matter of opinion: a blend tangent to the
+   * two faces it joins has exactly one centre. So each shape below is pinned by
+   * its tangency, and the test is which direction the app hands it back for.
+   * These are the shapes to argue with if the app ever looks the wrong way
+   * round on a machine — they are the whole convention in three examples.
+   *
+   * All three are cut travelling towards the chuck (−Z) with the tool on the
+   * far side of the work, which is the rear turret every slant-bed CNC lathe
+   * has. On a front-turret machine the two codes swap over; see the note on
+   * ArcDirection in g71.ts.
+   */
+  it("cuts a convex front corner round anticlockwise, which is G03", () => {
+    // Tangent to the face at Ø20 and to the OD at Ø30, so the centre is the
+    // corner point Z-5 at radius 10 — inside the metal, as a convex blend is.
+    const arc = arcGeometry({ z: 0, r: 10 }, { z: -5, r: 15 }, 5, "ccw");
+    expect(arc.centre.z).toBeCloseTo(-5, 6);
+    expect(arc.centre.r).toBeCloseTo(10, 6);
+    expect((arc.sweep * 180) / Math.PI).toBeCloseTo(90, 6);
+  });
+
+  it("cuts a concave shoulder fillet clockwise, which is G02", () => {
+    // The same two faces the other way up: the centre is out in the air at
+    // radius 15, which is what makes the blend scoop into the corner.
+    const arc = arcGeometry({ z: -20, r: 10 }, { z: -25, r: 15 }, 5, "cw");
+    expect(arc.centre.z).toBeCloseTo(-20, 6);
+    expect(arc.centre.r).toBeCloseTo(15, 6);
+    expect((arc.sweep * 180) / Math.PI).toBeCloseTo(-90, 6);
+  });
+
+  it("cuts a ball nose anticlockwise, which is G03", () => {
+    // A hemisphere on the end of a Ø20 bar: the centre is on the axis.
+    const arc = arcGeometry({ z: 0, r: 0 }, { z: -10, r: 10 }, 10, "ccw");
+    expect(arc.centre.z).toBeCloseTo(-10, 6);
+    expect(arc.centre.r).toBeCloseTo(0, 6);
+    expect((arc.sweep * 180) / Math.PI).toBeCloseTo(90, 6);
+  });
+
+  it("refuses an arc radius too small to span its own ends", () => {
     // The ends are 14.14 apart, so nothing under 7.07 can reach.
     expect(() => arcGeometry({ z: -20, r: 5 }, { z: -30, r: 15 }, 5, "cw")).toThrow("at least");
   });
@@ -319,7 +355,13 @@ describe("arcs", () => {
         feed: 0.25,
         steps: [
           { diameter: 10, length: 20 },
-          { diameter: 10, length: 10, endDiameter: 30, arcRadius: 10, arcDirection: "cw" },
+          {
+            diameter: 10,
+            length: 10,
+            endDiameter: 30,
+            arcRadius: 10,
+            arcDirection: "cw",
+          },
           { diameter: 30, length: 20, endDiameter: 50 },
           { diameter: 50, length: 10 },
         ],
@@ -343,10 +385,276 @@ describe("arcs", () => {
         finishAllowanceZ: 0.1,
       },
       {
-        steps: [{ diameter: 10, length: 10, endDiameter: 30, arcRadius: 10, arcDirection: "ccw" }],
+        steps: [
+          {
+            diameter: 10,
+            length: 10,
+            endDiameter: 30,
+            arcRadius: 10,
+            arcDirection: "ccw",
+          },
+        ],
       },
     );
     expect(code.some((l) => l.includes("G03 X30.0 Z-10.0 R10.0"))).toBe(true);
+  });
+
+  it("puts G01 back on the move after an arc", () => {
+    // G02 stays in force, so the shoulder written as a bare X would be read as
+    // a second arc with no centre — the control alarms on it.
+    const code = profileBlocks(
+      [
+        { diameter: 20, length: 15 },
+        {
+          diameter: 20,
+          length: 10,
+          endDiameter: 30,
+          arcRadius: 8,
+          arcDirection: "cw",
+        },
+        { diameter: 40, length: 25 },
+      ],
+      100,
+      110,
+      0.25,
+      52,
+    );
+    const afterArc = code[code.indexOf("      G02 X30.0 Z-25.0 R8.0") + 1];
+    expect(afterArc).toBe("      G01 X40.0");
+  });
+
+  it("puts G01 back on the Q block when the profile ends on an arc", () => {
+    const code = profileBlocks(
+      [
+        { diameter: 20, length: 15 },
+        {
+          diameter: 20,
+          length: 10,
+          endDiameter: 30,
+          arcRadius: 8,
+          arcDirection: "ccw",
+        },
+      ],
+      100,
+      110,
+      0.25,
+      52,
+    );
+    expect(code.at(-1)).toBe("N110 G01 X52.0");
+  });
+
+  it("leaves the straight profile's blocks bare, since G01 is already in force", () => {
+    const code = profileBlocks(
+      [
+        { diameter: 20, length: 15 },
+        { diameter: 30, length: 20 },
+      ],
+      100,
+      110,
+      0.25,
+      52,
+    );
+    expect(code).toContain("      X30.0");
+    expect(code.at(-1)).toBe("N110 X52.0");
+  });
+});
+
+/**
+ * A radius on a drawing rounds a corner. It is tangent to the two faces that
+ * meet there, it takes its own length out of each of them and leaves the rest
+ * straight, and it has one direction rather than a choice of two — which is
+ * exactly the fillet command in any CAD package, and is why these ask for a
+ * radius and nothing else.
+ */
+describe("corner fillets", () => {
+  const steps: ProfileStep[] = [
+    { diameter: 20, length: 15, cornerRadius: 3 },
+    { diameter: 30, length: 20, cornerRadius: 2 },
+    { diameter: 40, length: 25 },
+  ];
+
+  it("rounds the front corner without moving the faces it joins", () => {
+    const points = profileCoordinates(steps);
+    // The face runs out to Ø20 less twice the radius, then curves onto the
+    // diameter R3 further in. Both faces keep their place; only their ends move.
+    expect(points[0]).toEqual({ x: 14, z: 0, move: "face" });
+    const onward = points.find((p) => p.move === "turn")!;
+    expect(onward).toEqual({ x: 20, z: -13, move: "turn" });
+
+    // Every point of the round sits R from the corner's centre, at Z-3, Ø14.
+    const arc = points.filter((p) => p.move === "arc" && p.z > -13);
+    for (const p of arc) {
+      expect(Math.hypot(p.z + 3, p.x / 2 - 7)).toBeCloseTo(3, 3);
+    }
+  });
+
+  it("works out its own direction: convex outside, concave in the corner", () => {
+    const code = profileBlocks(steps, 100, 110, 0.25, 52);
+    // The front corner bulges out, so it is G03; the shoulder scoops in, G02.
+    expect(code).toContain("      G03 X20.0 Z-3.0 R3.0");
+    expect(code).toContain("      G02 X24.0 Z-15.0 R2.0");
+  });
+
+  it("takes the round out of both faces, so the step still ends where it should", () => {
+    const code = profileBlocks(steps, 100, 110, 0.25, 52);
+    expect(code).toEqual([
+      "N100 G00 X14.0",
+      "      G01 Z0.0",
+      "      G03 X20.0 Z-3.0 R3.0",
+      // The Ø20 stops 2 mm short of Z-15 because the R2 fillet starts there.
+      "      G01 Z-13.0",
+      "      G02 X24.0 Z-15.0 R2.0",
+      // And the shoulder finishes the rest of the face the fillet did not take.
+      "      G01 X30.0",
+      "      G01 Z-35.0",
+      // The last step has no round, so its shoulder is a bare X as before.
+      "      X40.0",
+      "      G01 Z-60.0",
+      "N110 X52.0",
+    ]);
+  });
+
+  it("is a corner round, not an arc across the whole step", () => {
+    // The same step as an arc bows from one diameter to the other. As a fillet
+    // it leaves the diameter alone apart from the corner — this is the whole
+    // difference, and it is what a radius on a print asks for.
+    const fillet = profileCoordinates([{ diameter: 20, length: 15, cornerRadius: 3 }]);
+    const arc = profileCoordinates([
+      { diameter: 20, length: 15, endDiameter: 30, arcRadius: 15 },
+    ]);
+    expect(Math.min(...fillet.map((p) => p.x))).toBe(14);
+    expect(fillet.filter((p) => p.x === 20).length).toBeGreaterThan(0);
+    expect(arc.some((p) => p.x === 20 && p.z < 0)).toBe(false);
+  });
+
+  it("says what is wrong when the radius will not fit the corner", () => {
+    // R10 on a 15 mm step wants 10 mm off the face before it, and the face is
+    // the 10 mm radius of the part.
+    expect(() => profileCoordinates([{ diameter: 20, length: 15, cornerRadius: 12 }])).toThrow(
+      "Step 1",
+    );
+    // Two rounds sharing one face cannot each take more than their share of it:
+    // R4 off the front and R8 off the shoulder want 12 mm of a 10 mm diameter.
+    expect(() =>
+      profileCoordinates([
+        { diameter: 20, length: 10, cornerRadius: 4 },
+        { diameter: 40, length: 20, cornerRadius: 8 },
+      ]),
+    ).toThrow("same face");
+  });
+
+  it("has no corner to round where the profile runs straight on", () => {
+    expect(() =>
+      profileCoordinates([
+        { diameter: 20, length: 15 },
+        { diameter: 20, length: 20, cornerRadius: 2 },
+      ]),
+    ).toThrow("no corner");
+  });
+
+  it("rounds the outer lip of a shoulder when the radius is put on that corner", () => {
+    const steps: ProfileStep[] = [
+      { diameter: 20, length: 20 },
+      { diameter: 34, length: 25, lipRadius: 3 },
+    ];
+    expect(profileBlocks(steps, 100, 110, 0.25, 52)).toEqual([
+      "N100 G00 X20.0",
+      // The cut into the shoulder is untouched: an edge round is paid for out
+      // of the step's own two faces, not out of the step before it.
+      "      G01 Z-20.0",
+      // Up the shoulder, stopping 3 mm short of its lip.
+      "      X28.0",
+      // And round the lip onto the diameter. It bulges, so it is G03.
+      "      G03 X34.0 Z-23.0 R3.0",
+      "      G01 Z-45.0",
+      "N110 X52.0",
+    ]);
+
+    const points = profileCoordinates(steps);
+    // Every point of the round sits R from the lip's centre, at Z-23, Ø28.
+    for (const p of points.filter((q) => q.move === "arc")) {
+      expect(Math.hypot(p.z + 23, p.x / 2 - 14)).toBeCloseTo(3, 3);
+    }
+    expect(points.at(-1)).toEqual({ x: 34, z: -45, move: "turn" });
+  });
+
+  it("rounds both corners of one shoulder when the drawing calls for both", () => {
+    // R3 in the root and R2 on the lip: two dimensions on one shoulder, which
+    // is why they are two fields rather than one with a setting on it.
+    const steps: ProfileStep[] = [
+      { diameter: 20, length: 20 },
+      { diameter: 34, length: 25, cornerRadius: 3, lipRadius: 2 },
+    ];
+    expect(profileBlocks(steps, 100, 110, 0.25, 52)).toEqual([
+      "N100 G00 X20.0",
+      // The cut in stops short for the root round, which is all the root takes
+      // from it — the lip is paid for out of the shoulder and the diameter.
+      "      G01 Z-17.0",
+      "      G02 X26.0 Z-20.0 R3.0",
+      // What is left of the shoulder face between the two rounds, with G01 back
+      // on it because the root round left G02 in force.
+      "      G01 X30.0",
+      "      G03 X34.0 Z-22.0 R2.0",
+      "      G01 Z-45.0",
+      "N110 X52.0",
+    ]);
+
+    // The shoulder is 7 mm of radius and the two rounds take 3 and 2 of it, so
+    // 2 mm of straight face is left between them — exactly the blocks above.
+    const points = profileCoordinates(steps);
+    const face = points.filter((p) => Math.abs(p.z + 20) < 1e-9);
+    expect(face.map((p) => p.x)).toEqual([26, 30]);
+  });
+
+  it("will not round both ends of a shoulder that cannot spare the length", () => {
+    expect(() =>
+      profileCoordinates([
+        { diameter: 20, length: 20 },
+        { diameter: 30, length: 25, cornerRadius: 3, lipRadius: 3 },
+      ]),
+    ).toThrow("both ends of the same shoulder");
+  });
+
+  it("will not round a lip onto a step that is bowed as an arc", () => {
+    expect(() =>
+      profileCoordinates([
+        { diameter: 20, length: 20 },
+        { diameter: 30, length: 25, endDiameter: 40, arcRadius: 20, lipRadius: 2 },
+      ]),
+    ).toThrow("bowed as an arc");
+  });
+
+  it("has no lip to round on the first step, and says which corner it does round", () => {
+    expect(() =>
+      profileCoordinates([{ diameter: 20, length: 20, lipRadius: 3 }]),
+    ).toThrow("front corner");
+  });
+
+  it("will not take a lip round bigger than the shoulder it stands on", () => {
+    expect(() =>
+      profileCoordinates([
+        { diameter: 20, length: 20 },
+        { diameter: 30, length: 25, lipRadius: 8 },
+      ]),
+    ).toThrow("Step 2");
+  });
+
+  it("rounds where a taper runs into a diameter, which has no shoulder at all", () => {
+    const steps: ProfileStep[] = [
+      { diameter: 20, length: 20, endDiameter: 30 },
+      { diameter: 30, length: 20, cornerRadius: 2 },
+    ];
+    const code = profileBlocks(steps, 100, 110, 0.25, 52);
+    // Nothing steps up here: the taper meets the parallel diameter, and the
+    // round is tangent to both of those rather than to a shoulder face.
+    const arc = code.findIndex((l) => l.includes("R2.0"));
+    expect(code[arc]).toContain("G03");
+    expect(code[arc - 1]).toMatch(/^ +G01 X\d/);
+    expect(code[arc - 1]).not.toContain("X30.0 Z-20.0");
+    // The taper still finishes on Ø30 and the step still ends at Z-40.
+    const points = profileCoordinates(steps);
+    expect(points.at(-1)).toEqual({ x: 30, z: -40, move: "turn" });
+    expect(Math.max(...points.map((p) => p.x))).toBeCloseTo(30, 6);
   });
 });
 
@@ -363,8 +671,20 @@ describe("profiles the cycle cannot actually cut", () => {
   it("catches a ball on a stem, which needs Type II", () => {
     // The pawn: out to the ball, back in to the neck, out again to the base.
     const points = profileCoordinates([
-      { diameter: 0.5, length: 6.25, endDiameter: 12.5, arcRadius: 6.25, arcDirection: "ccw" },
-      { diameter: 12.5, length: 6.25, endDiameter: 7, arcRadius: 6.25, arcDirection: "ccw" },
+      {
+        diameter: 0.5,
+        length: 6.25,
+        endDiameter: 12.5,
+        arcRadius: 6.25,
+        arcDirection: "ccw",
+      },
+      {
+        diameter: 12.5,
+        length: 6.25,
+        endDiameter: 7,
+        arcRadius: 6.25,
+        arcDirection: "ccw",
+      },
       { diameter: 7, length: 11.5, endDiameter: 25 },
     ]);
     const reversal = profileReversal(points);

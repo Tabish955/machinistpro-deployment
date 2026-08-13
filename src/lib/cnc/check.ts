@@ -146,7 +146,13 @@ export function checkProgram(source: string): Diagnostic[] {
     }
 
     // ── Arcs ──────────────────────────────────────────────────────────────
-    if (gs.includes(2) || gs.includes(3)) {
+    // G02 and G03 stay in force like any other motion, so a block written as a
+    // bare `X30.0` after an arc is another arc, not the straight move it looks
+    // like. That block is the one that alarms, which is why the modal case is
+    // checked as well as the block that names the code.
+    const arcHere = gs.includes(2) || gs.includes(3);
+    const arcModal = gs.length === 0 && (motion === 2 || motion === 3) && movesHere;
+    if (arcHere || arcModal) {
       const r = first(block, "R");
       const i = first(block, "I");
       const k = first(block, "K");
@@ -155,7 +161,9 @@ export function checkProgram(source: string): Diagnostic[] {
           line,
           "error",
           "arc-without-centre",
-          "An arc needs either an R, or I and K to place its centre. Without one the control cannot know which curve is meant.",
+          arcHere
+            ? "An arc needs either an R, or I and K to place its centre. Without one the control cannot know which curve is meant."
+            : `G0${motion} is still in force from the arc above, so this block is read as another arc — and it has no R, I or K to place its centre. Write G01 on it if it is meant to be a straight move.`,
         );
       }
     }
