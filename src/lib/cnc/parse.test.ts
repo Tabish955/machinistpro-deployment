@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseGCode, centreFromRadius, pathBounds } from "./parse";
+import { arcPointAt, arcSweep, parseGCode, centreFromRadius, pathBounds } from "./parse";
 
 describe("reading a lathe program", () => {
   it("says when a canned cycle cannot be drawn from its words alone", () => {
@@ -179,5 +179,53 @@ describe("reading a lathe program", () => {
     // Negative R takes the long way round, so it lands on the other side again.
     const longWay = centreFromRadius({ x: 20, z: 0 }, { x: 28, z: -4 }, -4, true);
     expect(longWay!.z).toBeCloseTo(ccw!.z, 6);
+  });
+});
+
+describe("how far an arc turns", () => {
+  // A circle of R5 about Ø20 at Z0, so its centre sits at radius 10. The start
+  // is directly above it at Ø30 Z0; a quarter turn clockwise from there lands
+  // level with it at Ø20 Z5.
+  const centre = { x: 20, z: 0 };
+  const top = { x: 30, z: 0 };
+  const quarter = { kind: "arcCW" as const, x: 20, z: 5, centre };
+
+  it("turns negative clockwise and positive anticlockwise", () => {
+    const cw = arcSweep(quarter, top)!;
+    expect(cw.radius).toBeCloseTo(5, 9);
+    expect(cw.sweep).toBeCloseTo(-Math.PI / 2, 9);
+
+    const ccw = arcSweep({ ...quarter, kind: "arcCCW" }, top)!;
+    // The same two points the other way round is three quarters of a circle.
+    expect(ccw.sweep).toBeCloseTo((3 * Math.PI) / 2, 9);
+  });
+
+  it("keeps the long way round when the block asks for it", () => {
+    // Top to bottom is half a turn either way, and half a turn is exactly where
+    // a drawing that always took the short way round starts cutting the wrong
+    // shape — so it has to come back as π, not as nothing.
+    const bottom = { kind: "arcCCW" as const, x: 10, z: 0, centre };
+    expect(arcSweep(bottom, top)!.sweep).toBeCloseTo(Math.PI, 9);
+    expect(arcSweep({ ...bottom, kind: "arcCW" }, top)!.sweep).toBeCloseTo(-Math.PI, 9);
+  });
+
+  it("reads a block that ends where it started as the full circle it is", () => {
+    const circle = { kind: "arcCW" as const, ...top, centre };
+    expect(arcSweep(circle, top)!.sweep).toBeCloseTo(-Math.PI * 2, 9);
+  });
+
+  it("has nothing to say about a straight move", () => {
+    expect(arcSweep({ kind: "feed", x: 20, z: -5, centre: undefined }, top)).toBe(undefined);
+  });
+
+  it("walks the curve, not the chord across it", () => {
+    const arc = arcSweep(quarter, top)!;
+    const half = arcPointAt(arc, centre, 0.5);
+    // Half way round a quarter turn of R5 is 45°, which is off the chord.
+    expect(half.z).toBeCloseTo(5 * Math.SQRT1_2, 6);
+    expect(half.x / 2).toBeCloseTo(10 + 5 * Math.SQRT1_2, 6);
+    const end = arcPointAt(arc, centre, 1);
+    expect(end.z).toBeCloseTo(5, 6);
+    expect(end.x).toBeCloseTo(20, 6);
   });
 });

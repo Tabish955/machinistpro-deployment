@@ -243,27 +243,64 @@ export type ProfileRow = {
   d: string;
   l: string;
   e: string;
-  /** Blend radius, blank for a straight step. */
+  /**
+   * Radius on the corner the step starts at — the root of its shoulder, or the
+   * front corner on step one. Blank leaves that corner sharp.
+   */
   r: string;
-  /** Which way the blend bows: G02 clockwise or G03 anticlockwise. */
+  /**
+   * Radius on the outer lip of that same shoulder. A drawing can call for a
+   * radius on both corners, so it is its own dimension rather than a setting
+   * on the first. Step one has no shoulder and so no lip.
+   */
+  lip: string;
+  /**
+   * What the first radius does: round the corner, or bow the whole step from
+   * its diameter to its End Ø — a form rather than a corner.
+   */
+  blend: "fillet" | "arc";
+  /** Which way an arc bows. A round works its own out. */
   dir: ArcDirection;
 };
 
-export const emptyRow = (): ProfileRow => ({ d: "", l: "", e: "", r: "", dir: "cw" });
+export const emptyRow = (): ProfileRow => ({
+  d: "",
+  l: "",
+  e: "",
+  r: "",
+  lip: "",
+  blend: "fillet",
+  dir: "cw",
+});
+
+/** The settings the blend button steps through, in the order it does. */
+const BLEND_STATES: Array<{ blend: ProfileRow["blend"]; dir: ArcDirection; label: string }> = [
+  { blend: "fillet", dir: "cw", label: "R" },
+  { blend: "arc", dir: "cw", label: "G02" },
+  { blend: "arc", dir: "ccw", label: "G03" },
+];
+
+const blendLabel = (row: ProfileRow) =>
+  row.blend === "fillet" ? "R" : row.dir === "cw" ? "G02" : "G03";
 
 /** The typed rows as steps, dropping any row not yet filled in. */
 function rowsToSteps(rows: ProfileRow[]): ProfileStep[] {
+  const size = (typed: string) => {
+    const value = typed.trim() === "" ? undefined : pf(typed);
+    return Number.isFinite(value as number) && (value as number) > 0 ? value : undefined;
+  };
   return rows
     .map((row) => {
-      const radius = row.r.trim() === "" ? undefined : pf(row.r);
+      const radius = size(row.r);
       return {
         diameter: pf(row.d),
         length: pf(row.l),
         // Blank means a parallel step; a value makes it a taper.
         endDiameter: row.e.trim() === "" ? undefined : pf(row.e),
-        // A radius only means anything once there is an end diameter to curve
-        // to; a blend from a diameter to itself is a straight line.
-        arcRadius: Number.isFinite(radius as number) && (radius as number) > 0 ? radius : undefined,
+        // The one radius box is the corner or the whole step, never both.
+        cornerRadius: row.blend === "fillet" ? radius : undefined,
+        arcRadius: row.blend === "arc" ? radius : undefined,
+        lipRadius: size(row.lip),
         arcDirection: row.dir,
       };
     })
@@ -358,6 +395,37 @@ function ProfileEditor({
   const setRow = (i: number, key: keyof ProfileRow, v: string) =>
     setRows((cur) => cur.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
 
+  /**
+   * Which corner this row's radius rounds, named on the row itself.
+   *
+   * A shoulder has a step either side of it and the radius belongs to only one
+   * of them — the bigger diameter, the step that begins there. Nothing on screen
+   * used to say so, so a radius typed on the row below rounded the front corner
+   * instead and the shoulder stayed sharp, with no way to tell why.
+   */
+  const roundsWhat = (i: number) => {
+    const diameter = rows[i].d.trim();
+    if (i === 0) {
+      return diameter
+        ? `Rounds the front corner, where the face meets Ø${diameter}`
+        : "Rounds the front corner, where the face meets the first diameter";
+    }
+    const before = rows[i - 1];
+    const from = (before.e.trim() || before.d.trim()) ?? "";
+    return from
+      ? `Rounds the root of the shoulder this step starts at — the inside corner at Ø${from}`
+      : "Rounds the root of the shoulder this step starts at";
+  };
+
+  /** And the other corner of that shoulder, which is its own dimension. */
+  const lipRoundsWhat = (i: number) => {
+    const diameter = rows[i].d.trim();
+    if (i === 0) return "The first step has no shoulder, so it has no lip to round";
+    return diameter
+      ? `Rounds the outer lip of that shoulder, where its face meets Ø${diameter}`
+      : "Rounds the outer lip of that shoulder";
+  };
+
   return (
     <Card variant="solid" padding="md" className="border-dark-600">
       <div className="flex items-center justify-between mb-3">
@@ -365,19 +433,20 @@ function ProfileEditor({
         <span className="text-[10px] text-gray-600">as dimensioned on the drawing</span>
       </div>
       <div className="space-y-2">
-        <div className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1fr_3.4rem_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
+        <div className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1fr_1fr_3.4rem_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
           <span>#</span>
           <span>Diameter</span>
           <span>Length</span>
           <span>End Ø</span>
-          <span>Radius</span>
-          <span>Arc</span>
+          <span>R corner</span>
+          <span>R lip</span>
+          <span>Blend</span>
           <span />
         </div>
         {rows.map((r, i) => (
           <div
             key={i}
-            className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1fr_3.4rem_1.6rem] gap-2 items-center"
+            className="grid grid-cols-[1.4rem_1fr_1fr_1fr_1fr_1fr_3.4rem_1.6rem] gap-2 items-center"
           >
             <span className="font-mono text-xs text-gray-500">{i + 1}</span>
             <input
@@ -413,19 +482,50 @@ function ProfileEditor({
               value={r.r}
               inputMode="decimal"
               placeholder="—"
-              aria-label={`Step ${i + 1} blend radius`}
+              aria-label={`Step ${i + 1} corner radius`}
+              title={r.blend === "arc" ? undefined : roundsWhat(i)}
               onChange={(e) =>
                 /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "r", e.target.value)
+              }
+            />
+            <input
+              className={field}
+              value={r.lip}
+              inputMode="decimal"
+              placeholder="—"
+              // The first step has no shoulder, so there is no lip on it to
+              // round. Better to shut the box than to take a number and refuse it.
+              disabled={i === 0}
+              aria-label={`Step ${i + 1} lip radius`}
+              title={lipRoundsWhat(i)}
+              onChange={(e) =>
+                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "lip", e.target.value)
               }
             />
             <button
               type="button"
               disabled={r.r.trim() === ""}
-              aria-label={`Step ${i + 1} arc direction`}
-              onClick={() => setRow(i, "dir", r.dir === "cw" ? "ccw" : "cw")}
+              aria-label={`Step ${i + 1} blend`}
+              title={
+                r.blend === "arc"
+                  ? "The whole step bowed on the radius, from its diameter to its end diameter"
+                  : `${roundsWhat(i)}. Tangent both sides, and it writes its own G02 or G03.`
+              }
+              onClick={() =>
+                setRows((cur) =>
+                  cur.map((row, j) => {
+                    if (j !== i) return row;
+                    const at = BLEND_STATES.findIndex(
+                      (s) => s.blend === row.blend && (row.blend !== "arc" || s.dir === row.dir),
+                    );
+                    const next = BLEND_STATES[(at + 1) % BLEND_STATES.length];
+                    return { ...row, blend: next.blend, dir: next.dir };
+                  }),
+                )
+              }
               className="rounded-lg border border-dark-600 bg-dark-900 px-1 py-2 font-mono text-[11px] text-gray-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-default"
             >
-              {r.dir === "cw" ? "G02" : "G03"}
+              {blendLabel(r)}
             </button>
             <button
               onClick={() => setRows((c) => c.filter((_, j) => j !== i))}
@@ -438,6 +538,26 @@ function ProfileEditor({
           </div>
         ))}
       </div>
+      {/* Which corner each radius went to, said out loud. A radius that rounded
+          somewhere other than where it was wanted is otherwise only findable by
+          reading the shape and guessing. */}
+      {rows.some((r) => (r.r.trim() !== "" && r.blend !== "arc") || r.lip.trim() !== "") && (
+        <ul className="mt-3 space-y-1">
+          {rows.flatMap((r, i) => {
+            const said: React.ReactNode[] = [];
+            const line = (key: string, radius: string, what: string) => (
+              <li key={key} className="text-[10px] text-gray-500 leading-relaxed">
+                <span className="font-mono text-accent-cyan">R{radius}</span> on step {i + 1}:{" "}
+                {what.replace(/^Rounds /, "rounds ")}.
+              </li>
+            );
+            if (r.r.trim() !== "" && r.blend !== "arc")
+              said.push(line(`${i}c`, r.r, roundsWhat(i)));
+            if (r.lip.trim() !== "" && i > 0) said.push(line(`${i}l`, r.lip, lipRoundsWhat(i)));
+            return said;
+          })}
+        </ul>
+      )}
       <button
         onClick={() => setRows((c) => [...c, emptyRow()])}
         className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
@@ -446,10 +566,20 @@ function ProfileEditor({
       </button>
       <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
         Enter each step from the face outwards. Leave End Ø blank for a parallel step, or give it to
-        cut a taper. Add a Radius to blend to that end diameter on a curve instead of a straight
-        line — G02 bows one way, G03 the other, and between the same two points those are different
-        shapes. Z is worked out cumulatively, so step two runs to the sum of the lengths before it —
-        the part that is easy to get wrong by hand.
+        cut a taper. Both radius columns round a corner the way R on a drawing and the fillet in CAD
+        mean it: tangent to the two faces, taking their own length out of each, working out their
+        own G02 or G03 from the shape. A shoulder has two corners and gets both of them from the row
+        of the bigger diameter — the step that begins there.{" "}
+        <span className="font-mono text-gray-500">R corner</span> is the root, down in the inside
+        corner, and <span className="font-mono text-gray-500">R lip</span> is the outer edge where
+        the shoulder face meets the diameter above it. On step one there is no shoulder, so R corner
+        is the front corner and R lip is shut. Press{" "}
+        <span className="font-mono text-gray-500">R</span> under Blend to turn the corner radius
+        into <span className="font-mono text-gray-500">G02</span> or{" "}
+        <span className="font-mono text-gray-500">G03</span> instead, which stops it being a corner
+        at all: it bows the whole step from its diameter to its End Ø, a ball nose or a crown. Z is
+        worked out cumulatively, so step two runs to the sum of the lengths before it — the part
+        that is easy to get wrong by hand.
       </p>
     </Card>
   );

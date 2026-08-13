@@ -71,6 +71,20 @@ describe("arcs", () => {
     );
   });
 
+  it("catches the bare block after an arc, which is still circular", () => {
+    const d = checkProgram("N10 G01 X10.0 F0.2\nN20 G02 X30.0 Z-30.0 R10.0\nN30 X50.0\nN40 M30");
+    const modal = d.find((x) => x.code === "arc-without-centre");
+    expect(modal).toBeDefined();
+    expect(modal!.line).toBe(3);
+    expect(modal!.message).toContain("still in force");
+  });
+
+  it("says nothing when the move after an arc names G01 itself", () => {
+    expect(
+      codes(checkProgram("N10 G01 X10.0 F0.2\nN20 G02 X30.0 Z-30.0 R10.0\nN30 G01 X50.0\nN40 M30")),
+    ).not.toContain("arc-without-centre");
+  });
+
   it("catches a radius too small to span its own ends", () => {
     const d = checkProgram(
       `N10 G71 U2.0 R1.0

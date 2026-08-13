@@ -191,6 +191,47 @@ export function centreFromRadius(
   };
 }
 
+/**
+ * How far an arc turns, and where it is at any point along that turn.
+ *
+ * Measured in the plane the path is drawn in — Z across, radius up — so the
+ * angle runs from the +Z axis towards the radius, and a clockwise arc turns
+ * negative. Whether the arc is the long way round or the short way is a fact
+ * about the block, not something the drawing may choose: an arc that sweeps
+ * more than half a circle drawn as the minor one is a different shape.
+ */
+export function arcSweep(
+  move: Pick<GMove, "kind" | "x" | "z" | "centre">,
+  from: { x: number; z: number },
+): { radius: number; startAngle: number; sweep: number } | undefined {
+  if (!move.centre || (move.kind !== "arcCW" && move.kind !== "arcCCW")) return undefined;
+  const centre = { z: move.centre.z, r: move.centre.x / 2 };
+  const startAngle = Math.atan2(from.x / 2 - centre.r, from.z - centre.z);
+  const endAngle = Math.atan2(move.x / 2 - centre.r, move.z - centre.z);
+  const radius = Math.hypot(from.z - centre.z, from.x / 2 - centre.r);
+
+  let sweep = endAngle - startAngle;
+  const twoPi = Math.PI * 2;
+  // Take the turn the way the block asked for it, not the short way. A block
+  // that ends where it started is the full circle it asks for, not a null move.
+  if (move.kind === "arcCW") while (sweep >= 0) sweep -= twoPi;
+  else while (sweep <= 0) sweep += twoPi;
+  return { radius, startAngle, sweep };
+}
+
+/** A point part way along an arc, as a diameter and a Z. */
+export function arcPointAt(
+  arc: { radius: number; startAngle: number; sweep: number },
+  centre: { x: number; z: number },
+  fraction: number,
+): { x: number; z: number } {
+  const angle = arc.startAngle + arc.sweep * fraction;
+  return {
+    x: (centre.x / 2 + arc.radius * Math.sin(angle)) * 2,
+    z: centre.z + arc.radius * Math.cos(angle),
+  };
+}
+
 /** Extent of the path, for fitting a drawing to it. */
 export function pathBounds(moves: GMove[]) {
   const xs = moves.map((m) => m.x);

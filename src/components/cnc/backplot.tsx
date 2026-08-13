@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { parseGCode, pathBounds, type GMove } from "@/lib/cnc/parse";
+import { arcPointAt, arcSweep, parseGCode, pathBounds, type GMove } from "@/lib/cnc/parse";
 import { checkProgram } from "@/lib/cnc/check";
 import { stockFromProgram, toolpathFromProgram } from "@/lib/cnc/simulate";
 import { LatheSimulation } from "@/components/cnc/simulation";
@@ -35,9 +35,17 @@ N110 Z-60.0
 G00 X60.0 Z50.0
 M30`;
 
-/** Length of a move in the drawing plane, X halved because it is a diameter. */
-const span = (a: { x: number; z: number }, b: { x: number; z: number }) =>
-  Math.hypot((b.x - a.x) / 2, b.z - a.z);
+/**
+ * Length of a move in the drawing plane, X halved because it is a diameter.
+ *
+ * An arc is measured round the curve rather than across its chord, so playback
+ * spends the time on it that the tool would — a full circle is not a null move.
+ */
+const span = (a: { x: number; z: number }, b: GMove) => {
+  const arc = arcSweep(b, a);
+  if (arc) return Math.abs(arc.sweep) * arc.radius;
+  return Math.hypot((b.x - a.x) / 2, b.z - a.z);
+};
 
 /**
  * Takes its program from the page when one is given, so the blocks a cycle just
@@ -113,16 +121,34 @@ export function Backplot({
   const sx = (z: number) => W - PAD - ((maxZ - z) / zRange) * (W - PAD * 2);
   const sy = (diameter: number) => H - PAD - (diameter / 2 / xRange) * (H - PAD * 2);
 
-  /** SVG arc for a circular move, or a line if the centre is missing. */
-  const arcPath = (m: GMove, from: { x: number; z: number }) => {
-    if (!m.centre) return `L${sx(m.z)},${sy(m.x)}`;
-    const r = Math.hypot(m.centre.z - from.z, (m.centre.x - from.x) / 2);
-    const rx = (r / xRange) * (H - PAD * 2);
-    const rz = (r / zRange) * (W - PAD * 2);
-    // Radius runs up the screen while SVG's y runs down, so one axis is mirrored
-    // and a clockwise arc has to be drawn with the anticlockwise sweep flag.
-    const sweep = m.kind === "arcCW" ? 1 : 0;
-    return `A${rz},${rx} 0 0 ${sweep} ${sx(m.z)},${sy(m.x)}`;
+  /**
+   * A circular move as far as it has been travelled: the SVG segment for it and
+   * the point it leaves the tool at. Part way through, that point is on the
+   * curve rather than on the chord across it, so the tool follows the arc while
+   * it is being drawn instead of cutting the corner off it.
+   */
+  const arcSegment = (m: GMove, from: { x: number; z: number }, fraction: number) => {
+    const arc = arcSweep(m, from);
+    if (!m.centre || !arc) {
+      const to = {
+        x: from.x + (m.x - from.x) * fraction,
+        z: from.z + (m.z - from.z) * fraction,
+      };
+      return { seg: `L${sx(to.z)},${sy(to.x)}`, to };
+    }
+    // Z and the radius are scaled by different amounts to fit the box, so the
+    // circle is drawn as the ellipse that scaling turns it into.
+    const rx = (arc.radius / xRange) * (H - PAD * 2);
+    const rz = (arc.radius / zRange) * (W - PAD * 2);
+    const swept = arc.sweep * fraction;
+    // Whether the arc goes the long way round is the block's to say. Left at 0
+    // a half-turn or more is drawn as the short way, which is the other shape.
+    const large = Math.abs(swept) > Math.PI ? 1 : 0;
+    // The picture keeps the machine's orientation — Z to the right, radius up —
+    // and SVG's y runs down, so its positive-angle sweep is the clockwise one.
+    const sweepFlag = m.kind === "arcCW" ? 1 : 0;
+    const to = fraction >= 1 ? { x: m.x, z: m.z } : arcPointAt(arc, m.centre, fraction);
+    return { seg: `A${rz},${rx} 0 ${large} ${sweepFlag} ${sx(to.z)},${sy(to.x)}`, to };
   };
 
   const target = progress * plan.total;
@@ -136,15 +162,7 @@ export function Backplot({
     const { move, from } = leg;
     const visible = Math.min(1, Math.max(0, (target - leg.start) / (leg.end - leg.start || 1)));
     if (visible <= 0) break;
-    const to =
-      visible >= 1
-        ? { x: move.x, z: move.z }
-        : { x: from.x + (move.x - from.x) * visible, z: from.z + (move.z - from.z) * visible };
-
-    const seg =
-      visible >= 1 && (move.kind === "arcCW" || move.kind === "arcCCW")
-        ? arcPath(move, from)
-        : `L${sx(to.z)},${sy(to.x)}`;
+    const { seg, to } = arcSegment(move, from, visible);
     const head = `M${sx(from.z)},${sy(from.x)}`;
     if (move.kind === "rapid") rapidPath += ` ${head} ${seg}`;
     else cutPath += ` ${head} ${seg}`;
