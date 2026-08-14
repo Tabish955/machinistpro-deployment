@@ -156,9 +156,23 @@ export function calcG76(input: G76Input): G76Result {
     );
   }
 
-  // Cutting outward for a nut, inward for a screw.
-  const sign = internal ? 1 : -1;
-  const atDepth = (depth: number) => Number((majorDiameter + sign * 2 * depth).toFixed(4));
+  /**
+   * The diameter a pass at this depth arrives at.
+   *
+   * A screw is cut inward from the major diameter, so depth comes off it. A nut
+   * is the other way about and it is not a mirror of the screw: the hole is
+   * bored to the minor diameter first, and the thread is cut *outward* from
+   * there until it reaches the major diameter. So the major diameter is where an
+   * internal thread finishes, not where it starts, and the passes climb to it.
+   *
+   * Read as a mirror of the screw — major plus the depth — a nut comes out two
+   * full thread heights oversize, which is 2.7 mm on an M20, and the first move
+   * of the cycle puts the tool inside the wall.
+   */
+  const atDepth = (depth: number) =>
+    Number(
+      (internal ? majorDiameter - 2 * (height - depth) : majorDiameter - 2 * depth).toFixed(4),
+    );
 
   const roughDepth = height - finishAllowance;
   const passes: ThreadPass[] = [];
@@ -387,68 +401,198 @@ export interface G72Input {
   retract: number;
 }
 
+/**
+ * One level of a faced profile, entered from the outside diameter inwards.
+ *
+ * G72 attacks a part the other way round from G71 — it steps along Z and sweeps
+ * along X — and its contour is written the same way round: starting at the
+ * largest diameter and working towards the centre. So a face is described as
+ * the levels it steps through rather than as diameters along the part.
+ */
+export interface FaceStep {
+  /** Diameter this level runs in to, mm. */
+  diameter: number;
+  /** How deep the face sits at this level, mm, entered positive. */
+  depth: number;
+}
+
 export interface FacingPass {
   pass: number;
   /** Z this pass faces at, negative into the part. */
   z: number;
   /** How much this pass takes off along Z, mm. */
   depth: number;
+  /** Diameter this pass sweeps in to before the finished shape stops it. */
+  toDiameter: number;
 }
 
-export function calcG72(input: G72Input): {
+/**
+ * The X/Z points of a faced profile, walked the way the cycle reads it.
+ *
+ * Each level runs from the diameter outside it in to its own, at its own depth,
+ * so the outline is a staircase from the OD towards the centre: sweep in at one
+ * depth, step along Z at that diameter, sweep in again.
+ */
+export function faceProfileCoordinates(steps: FaceStep[], stockDiameter: number): FacePoint[] {
+  if (!steps.length) throw new Error("Add at least one level to the face.");
+  let outside = stockDiameter;
+  let previousDepth: number | undefined;
+
+  const points: FacePoint[] = [];
+  steps.forEach((step, i) => {
+    if (!(step.diameter >= 0)) throw new Error(`Level ${i + 1}: diameter cannot be negative.`);
+    if (!(step.depth > 0)) throw new Error(`Level ${i + 1}: depth must be greater than zero.`);
+    if (step.diameter >= outside) {
+      throw new Error(
+        `Level ${i + 1}: Ø${step.diameter} is not inside Ø${outside}. Levels run from the outside ` +
+          `diameter inwards, so each one has to be smaller than the last.`,
+      );
+    }
+    // Deeper as it goes in is a recess in the face, and only Type II reaches
+    // into one. G72 here is Type I, so it is refused rather than cut through.
+    if (previousDepth !== undefined && step.depth > previousDepth + 1e-9) {
+      throw new Error(
+        `Level ${i + 1}: the face steps deeper as it goes in, which leaves a recess with metal ` +
+          `standing over it. A Type I facing cycle cuts straight through that.`,
+      );
+    }
+
+    if (previousDepth === undefined) {
+      points.push({ x: Number(stockDiameter.toFixed(4)), z: Number((-step.depth).toFixed(4)) });
+    } else if (Math.abs(step.depth - previousDepth) > 1e-9) {
+      // Along the wall of the step, at the diameter the last level finished at.
+      points.push({ x: Number(outside.toFixed(4)), z: Number((-step.depth).toFixed(4)) });
+    }
+    points.push({ x: Number(step.diameter.toFixed(4)), z: Number((-step.depth).toFixed(4)) });
+
+    outside = step.diameter;
+    previousDepth = step.depth;
+  });
+  return points;
+}
+
+/** A point on a faced profile: a diameter and the Z the face sits at. */
+export interface FacePoint {
+  x: number;
+  z: number;
+}
+
+/**
+ * How far in a facing pass at this depth may sweep before it would cut into the
+ * finished shape.
+ *
+ * The levels run shallower as they go in, so the pass travels inwards while the
+ * finished face is still deeper than it is and stops at the first level that is
+ * not — which is the staircase of material a G72 leaves behind.
+ */
+export function facingReach(steps: FaceStep[], stockDiameter: number, depth: number): number {
+  let outside = stockDiameter;
+  for (const step of steps) {
+    if (step.depth < depth - 1e-9) return outside;
+    outside = step.diameter;
+  }
+  return outside;
+}
+
+export function calcG72(
+  input: G72Input,
+  steps?: FaceStep[],
+): {
   passes: FacingPass[];
   roughedZ: number;
   roughedDiameter: number;
 } {
   const { stockDiameter, finishDiameter, stockLength, depthOfCut, allowanceX, allowanceZ } = input;
 
-  if (!(stockLength > 0)) throw new Error("Facing stock must be greater than zero.");
   if (!(depthOfCut > 0)) throw new Error("Depth of cut must be greater than zero.");
   if (finishDiameter >= stockDiameter) {
     throw new Error("The finished diameter must be smaller than the stock diameter.");
   }
-  if (allowanceZ >= stockLength) {
+
+  // A face profile carries its own depth and its own smallest diameter; the
+  // plain inputs only describe one level, which is the same thing with one row.
+  const profile = steps?.length ? steps : undefined;
+  const deepest = profile ? Math.max(...profile.map((s) => s.depth)) : stockLength;
+  const innermost = profile ? Math.min(...profile.map((s) => s.diameter)) : finishDiameter;
+  if (!(deepest > 0)) throw new Error("Facing stock must be greater than zero.");
+  if (allowanceZ >= deepest) {
     throw new Error("The Z allowance leaves nothing for the roughing to remove.");
   }
+  if (profile) faceProfileCoordinates(profile, stockDiameter);
 
   // G72 steps along Z where G71 steps along X: the cut is a face, so the depth
   // of cut is a Z distance and the tool sweeps in X on every pass.
-  const roughingLength = stockLength - allowanceZ;
+  const roughingLength = deepest - allowanceZ;
   const count = Math.ceil(roughingLength / depthOfCut);
   const passes: FacingPass[] = [];
   for (let i = 1; i <= count; i += 1) {
     const cumulative = Math.min(i * depthOfCut, roughingLength);
     const previous = Math.min((i - 1) * depthOfCut, roughingLength);
+    // Every pass stops where the finished face stands in front of it, leaving
+    // the allowance on the diameter as well as on the face.
+    const reach = profile
+      ? facingReach(profile, stockDiameter, cumulative) + allowanceX
+      : finishDiameter + allowanceX;
     passes.push({
       pass: i,
       z: Number((-cumulative).toFixed(4)),
       depth: Number((cumulative - previous).toFixed(4)),
+      toDiameter: Number(Math.max(reach, innermost + allowanceX).toFixed(4)),
     });
   }
 
   return {
     passes,
     roughedZ: Number((-roughingLength).toFixed(4)),
-    roughedDiameter: Number((finishDiameter + allowanceX).toFixed(4)),
+    roughedDiameter: Number((innermost + allowanceX).toFixed(4)),
   };
 }
 
 export function generateG72Code(
   input: G72Input,
-  options: { startBlock?: number; endBlock?: number; feed?: number } = {},
+  options: { startBlock?: number; endBlock?: number; feed?: number; steps?: FaceStep[] } = {},
 ): string[] {
-  const result = calcG72(input);
+  calcG72(input, options.steps);
   const ns = options.startBlock ?? 100;
   const nf = options.endBlock ?? 110;
   const feed = options.feed ?? 0.2;
 
-  return [
+  const header = [
     `G72 W${word(input.depthOfCut)} R${word(input.retract)}`,
     `G72 P${ns} Q${nf} U${word(input.allowanceX)} W${word(input.allowanceZ)} F${word(feed)}`,
-    `N${ns} G00 Z${word(result.roughedZ)}`,
-    `      G01 X${word(input.finishDiameter)} F${word(feed)}`,
-    `N${nf} Z${word(0)}`,
   ];
+
+  // The blocks between P and Q are the FINISHED face, not the roughed one. The
+  // cycle leaves U and W beyond them by itself, and G70 then cuts them exactly —
+  // so pulling the contour back by the allowance as well faces the part short by
+  // it, twice over during roughing and once on the finished part.
+  //
+  // The first block after P carries Z alone, which is what tells the control it
+  // is reading a Type I facing shape — the mirror of X alone under G71.
+  const steps: FaceStep[] = options.steps?.length
+    ? options.steps
+    : [{ diameter: input.finishDiameter, depth: input.stockLength }];
+
+  const lines: string[] = [];
+  let depth: number | undefined;
+  steps.forEach((step, i) => {
+    if (i === 0) {
+      lines.push(`N${ns} G00 Z${word(-step.depth)}`);
+      lines.push(`      G01 X${word(step.diameter)} F${word(feed)}`);
+    } else {
+      // Up the wall of the step first when this level sits shallower, then in
+      // along the new face.
+      if (Math.abs(step.depth - (depth as number)) > 1e-9) {
+        lines.push(`      G01 Z${word(-step.depth)}`);
+      }
+      lines.push(`      G01 X${word(step.diameter)}`);
+    }
+    depth = step.depth;
+  });
+  // The Q block comes off the shape along Z, clear of the face it just cut.
+  lines.push(`N${nf} G01 Z${word(0)}`);
+
+  return [...header, ...lines];
 }
 
 /* ── G73 · Pattern repeat ──────────────────────────────────────────────────── */

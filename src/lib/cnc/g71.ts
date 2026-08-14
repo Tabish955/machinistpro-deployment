@@ -332,6 +332,11 @@ export interface ProfileStep {
    */
   cornerRadius?: number;
   /**
+   * Chamfer on that same corner instead, mm — the C on a drawing, an equal bite
+   * off each face. A corner takes one or the other, never both.
+   */
+  cornerChamfer?: number;
+  /**
    * Round on the outer lip of that same shoulder, mm: the other corner, where
    * the shoulder face meets the diameter the step has climbed to.
    *
@@ -340,6 +345,8 @@ export interface ProfileStep {
    * first step has no shoulder, so it has no lip.
    */
   lipRadius?: number;
+  /** Chamfer on the lip instead of a round, mm. */
+  lipChamfer?: number;
   /**
    * The step's own cut bowed on a radius instead of running straight, mm.
    *
@@ -361,7 +368,7 @@ export interface ProfilePoint {
   /** Z from the face, negative into the part. */
   z: number;
   /** What this move does, for reading the table against the drawing. */
-  move: "face" | "shoulder" | "turn" | "taper" | "arc";
+  move: "face" | "shoulder" | "turn" | "taper" | "arc" | "chamfer";
 }
 
 /* ── Arcs ─────────────────────────────────────────────────────────────────── */
@@ -474,10 +481,52 @@ export function cornerFillet(
   label = "This corner",
 ): CornerFillet {
   if (!(radius > 0)) throw new Error(`${label}: a blend radius must be greater than zero.`);
+  const frame = cornerFrame(from, corner, to, label, "round");
+  const tangent = radius / Math.tan(frame.inside / 2);
+  frame.fits(tangent, `an R${Number(radius.toFixed(4))} round`, "radius");
+
+  return {
+    ...frame.at(tangent),
+    direction: frame.cross > 0 ? "ccw" : "cw",
+    tangent,
+  };
+}
+
+/**
+ * A corner taken off flat, the way a drawing means C: an equal bite out of both
+ * faces joined by a straight cut, leaving the rest of both faces alone.
+ *
+ * "C1" on a print is 1 mm off each face, which on a square shoulder is the 1×45°
+ * chamfer everybody writes by hand — and on a corner that is not square it is
+ * still 1 mm off each face, which is what the chamfer command in CAD does too.
+ *
+ * More turned parts have chamfers on them than radii: every shaft end gets one
+ * so it will start into a bore, every thread gets a lead-in, and every sharp
+ * edge gets broken. It is the same corner problem as a fillet with a straight
+ * cut instead of an arc, which is why they share their geometry.
+ */
+export function cornerChamfer(
+  from: RZ,
+  corner: RZ,
+  to: RZ,
+  size: number,
+  label = "This corner",
+): { a: RZ; b: RZ; leg: number } {
+  if (!(size > 0)) throw new Error(`${label}: a chamfer must be greater than zero.`);
+  const frame = cornerFrame(from, corner, to, label, "take off");
+  frame.fits(size, `a C${Number(size.toFixed(4))} chamfer`, "chamfer");
+  return { ...frame.at(size), leg: size };
+}
+
+/**
+ * What both corner treatments need to know: which way the two faces run, how
+ * long they are, and how much of each is available to give up.
+ */
+function cornerFrame(from: RZ, corner: RZ, to: RZ, label: string, verb: string) {
   const inLength = Math.hypot(corner.z - from.z, corner.r - from.r);
   const outLength = Math.hypot(to.z - corner.z, to.r - corner.r);
   if (inLength < 1e-9 || outLength < 1e-9) {
-    throw new Error(`${label}: there is no corner here to round.`);
+    throw new Error(`${label}: there is no corner here to ${verb}.`);
   }
 
   // Into the corner, then out of it.
@@ -485,29 +534,67 @@ export function cornerFillet(
   const v = { z: (to.z - corner.z) / outLength, r: (to.r - corner.r) / outLength };
   // Which side the path turns towards is the whole of the direction question.
   const cross = u.z * v.r - u.r * v.z;
-  // The angle the metal makes at the corner, between the two faces themselves.
-  const inside = Math.acos(Math.min(1, Math.max(-1, -(u.z * v.z + u.r * v.r))));
   if (Math.abs(cross) < 1e-9) {
     throw new Error(
-      `${label}: the two faces here run in line with each other, so there is no corner to round.`,
+      `${label}: the two faces here run in line with each other, so there is no corner to ${verb}.`,
     );
   }
 
-  const tangent = radius / Math.tan(inside / 2);
-  const needs = (face: string, have: number) =>
-    new Error(
-      `${label}: an R${Number(radius.toFixed(4))} round takes ${tangent.toFixed(3)} mm off the ` +
-        `${face}, which is only ${have.toFixed(3)} mm long. Use a smaller radius, or a longer step.`,
-    );
-  if (tangent > inLength + 1e-9) throw needs("face before it", inLength);
-  if (tangent > outLength + 1e-9) throw needs("face after it", outLength);
-
   return {
-    a: { z: corner.z - u.z * tangent, r: corner.r - u.r * tangent },
-    b: { z: corner.z + v.z * tangent, r: corner.r + v.r * tangent },
-    direction: cross > 0 ? "ccw" : "cw",
-    tangent,
+    cross,
+    // The angle the metal makes at the corner, between the two faces themselves.
+    inside: Math.acos(Math.min(1, Math.max(-1, -(u.z * v.z + u.r * v.r)))),
+    at: (distance: number) => ({
+      a: { z: corner.z - u.z * distance, r: corner.r - u.r * distance },
+      b: { z: corner.z + v.z * distance, r: corner.r + v.r * distance },
+    }),
+    fits: (distance: number, what: string, smaller: string) => {
+      const needs = (face: string, have: number) =>
+        new Error(
+          `${label}: ${what} takes ${distance.toFixed(3)} mm off the ${face}, which is only ` +
+            `${have.toFixed(3)} mm long. Use a smaller ${smaller}, or a longer step.`,
+        );
+      if (distance > inLength + 1e-9) throw needs("face before it", inLength);
+      if (distance > outLength + 1e-9) throw needs("face after it", outLength);
+    },
   };
+}
+
+/**
+ * Whether an arc is a shape a turning cycle can actually cut.
+ *
+ * Two ways it is not, both of which the geometry will produce perfectly happily
+ * because both are legal arcs — they are only impossible once you remember what
+ * is holding the metal.
+ *
+ * An arc between two points bows out perpendicular to the line joining them, and
+ * the tighter the radius the further it bows. Bow it far enough and the curve
+ * travels back towards the face partway round, which no roughing cycle can
+ * follow: the contour has to run one way along Z. Bow it the other way on a
+ * small diameter and it crosses the centre line, where there is no metal and the
+ * tool cannot go.
+ *
+ * Both come out as a valid-looking G02 with sensible end points, so they have to
+ * be caught here rather than found on the machine.
+ */
+function checkArcIsCuttable(legs: RZ[], from: RZ, label: string): void {
+  let z = from.z;
+  for (const leg of legs) {
+    if (leg.r < -1e-9) {
+      throw new Error(
+        `${label}: this arc passes through the centre line — it bows in further than the part ` +
+          `has radius. Open the radius out, or bow it the other way.`,
+      );
+    }
+    if (leg.z > z + 1e-6) {
+      throw new Error(
+        `${label}: this arc turns back towards the face partway round, and a roughing cycle can ` +
+          `only travel one way along Z. Open the radius out so the curve is flatter, or bow it ` +
+          `the other way.`,
+      );
+    }
+    z = leg.z;
+  }
 }
 
 /** How far a straight leg may sag from the curve it stands in for, mm. */
@@ -594,8 +681,9 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
   // the profile is still being written one step at a time: the face on the far
   // side of the corner has not been decided yet.
   type Vertex = { z: number; r: number; move: ProfilePoint["move"] };
+  type Treatment = { at: number; size: number; kind: "round" | "chamfer"; step: number };
   const vertices: Vertex[] = [];
-  const rounds: Array<{ at: number; radius: number; step: number }> = [];
+  const rounds: Treatment[] = [];
   let z = 0;
   steps.forEach((step, index) => {
     const endDiameter = step.endDiameter ?? step.diameter;
@@ -603,12 +691,25 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
     const startZ = z;
     z -= step.length;
 
-    if (step.cornerRadius !== undefined) {
-      // The corner a step's radius rounds is the one it begins at: the front
-      // corner on the first step, the root of its shoulder on any after it.
+    if (step.cornerRadius !== undefined && step.cornerChamfer !== undefined) {
+      throw new Error(
+        `Step ${index + 1}: this corner is given both a radius and a chamfer. It takes one or the other.`,
+      );
+    }
+    if (step.lipRadius !== undefined && step.lipChamfer !== undefined) {
+      throw new Error(
+        `Step ${index + 1}: this lip is given both a radius and a chamfer. It takes one or the other.`,
+      );
+    }
+
+    const cornerSize = step.cornerRadius ?? step.cornerChamfer;
+    if (cornerSize !== undefined) {
+      // The corner a step's radius or chamfer takes is the one it begins at: the
+      // front corner on the first step, the root of its shoulder on any after.
       rounds.push({
         at: index === 0 ? 0 : vertices.length - 1,
-        radius: step.cornerRadius,
+        size: cornerSize,
+        kind: step.cornerChamfer !== undefined ? "chamfer" : "round",
         step: index,
       });
     }
@@ -629,33 +730,49 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
       });
     }
 
-    if (step.lipRadius !== undefined) {
+    const lipSize = step.lipRadius ?? step.lipChamfer;
+    if (lipSize !== undefined) {
       // The other end of the same shoulder face: the outer lip, where it meets
       // the diameter the step has just climbed to.
       if (index === 0 || !moved) {
         throw new Error(
-          `Step ${index + 1}: there is no shoulder here, so there is no outer lip to round.` +
-            (index === 0 ? " A radius on the first step rounds the front corner." : ""),
+          `Step ${index + 1}: there is no shoulder here, so there is no outer lip to take off.` +
+            (index === 0 ? " A radius or chamfer on the first step takes the front corner." : ""),
         );
       }
       if (step.arcRadius !== undefined) {
         throw new Error(
           `Step ${index + 1}: the step is bowed as an arc, so its lip has no straight face to ` +
-            `round onto. Round the lip or bow the step, not both.`,
+            `run onto. Take the lip or bow the step, not both.`,
         );
       }
-      rounds.push({ at: vertices.length - 1, radius: step.lipRadius, step: index });
+      rounds.push({
+        at: vertices.length - 1,
+        size: lipSize,
+        kind: step.lipChamfer !== undefined ? "chamfer" : "round",
+        step: index,
+      });
     }
 
     if (step.arcRadius !== undefined) {
       // The curve is walked as short legs so the pass planner, the backplot and
       // the material model all follow it without knowing it is an arc.
-      for (const leg of arcPoints(
-        { z: startZ, r: step.diameter / 2 },
-        { z, r: endDiameter / 2 },
-        step.arcRadius,
-        step.arcDirection ?? "cw",
-      )) {
+      let legs: RZ[];
+      try {
+        legs = arcPoints(
+          { z: startZ, r: step.diameter / 2 },
+          { z, r: endDiameter / 2 },
+          step.arcRadius,
+          step.arcDirection ?? "cw",
+        );
+      } catch (cause) {
+        // The arc geometry has no idea which row it was handed, and on a profile
+        // of six steps "this step" is not enough to go and fix it by.
+        const said = cause instanceof Error ? cause.message : String(cause);
+        throw new Error(said.startsWith("Step ") ? said : `Step ${index + 1}: ${said}`);
+      }
+      checkArcIsCuttable(legs, { z: startZ, r: step.diameter / 2 }, `Step ${index + 1}`);
+      for (const leg of legs) {
         vertices.push({ z: leg.z, r: leg.r, move: "arc" });
       }
       return;
@@ -667,19 +784,23 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
 
   // Worked out against the sharp corners, all of them, before any one round
   // moves the points the next one is measured from.
-  const fillets = rounds.map((round) => ({
-    ...round,
-    fillet: cornerFillet(
-      // Nothing precedes the front corner but the face itself, which runs out
-      // from the axis — so that is the face the round comes off.
-      round.at === 0 ? { z: vertices[0].z, r: 0 } : vertices[round.at - 1],
-      vertices[round.at],
-      vertices[round.at + 1],
-      round.radius,
-      `Step ${round.step + 1}`,
-    ),
-  }));
-  // Two rounds sharing one face is the one case a single corner cannot see.
+  const fillets = rounds.map((round) => {
+    // Nothing precedes the front corner but the face itself, which runs out
+    // from the axis — so that is the face the corner is taken off.
+    const from = round.at === 0 ? { z: vertices[0].z, r: 0 } : vertices[round.at - 1];
+    const at = vertices[round.at];
+    const to = vertices[round.at + 1];
+    const label = `Step ${round.step + 1}`;
+    const cut =
+      round.kind === "chamfer"
+        ? { ...cornerChamfer(from, at, to, round.size, label), takes: round.size }
+        : (() => {
+            const f = cornerFillet(from, at, to, round.size, label);
+            return { ...f, takes: f.tangent };
+          })();
+    return { ...round, cut };
+  });
+  // Two corners sharing one face is the one case a single corner cannot see.
   fillets.forEach((round, i) => {
     const next = fillets[i + 1];
     if (!next || next.at !== round.at + 1) return;
@@ -687,31 +808,35 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
       vertices[next.at].z - vertices[round.at].z,
       vertices[next.at].r - vertices[round.at].r,
     );
-    if (round.fillet.tangent + next.fillet.tangent > face + 1e-9) {
+    if (round.cut.takes + next.cut.takes > face + 1e-9) {
       const whose =
         round.step === next.step
-          ? `Step ${round.step + 1}: rounding both ends of the same shoulder`
-          : `Steps ${round.step + 1} and ${next.step + 1} both round onto the same face, and`;
+          ? `Step ${round.step + 1}: taking both ends of the same shoulder`
+          : `Steps ${round.step + 1} and ${next.step + 1} both run onto the same face, and`;
       throw new Error(
-        `${whose} needs ${(round.fillet.tangent + next.fillet.tangent).toFixed(3)} mm of it ` +
+        `${whose} needs ${(round.cut.takes + next.cut.takes).toFixed(3)} mm of it ` +
           `where there is only ${face.toFixed(3)} mm.`,
       );
     }
   });
 
   // Applied from the back, so the indices of the corners still to do hold.
-  for (const { at, radius, fillet } of [...fillets].reverse()) {
+  for (const { at, size, kind, cut, step } of [...fillets].reverse()) {
     const corner = vertices[at];
-    vertices.splice(
-      at,
-      1,
-      { z: fillet.a.z, r: fillet.a.r, move: corner.move },
-      ...arcPoints(fillet.a, fillet.b, radius, fillet.direction).map((leg) => ({
-        z: leg.z,
-        r: leg.r,
-        move: "arc" as const,
-      })),
-    );
+    // A chamfer is one straight cut between its two ends; a round is the arc
+    // between them, walked as legs like every other curve here.
+    const between =
+      kind === "chamfer"
+        ? [{ z: cut.b.z, r: cut.b.r, move: "chamfer" as const }]
+        : (() => {
+            const legs = arcPoints(cut.a, cut.b, size, (cut as CornerFillet).direction);
+            // A round is tangent to two faces that both run the right way, so it
+            // should never double back — but it is the same geometry as any
+            // other arc and gets checked on the same terms rather than trusted.
+            checkArcIsCuttable(legs, cut.a, `Step ${step + 1}`);
+            return legs.map((leg) => ({ z: leg.z, r: leg.r, move: "arc" as const }));
+          })();
+    vertices.splice(at, 1, { z: cut.a.z, r: cut.a.r, move: corner.move }, ...between);
   }
 
   return vertices.map((v) => ({
@@ -771,53 +896,79 @@ export function profileBlocks(
    * coordinates are. Both have to come from `cornerFillet` or the picture and
    * the program are two different parts.
    */
-  const cornerRoundAt = (i: number): CornerFillet | undefined => {
+  /** A corner taken off, either way, with what it takes and how to write it. */
+  type CornerCut = { a: RZ; b: RZ; block: (to: RZ) => string };
+  const cut = (
+    kind: "round" | "chamfer",
+    size: number,
+    from: RZ,
+    at: RZ,
+    to: RZ,
+    label: string,
+  ): CornerCut => {
+    if (kind === "chamfer") {
+      const c = cornerChamfer(from, at, to, size, label);
+      // A chamfer is one straight cut, so it is a G01 like any other.
+      return { a: c.a, b: c.b, block: (t) => `      ${feedMove(`X${num(t.r * 2)} Z${num(t.z)}`)}` };
+    }
+    const f = cornerFillet(from, at, to, size, label);
+    return { a: f.a, b: f.b, block: (t) => arcBlock(t, size, f.direction) };
+  };
+
+  const cornerCutAt = (i: number): CornerCut | undefined => {
     const step = steps[i];
-    if (step.cornerRadius === undefined) return undefined;
+    const size = step.cornerRadius ?? step.cornerChamfer;
+    if (size === undefined) return undefined;
+    const kind = step.cornerChamfer !== undefined ? "chamfer" : "round";
     if (i === 0) {
-      return cornerFillet(
+      return cut(
+        kind,
+        size,
         { z: 0, r: 0 },
         { z: 0, r: step.diameter / 2 },
         { z: -step.length, r: endR(0) },
-        step.cornerRadius,
         "Step 1",
       );
     }
     // Where a step carries on from the diameter the last one finished at there
     // is no shoulder between them, so the corner is the one the two cuts make.
     const shoulderless = Math.abs(endR(i - 1) - step.diameter / 2) < 1e-9;
-    return cornerFillet(
+    return cut(
+      kind,
+      size,
       { z: startZ[i - 1], r: steps[i - 1].diameter / 2 },
       { z: startZ[i], r: endR(i - 1) },
       shoulderless
         ? { z: startZ[i] - step.length, r: endR(i) }
         : { z: startZ[i], r: step.diameter / 2 },
-      step.cornerRadius,
       `Step ${i + 1}`,
     );
   };
 
   /**
    * The lip of that same shoulder: up the face, then away along the new
-   * diameter. Convex, so it comes out as the opposite code to the root.
+   * diameter. Convex, so a round there comes out as the opposite code to the
+   * root, and a chamfer is the lead-in every shaft end has on it.
    */
-  const lipRoundAt = (i: number): CornerFillet | undefined => {
+  const lipCutAt = (i: number): CornerCut | undefined => {
     const step = steps[i];
-    if (step.lipRadius === undefined || i === 0) return undefined;
-    return cornerFillet(
+    const size = step.lipRadius ?? step.lipChamfer;
+    if (size === undefined || i === 0) return undefined;
+    return cut(
+      step.lipChamfer !== undefined ? "chamfer" : "round",
+      size,
       { z: startZ[i], r: endR(i - 1) },
       { z: startZ[i], r: step.diameter / 2 },
       { z: startZ[i] - step.length, r: endR(i) },
-      step.lipRadius,
       `Step ${i + 1}`,
     );
   };
 
   steps.forEach((step, index) => {
     const endDiameter = step.endDiameter ?? step.diameter;
-    const corner = cornerRoundAt(index);
-    const lip = lipRoundAt(index);
-    const nextCorner = index + 1 < steps.length ? cornerRoundAt(index + 1) : undefined;
+    const corner = cornerCutAt(index);
+    const lip = lipCutAt(index);
+    const nextCorner = index + 1 < steps.length ? cornerCutAt(index + 1) : undefined;
 
     if (index === 0) {
       // The first block after P is what tells the control which form it is
@@ -832,34 +983,28 @@ export function profileBlocks(
       );
       modal = "G00";
       if (corner) {
-        // A rounded front corner starts on the face, so the face is a block of
+        // A taken front corner starts on the face, so the face is a block of
         // its own now — the P block cannot carry the Z for it under Type I.
         if (type !== "II") lines.push(`      ${feedMove("Z0.0")}`);
-        lines.push(arcBlock(corner.b, step.cornerRadius as number, corner.direction));
+        lines.push(corner.block(corner.b));
       }
     } else {
-      // Up the shoulder, in as many pieces as it has rounds on it. The root
-      // round starts it — the cut into the corner was already written short of
-      // it — then whatever face is left, then the lip round onto the diameter.
-      if (corner) {
-        lines.push(arcBlock(corner.b, step.cornerRadius as number, corner.direction));
-      }
+      // Up the shoulder, in as many pieces as it has corners taken off it. The
+      // root starts it — the cut in was already written short of it — then
+      // whatever face is left, then the lip onto the diameter.
+      if (corner) lines.push(corner.block(corner.b));
       const from = corner ? corner.b.r * 2 : currentDiameter;
       const upTo = lip ? lip.a.r * 2 : step.diameter;
       if (Math.abs(upTo - from) > 1e-9) {
         lines.push(`      ${feedMove(`X${num(upTo)}`)}`);
       }
-      if (lip) {
-        lines.push(arcBlock(lip.b, step.lipRadius as number, lip.direction));
-      }
+      if (lip) lines.push(lip.block(lip.b));
     }
     currentDiameter = step.diameter;
 
     const z = startZ[index] - step.length;
     if (step.arcRadius !== undefined) {
-      lines.push(
-        arcBlock({ z, r: endDiameter / 2 }, step.arcRadius, step.arcDirection ?? "cw"),
-      );
+      lines.push(arcBlock({ z, r: endDiameter / 2 }, step.arcRadius, step.arcDirection ?? "cw"));
     } else {
       // Stop short when the next step rounds the corner this cut runs into. A
       // lip round takes its length out of its own step, not out of this one.
@@ -949,8 +1094,12 @@ export function generateG71Code(
   if (!options.steps?.length) {
     return [
       ...header,
+      // The contour is the finished part: X at the finished diameter and Z at
+      // the full length. The cycle leaves U and W beyond it of its own accord,
+      // and G70 cuts it exactly — writing the roughed Z here instead would take
+      // the allowance off twice and leave the part short by it.
       `N${ns} G00 X${word(input.finishDiameter)}`,
-      `      G01 Z${word(result.roughedZ)} F${word(feed)}`,
+      `      G01 Z${word(-input.length)} F${word(feed)}`,
       `N${nf} X${word(input.stockDiameter)}`,
     ];
   }
@@ -1024,4 +1173,22 @@ export function profileDrawing(
     width: size.width,
     height: size.height,
   };
+}
+
+/**
+ * Which form of the cycle a profile has to be read as.
+ *
+ * Nothing in a program says "Type I" or "Type II": the control tells them apart
+ * by whether the first block after P carries a Z as well as an X. So the form is
+ * not a preference to be set — it is a fact about the shape, and the same fact
+ * this works out. A profile that only grows from the face is Type I. One that
+ * dips and comes back has a pocket in it, which only Type II roughs; read as
+ * Type I the passes drive straight through the recess and leave it full.
+ *
+ * Deriving it here means the two ways of getting that wrong by hand — a stray Z
+ * on the first block turning a plain shaft into Type II, or a pocketed profile
+ * written without one — cannot happen.
+ */
+export function requiredType(points: ProfilePoint[]): G71Type {
+  return points.length && profileReversal(points) ? "II" : "I";
 }

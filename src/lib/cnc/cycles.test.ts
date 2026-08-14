@@ -10,6 +10,8 @@ import {
   calcG75,
   generateG75Code,
   calcG72,
+  faceProfileCoordinates,
+  type FaceStep,
   generateG72Code,
   calcG73,
   patternOversize,
@@ -121,12 +123,32 @@ describe("G76 threading passes", () => {
     }
   });
 
-  it("cuts outward for a nut", () => {
+  it("cuts a nut outward from the bore, finishing on the major diameter", () => {
+    // A nut is not a mirrored screw. The hole is bored to the minor diameter
+    // first and the thread is cut outward from there until it reaches the major
+    // diameter — so the major diameter is where it finishes, not where it
+    // starts, and no pass ever goes beyond it. Read the other way about, an M20
+    // nut comes out 2.7 mm oversize and the first move is inside the wall.
     const r = calcG76({ ...thread, internal: true });
-    expect(r.finalDiameter).toBeGreaterThan(thread.majorDiameter);
+    expect(r.finalDiameter).toBeCloseTo(thread.majorDiameter, 6);
+
+    const bore = thread.majorDiameter - 2 * r.height;
+    for (const p of r.passes) {
+      expect(p.diameter).toBeGreaterThan(bore);
+      expect(p.diameter).toBeLessThanOrEqual(thread.majorDiameter + 1e-9);
+    }
+    // And it works outward, pass by pass.
     for (let i = 1; i < r.passes.length; i += 1) {
       expect(r.passes[i].diameter).toBeGreaterThanOrEqual(r.passes[i - 1].diameter);
     }
+  });
+
+  it("puts the nut's start point inside the bore, where there is no metal", () => {
+    const r = calcG76({ ...thread, internal: true });
+    const bore = thread.majorDiameter - 2 * r.height;
+    const first = generateG76Code({ ...thread, internal: true })[0];
+    const x = Number(first.match(/X(-?[\d.]+)/)![1]);
+    expect(x).toBeLessThan(bore);
   });
 
   it("refuses a thread it cannot cut", () => {
@@ -219,6 +241,120 @@ describe("G75 grooving", () => {
 
   it("refuses a tool wider than the groove", () => {
     expect(() => calcG75({ ...groove, toolWidth: 8 })).toThrow("cut both walls at once");
+  });
+});
+
+describe("the contour a cycle hands to G70", () => {
+  /**
+   * The blocks between P and Q are the finished part, not the roughed one. The
+   * cycle leaves U and W beyond them by itself and G70 then cuts them exactly,
+   * so a contour written with the allowance already taken off produces a part
+   * short by it — every time, on a control that is doing exactly as it was told.
+   */
+  it("faces to the full depth, not the roughed depth", () => {
+    const code = generateG72Code({
+      stockDiameter: 50,
+      finishDiameter: 20,
+      stockLength: 5,
+      depthOfCut: 1,
+      allowanceX: 0.5,
+      allowanceZ: 0.1,
+      retract: 1,
+    });
+    // Z−5.0 is the finished face. Z−4.9 would be the face less the allowance,
+    // which the cycle is about to leave on top of it.
+    expect(code).toContain("N100 G00 Z-5.0");
+    expect(code.join("\n")).not.toContain("Z-4.9");
+    // And the X is the finished diameter for the same reason.
+    expect(code).toContain("      G01 X20.0 F0.2");
+  });
+});
+
+/**
+ * A face that steps. G72 reads its contour from the largest diameter inwards —
+ * the opposite way round from G71 — and the first block after P carries Z alone
+ * where G71's carries X alone.
+ */
+describe("G72 with a face profile", () => {
+  // A flange: the outer annulus faced 5 deep in to Ø40, the boss in the middle
+  // left standing proud and faced only 2 deep from Ø40 in to Ø15.
+  const steps: FaceStep[] = [
+    { diameter: 40, depth: 5 },
+    { diameter: 15, depth: 2 },
+  ];
+  const input = {
+    stockDiameter: 60,
+    finishDiameter: 15,
+    stockLength: 5,
+    depthOfCut: 2,
+    allowanceX: 0.5,
+    allowanceZ: 0.1,
+    retract: 1,
+  };
+
+  it("walks the face as a staircase from the outside in", () => {
+    expect(faceProfileCoordinates(steps, 60)).toEqual([
+      { x: 60, z: -5 }, // at the stock OD, five deep
+      { x: 40, z: -5 }, // swept in to the boss
+      { x: 40, z: -2 }, // up the wall of the step
+      { x: 15, z: -2 }, // and in across the top of the boss
+    ]);
+  });
+
+  it("writes the contour with Z alone on the first block", () => {
+    expect(generateG72Code(input, { steps, feed: 0.2 })).toEqual([
+      "G72 W2.0 R1.0",
+      "G72 P100 Q110 U0.5 W0.1 F0.2",
+      "N100 G00 Z-5.0",
+      "      G01 X40.0 F0.2",
+      "      G01 Z-2.0",
+      "      G01 X15.0",
+      "N110 G01 Z0.0",
+    ]);
+  });
+
+  it("stops each pass where the boss stands in front of it", () => {
+    const r = calcG72(input, steps);
+    // Down to 2 mm the whole face is still to come off, so the pass sweeps all
+    // the way in. Below that the boss is standing, and the pass stops at it.
+    expect(r.passes.map((p) => [p.z, p.toDiameter])).toEqual([
+      [-2, 15.5],
+      [-4, 40.5],
+      [-4.9, 40.5],
+    ]);
+    expect(r.roughedDiameter).toBe(15.5);
+  });
+
+  it("refuses a face that steps deeper as it goes in", () => {
+    // A recess in the middle has metal standing over it, which Type I drives
+    // straight through.
+    expect(() =>
+      faceProfileCoordinates(
+        [
+          { diameter: 40, depth: 2 },
+          { diameter: 15, depth: 5 },
+        ],
+        60,
+      ),
+    ).toThrow("steps deeper as it goes in");
+  });
+
+  it("refuses a level that is not inside the one before it", () => {
+    expect(() =>
+      faceProfileCoordinates(
+        [
+          { diameter: 40, depth: 5 },
+          { diameter: 45, depth: 2 },
+        ],
+        60,
+      ),
+    ).toThrow("inwards");
+  });
+
+  it("still faces straight in when no profile is given", () => {
+    const code = generateG72Code(input, { feed: 0.2 });
+    expect(code).toContain("N100 G00 Z-5.0");
+    expect(code).toContain("      G01 X15.0 F0.2");
   });
 });
 

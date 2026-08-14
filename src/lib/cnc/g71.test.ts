@@ -11,6 +11,7 @@ import {
   profileReversal,
   profileDiameterAt,
   reachableSpans,
+  requiredType,
   type ProfileStep,
 } from "./g71";
 
@@ -114,6 +115,15 @@ describe("Fanuc G71 roughing", () => {
     expect(() => calculateG71({ ...base, finishAllowanceX: 12 })).toThrow(
       "nothing for the roughing",
     );
+  });
+
+  it("turns to the full length when it writes its own contour", () => {
+    // With no profile the cycle writes a plain turn between P and Q, and that
+    // contour is the finished part: the W allowance is left beyond it by the
+    // cycle. Writing the roughed Z here instead leaves the part short by it.
+    const code = generateG71Code({ ...base, length: 60, finishAllowanceZ: 0.1 });
+    expect(code).toContain("      G01 Z-60.0 F0.2");
+    expect(code.join("\n")).not.toContain("Z-59.9");
   });
 
   it("writes both G71 blocks with the right word on each", () => {
@@ -309,6 +319,29 @@ describe("arcs", () => {
     expect(arc.centre.z).toBeCloseTo(-10, 6);
     expect(arc.centre.r).toBeCloseTo(0, 6);
     expect((arc.sweep * 180) / Math.PI).toBeCloseTo(90, 6);
+  });
+
+  /**
+   * An arc can be perfectly valid geometry and still be a shape no turning
+   * cycle can cut. Both of these come out as a sensible-looking G02 with the
+   * right end points, which is exactly why they have to be refused here.
+   */
+  it("refuses an arc that turns back towards the face partway round", () => {
+    // A tight radius between two very different diameters bows so far that the
+    // curve travels back up the part before it comes down again.
+    expect(() =>
+      profileCoordinates([
+        { diameter: 30.39, length: 7.83, endDiameter: 46.72, arcRadius: 5.68, arcDirection: "ccw" },
+      ]),
+    ).toThrow("turns back towards the face");
+  });
+
+  it("refuses an arc that would pass through the centre line", () => {
+    expect(() =>
+      profileCoordinates([
+        { diameter: 0.59, length: 5.98, endDiameter: 9.01, arcRadius: 3.95, arcDirection: "cw" },
+      ]),
+    ).toThrow("centre line");
   });
 
   it("refuses an arc radius too small to span its own ends", () => {
@@ -519,9 +552,7 @@ describe("corner fillets", () => {
     // it leaves the diameter alone apart from the corner — this is the whole
     // difference, and it is what a radius on a print asks for.
     const fillet = profileCoordinates([{ diameter: 20, length: 15, cornerRadius: 3 }]);
-    const arc = profileCoordinates([
-      { diameter: 20, length: 15, endDiameter: 30, arcRadius: 15 },
-    ]);
+    const arc = profileCoordinates([{ diameter: 20, length: 15, endDiameter: 30, arcRadius: 15 }]);
     expect(Math.min(...fillet.map((p) => p.x))).toBe(14);
     expect(fillet.filter((p) => p.x === 20).length).toBeGreaterThan(0);
     expect(arc.some((p) => p.x === 20 && p.z < 0)).toBe(false);
@@ -625,9 +656,9 @@ describe("corner fillets", () => {
   });
 
   it("has no lip to round on the first step, and says which corner it does round", () => {
-    expect(() =>
-      profileCoordinates([{ diameter: 20, length: 20, lipRadius: 3 }]),
-    ).toThrow("front corner");
+    expect(() => profileCoordinates([{ diameter: 20, length: 20, lipRadius: 3 }])).toThrow(
+      "front corner",
+    );
   });
 
   it("will not take a lip round bigger than the shoulder it stands on", () => {
@@ -637,6 +668,68 @@ describe("corner fillets", () => {
         { diameter: 30, length: 25, lipRadius: 8 },
       ]),
     ).toThrow("Step 2");
+  });
+
+  /**
+   * More turned parts have chamfers on them than radii: every shaft end gets
+   * one so it starts into a bore, every thread gets a lead-in, every sharp edge
+   * gets broken. C1 on a drawing is 1 mm off each face, which on a square
+   * corner is the 1×45° everybody writes by hand.
+   */
+  it("takes a front corner off flat, 1 mm each way", () => {
+    const steps: ProfileStep[] = [{ diameter: 20, length: 20, cornerChamfer: 1 }];
+    expect(profileBlocks(steps, 100, 110, 0.25, 52)).toEqual([
+      // The face runs out to Ø20 less twice the chamfer, then one straight cut
+      // onto the diameter 1 mm in.
+      "N100 G00 X18.0",
+      "      G01 Z0.0",
+      "      X20.0 Z-1.0",
+      "      G01 Z-20.0",
+      "N110 X52.0",
+    ]);
+    const points = profileCoordinates(steps);
+    expect(points.map((p) => [p.x, p.z, p.move])).toEqual([
+      [18, 0, "face"],
+      [20, -1, "chamfer"],
+      [20, -20, "turn"],
+    ]);
+  });
+
+  it("writes the everyday shaft: lead-in chamfer, root radius, broken lip", () => {
+    const code = profileBlocks(
+      [
+        { diameter: 20, length: 20, cornerChamfer: 1 },
+        { diameter: 34, length: 25, cornerRadius: 2, lipChamfer: 0.5 },
+      ],
+      100,
+      110,
+      0.25,
+      52,
+    );
+    expect(code).toEqual([
+      "N100 G00 X18.0",
+      "      G01 Z0.0",
+      "      X20.0 Z-1.0", // 1×45° lead-in
+      "      G01 Z-18.0", // stops short for the root radius
+      "      G02 X24.0 Z-20.0 R2.0", // fillet in the corner
+      "      G01 X33.0", // up the shoulder, short of the lip
+      "      X34.0 Z-20.5", // 0.5 chamfer breaking the sharp edge
+      "      G01 Z-45.0",
+      "N110 X52.0",
+    ]);
+  });
+
+  it("refuses a corner given both a radius and a chamfer", () => {
+    expect(() =>
+      profileCoordinates([{ diameter: 20, length: 20, cornerRadius: 1, cornerChamfer: 1 }]),
+    ).toThrow("one or the other");
+  });
+
+  it("will not take a chamfer bigger than the faces it comes off", () => {
+    // 12 mm off a Ø20 front corner would run past the centre line.
+    expect(() => profileCoordinates([{ diameter: 20, length: 20, cornerChamfer: 12 }])).toThrow(
+      "Step 1",
+    );
   });
 
   it("rounds where a taper runs into a diameter, which has no shoulder at all", () => {
@@ -655,6 +748,49 @@ describe("corner fillets", () => {
     const points = profileCoordinates(steps);
     expect(points.at(-1)).toEqual({ x: 30, z: -40, move: "turn" });
     expect(Math.max(...points.map((p) => p.x))).toBeCloseTo(30, 6);
+  });
+});
+
+/**
+ * Nobody writes "Type I" in a program: the control tells the two apart by
+ * whether the first block after P carries a Z, and which it should be is a fact
+ * about the shape rather than a preference. These pin that the fact and the
+ * block agree, which is the whole reason it is derived rather than asked for.
+ */
+describe("which form the shape forces", () => {
+  const plainShaft: ProfileStep[] = [
+    { diameter: 20, length: 15 },
+    { diameter: 30, length: 20 },
+    { diameter: 40, length: 25 },
+  ];
+  const pocketed: ProfileStep[] = [
+    { diameter: 30, length: 10 },
+    { diameter: 20, length: 10 },
+    { diameter: 30, length: 10 },
+  ];
+
+  it("reads a shape that only grows as Type I", () => {
+    expect(requiredType(profileCoordinates(plainShaft))).toBe("I");
+  });
+
+  it("reads a shape with a pocket in it as Type II", () => {
+    expect(requiredType(profileCoordinates(pocketed))).toBe("II");
+  });
+
+  it("says Type I for a profile that is not there yet", () => {
+    // An empty table is not a pocket, and must not be read as one.
+    expect(requiredType([])).toBe("I");
+  });
+
+  it("puts the Z on the first block for one and not the other", () => {
+    // This is the only thing that carries the decision to the control, so the
+    // derived form and the written block have to be the same answer.
+    const written = (steps: ProfileStep[]) => {
+      const points = profileCoordinates(steps);
+      return profileBlocks(steps, 100, 110, 0.25, 52, requiredType(points))[0];
+    };
+    expect(written(plainShaft)).toBe("N100 G00 X20.0");
+    expect(written(pocketed)).toBe("N100 G00 X30.0 Z0.0");
   });
 });
 

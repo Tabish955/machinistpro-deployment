@@ -14,6 +14,7 @@ import {
   profileLength,
   profileDrawing,
   profileReversal,
+  requiredType,
   type G71Input,
   type G71Type,
   type ProfileStep,
@@ -21,6 +22,8 @@ import {
 } from "@/lib/cnc/g71";
 import {
   calcG72,
+  faceProfileCoordinates,
+  type FaceStep,
   generateG72Code,
   calcG73,
   generateG73Code,
@@ -283,24 +286,43 @@ const BLEND_STATES: Array<{ blend: ProfileRow["blend"]; dir: ArcDirection; label
 const blendLabel = (row: ProfileRow) =>
   row.blend === "fillet" ? "R" : row.dir === "cw" ? "G02" : "G03";
 
+/**
+ * A corner size the way it is written on a drawing.
+ *
+ * R2 rounds the corner, C1 takes it off flat, and a bare number is a radius
+ * because that is what the box used to mean. Reading the letter saves a column
+ * in a table that is already wide, and it is the notation on the paper the
+ * operator is working from — ISO 13715 writes a 1×45° chamfer as C1.
+ */
+export const parseCorner = (
+  typed: string,
+): { size: number; kind: "round" | "chamfer" } | undefined => {
+  const m = typed.trim().match(/^([rc])?\s*([0-9]*\.?[0-9]+)$/i);
+  if (!m) return undefined;
+  const size = Number(m[2]);
+  if (!Number.isFinite(size) || size <= 0) return undefined;
+  return { size, kind: m[1]?.toLowerCase() === "c" ? "chamfer" : "round" };
+};
+
 /** The typed rows as steps, dropping any row not yet filled in. */
 function rowsToSteps(rows: ProfileRow[]): ProfileStep[] {
-  const size = (typed: string) => {
-    const value = typed.trim() === "" ? undefined : pf(typed);
-    return Number.isFinite(value as number) && (value as number) > 0 ? value : undefined;
-  };
   return rows
     .map((row) => {
-      const radius = size(row.r);
+      const corner = parseCorner(row.r);
+      const lip = parseCorner(row.lip);
+      const isCorner = row.blend === "fillet";
       return {
         diameter: pf(row.d),
         length: pf(row.l),
         // Blank means a parallel step; a value makes it a taper.
         endDiameter: row.e.trim() === "" ? undefined : pf(row.e),
-        // The one radius box is the corner or the whole step, never both.
-        cornerRadius: row.blend === "fillet" ? radius : undefined,
-        arcRadius: row.blend === "arc" ? radius : undefined,
-        lipRadius: size(row.lip),
+        // The one corner box is the corner or the whole step, never both.
+        cornerRadius: isCorner && corner?.kind === "round" ? corner.size : undefined,
+        cornerChamfer: isCorner && corner?.kind === "chamfer" ? corner.size : undefined,
+        // An arc bows the step on a radius; a chamfer there means nothing.
+        arcRadius: row.blend === "arc" ? corner?.size : undefined,
+        lipRadius: lip?.kind === "round" ? lip.size : undefined,
+        lipChamfer: lip?.kind === "chamfer" ? lip.size : undefined,
         arcDirection: row.dir,
       };
     })
@@ -308,38 +330,39 @@ function rowsToSteps(rows: ProfileRow[]): ProfileStep[] {
 }
 
 /**
- * What the cycle cannot cut, said in the operator's terms.
+ * What the shape forced the cycle to be, or what it cannot be cut by at all.
  *
- * G71 and G73 here are Type I, so the diameter has to run one way along the
- * whole part. A ball on a stem or anything with an undercut behind it has a
- * face the tool cannot reach from the front — and the cycle will still plan a
- * full set of passes for it, which is why this has to be on screen.
+ * A profile that dips and comes back has a pocket in it, and only Type II
+ * roughs a pocket. Which form the program is written as is worked out from the
+ * shape rather than asked for — but it must never be worked out silently, since
+ * not every control has Type II, so this says what happened and why.
  */
-function TypeIIWarning({
+function ProfileFormNotice({
   points,
-  type,
-  onUseTypeII,
+  hasTypeII,
 }: {
   points: { x: number; z: number; move: string }[];
-  /** Which form the cycle is set to, when the panel offers the choice. */
-  type?: G71Type;
-  onUseTypeII?: () => void;
+  /** Whether this cycle has a Type II at all. G73 does not. */
+  hasTypeII: boolean;
 }) {
   const reversal = points.length ? profileReversal(points as never) : null;
   if (!reversal) return null;
 
-  // Type II is exactly the answer to this, so once it is selected the profile
-  // is no longer a problem — it is the shape the cycle was chosen for.
-  if (type === "II") {
+  if (hasTypeII) {
     return (
       <div className="mt-3 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 p-3">
         <p className="text-xs font-semibold text-accent-cyan">
-          Type II: the pocket behind Z{fmtNum(reversal.z)} is roughed as its own cut.
+          Written as Type II: the pocket behind Z{fmtNum(reversal.z)} is roughed as its own cut.
         </p>
         <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
-          Passes that meet standing metal lift over it and drop back in beyond, so a pass can be
-          several separate cuts. The first block after P carries a Z as well as an X, which is what
-          tells the control to read the profile this way.
+          The profile turns back on itself at Ø{fmtNum(reversal.diameter)}, which Type I cannot
+          reach — its passes would drive straight through the recess. Passes lift over standing
+          metal and drop back in beyond it instead, so one pass can be several separate cuts. The Z
+          on the first block after P is what tells the control to read it this way.
+        </p>
+        <p className="mt-2 text-[11px] leading-relaxed text-accent-amber">
+          Your control has to support Type II. Older ones do not, and those that do often cap how
+          many pockets a profile may have — check the manual before running this.
         </p>
       </div>
     );
@@ -351,23 +374,10 @@ function TypeIIWarning({
         This profile turns back on itself at Z{fmtNum(reversal.z)}, Ø{fmtNum(reversal.diameter)}.
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
-        Type I needs the diameter to run one way along the part. Behind that point is a face the
-        tool cannot reach coming in from the front, so a Type I pass stops at it and the metal
-        beyond is never taken off.
+        The diameter has to run one way along the part. Behind that point is a face the tool cannot
+        reach coming in from the front, so a pass stops at it and the metal beyond is never taken
+        off. G73 has no Type II — rough a shape like this with G71, which has.
       </p>
-      {onUseTypeII && (
-        <button
-          onClick={onUseTypeII}
-          className="mt-2 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-[11px] font-semibold text-accent-cyan hover:bg-accent-cyan/20 cursor-pointer"
-        >
-          Use Type II
-        </button>
-      )}
-      {!onUseTypeII && (
-        <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
-          G73 has no Type II. Rough this shape with G71 Type II on its own tab.
-        </p>
-      )}
     </div>
   );
 }
@@ -403,27 +413,32 @@ function ProfileEditor({
    * used to say so, so a radius typed on the row below rounded the front corner
    * instead and the shoulder stayed sharp, with no way to tell why.
    */
+  /** "Rounds" or "chamfers", from what was actually typed in the box. */
+  const verb = (typed: string) => (parseCorner(typed)?.kind === "chamfer" ? "Chamfers" : "Rounds");
+
   const roundsWhat = (i: number) => {
     const diameter = rows[i].d.trim();
+    const does = verb(rows[i].r);
     if (i === 0) {
       return diameter
-        ? `Rounds the front corner, where the face meets Ø${diameter}`
-        : "Rounds the front corner, where the face meets the first diameter";
+        ? `${does} the front corner, where the face meets Ø${diameter}`
+        : `${does} the front corner, where the face meets the first diameter`;
     }
     const before = rows[i - 1];
     const from = (before.e.trim() || before.d.trim()) ?? "";
     return from
-      ? `Rounds the root of the shoulder this step starts at — the inside corner at Ø${from}`
-      : "Rounds the root of the shoulder this step starts at";
+      ? `${does} the root of the shoulder this step starts at — the inside corner at Ø${from}`
+      : `${does} the root of the shoulder this step starts at`;
   };
 
   /** And the other corner of that shoulder, which is its own dimension. */
   const lipRoundsWhat = (i: number) => {
     const diameter = rows[i].d.trim();
-    if (i === 0) return "The first step has no shoulder, so it has no lip to round";
+    if (i === 0) return "The first step has no shoulder, so it has no lip to take";
+    const does = verb(rows[i].lip);
     return diameter
-      ? `Rounds the outer lip of that shoulder, where its face meets Ø${diameter}`
-      : "Rounds the outer lip of that shoulder";
+      ? `${does} the outer lip of that shoulder, where its face meets Ø${diameter}`
+      : `${does} the outer lip of that shoulder`;
   };
 
   return (
@@ -438,8 +453,8 @@ function ProfileEditor({
           <span>Diameter</span>
           <span>Length</span>
           <span>End Ø</span>
-          <span>R corner</span>
-          <span>R lip</span>
+          <span>Corner</span>
+          <span>Lip</span>
           <span>Blend</span>
           <span />
         </div>
@@ -481,11 +496,11 @@ function ProfileEditor({
               className={field}
               value={r.r}
               inputMode="decimal"
-              placeholder="—"
+              placeholder="R / C"
               aria-label={`Step ${i + 1} corner radius`}
               title={r.blend === "arc" ? undefined : roundsWhat(i)}
               onChange={(e) =>
-                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "r", e.target.value)
+                /^[RrCc]?[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "r", e.target.value)
               }
             />
             <input
@@ -499,7 +514,7 @@ function ProfileEditor({
               aria-label={`Step ${i + 1} lip radius`}
               title={lipRoundsWhat(i)}
               onChange={(e) =>
-                /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "lip", e.target.value)
+                /^[RrCc]?[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "lip", e.target.value)
               }
             />
             <button
@@ -545,12 +560,20 @@ function ProfileEditor({
         <ul className="mt-3 space-y-1">
           {rows.flatMap((r, i) => {
             const said: React.ReactNode[] = [];
-            const line = (key: string, radius: string, what: string) => (
-              <li key={key} className="text-[10px] text-gray-500 leading-relaxed">
-                <span className="font-mono text-accent-cyan">R{radius}</span> on step {i + 1}:{" "}
-                {what.replace(/^Rounds /, "rounds ")}.
-              </li>
-            );
+            const line = (key: string, typed: string, what: string) => {
+              const size = parseCorner(typed);
+              // Echoed back in the notation it was read as, so a C typed where
+              // an R was meant shows up here rather than in the metal.
+              const said = size
+                ? `${size.kind === "chamfer" ? "C" : "R"}${size.size}`
+                : typed.trim();
+              return (
+                <li key={key} className="text-[10px] text-gray-500 leading-relaxed">
+                  <span className="font-mono text-accent-cyan">{said}</span> on step {i + 1}:{" "}
+                  {what.replace(/^(Rounds|Chamfers) /, (m) => m.toLowerCase())}.
+                </li>
+              );
+            };
             if (r.r.trim() !== "" && r.blend !== "arc")
               said.push(line(`${i}c`, r.r, roundsWhat(i)));
             if (r.lip.trim() !== "" && i > 0) said.push(line(`${i}l`, r.lip, lipRoundsWhat(i)));
@@ -566,14 +589,16 @@ function ProfileEditor({
       </button>
       <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
         Enter each step from the face outwards. Leave End Ø blank for a parallel step, or give it to
-        cut a taper. Both radius columns round a corner the way R on a drawing and the fillet in CAD
-        mean it: tangent to the two faces, taking their own length out of each, working out their
-        own G02 or G03 from the shape. A shoulder has two corners and gets both of them from the row
-        of the bigger diameter — the step that begins there.{" "}
-        <span className="font-mono text-gray-500">R corner</span> is the root, down in the inside
-        corner, and <span className="font-mono text-gray-500">R lip</span> is the outer edge where
-        the shoulder face meets the diameter above it. On step one there is no shoulder, so R corner
-        is the front corner and R lip is shut. Press{" "}
+        cut a taper. Corner and Lip take a corner off the way the drawing writes it:{" "}
+        <span className="font-mono text-gray-500">R2</span> rounds it on a 2 mm radius,{" "}
+        <span className="font-mono text-gray-500">C1</span> takes it off flat 1 mm each way — the
+        1×45° chamfer on every shaft end — and a bare number is a radius. Either way it comes off
+        both faces and leaves the rest of them straight, and the app writes its own G01, G02 or G03
+        for it. A shoulder has two corners and gets both from the row of the bigger diameter — the
+        step that begins there: <span className="font-mono text-gray-500">Corner</span> is the root,
+        down in the inside corner, and <span className="font-mono text-gray-500">Lip</span> is the
+        outer edge where the shoulder face meets the diameter above it. On step one there is no
+        shoulder, so Corner is the front corner and Lip is shut. Press{" "}
         <span className="font-mono text-gray-500">R</span> under Blend to turn the corner radius
         into <span className="font-mono text-gray-500">G02</span> or{" "}
         <span className="font-mono text-gray-500">G03</span> instead, which stops it being a corner
@@ -598,7 +623,6 @@ function G71Panel() {
   const [feed, setFeed] = useState("0.25");
   const [ns, setNs] = useState("100");
   const [nf, setNf] = useState("110");
-  const [cycleType, setCycleType] = useState<G71Type>("I");
   // The part as it is dimensioned on the drawing: a diameter and a length per step.
   const [rows, setRows] = useState<ProfileRow[]>([
     { ...emptyRow(), d: "20", l: "15" },
@@ -629,6 +653,12 @@ function G71Panel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(rows), stock]);
+
+  // Which form the control will read this as is not a setting: it is decided by
+  // whether the shape has a pocket in it, and the program says so by whether the
+  // first block after P carries a Z. Working it out from the profile is the only
+  // way the two cannot disagree.
+  const cycleType: G71Type = requiredType(profile.points);
 
   const input: G71Input = {
     stockDiameter: pf(stock),
@@ -691,22 +721,19 @@ function G71Panel() {
         <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
           <div className="flex items-center justify-between">
             <SectionHeader title="G71 — OD Roughing" className="!mb-0" />
-            <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600">
-              {(["I", "II"] as G71Type[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setCycleType(t)}
-                  aria-label={`Type ${t}`}
-                  className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                    cycleType === t
-                      ? "bg-accent-cyan/20 text-accent-cyan"
-                      : "text-gray-500 hover:text-white"
-                  }`}
-                >
-                  Type {t}
-                </button>
-              ))}
-            </div>
+            {/* Read out, not chosen: the shape decides this and the program says
+                which by whether the P block carries a Z. */}
+            <span
+              aria-label={`Written as Type ${cycleType}`}
+              title={
+                cycleType === "II"
+                  ? "The profile has a pocket in it, so it is written as Type II — the first block after P carries a Z"
+                  : "The profile only grows from the face, so it is written as Type I — the first block after P carries X alone"
+              }
+              className="rounded-lg border border-dark-600 bg-dark-800 px-3 py-1 text-[11px] font-semibold text-gray-400"
+            >
+              Type {cycleType}
+            </span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Num label="Stock Ø" value={stock} onChange={setStock} suffix="mm" />
@@ -791,11 +818,7 @@ function G71Panel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <ProfileEditor rows={rows} setRows={setRows} />
-          <TypeIIWarning
-            points={profile.error ? [] : profile.points}
-            type={cycleType}
-            onUseTypeII={() => setCycleType("II")}
-          />
+          <ProfileFormNotice points={profile.error ? [] : profile.points} hasTypeII />
         </div>
 
         <Card variant="solid" padding="md" className="border-dark-600">
@@ -866,7 +889,11 @@ function G71Panel() {
       {!error && code.length > 0 && (
         <Program
           lines={code}
-          note="Type I profile — a straight turn. A groove or an undercut needs Type II, which this does not write. G70 finishes to size on the same blocks the roughing named."
+          note={
+            cycleType === "II"
+              ? "Type II: the first block after P carries a Z, which is what tells the control to rough the pocket rather than drive through it. G70 finishes to size on the same blocks the roughing named."
+              : "Type I: the diameter runs one way along the part, so the first block after P carries X alone. G70 finishes to size on the same blocks the roughing named."
+          }
         />
       )}
     </div>
@@ -884,6 +911,9 @@ function G72Panel() {
   const [allowZ, setAllowZ] = useState("0.1");
   const [retract, setRetract] = useState("1");
   const [feed, setFeed] = useState("0.2");
+  // Empty means the plain inputs above describe the whole job, which is the
+  // usual one: face straight in to a diameter.
+  const [faceRows, setFaceRows] = useState<FaceRow[]>([]);
 
   const input = {
     stockDiameter: pf(stock),
@@ -896,11 +926,13 @@ function G72Panel() {
   };
 
   const out = useMemo(() => {
+    const steps = faceRowsToSteps(faceRows);
     try {
       return {
-        result: calcG72(input),
-        code: generateG72Code(input, { feed: pf(feed) || 0.2 }),
+        result: calcG72(input, steps),
+        code: generateG72Code(input, { feed: pf(feed) || 0.2, steps }),
         moves: buildG72Toolpath(input),
+        points: steps.length ? faceProfileCoordinates(steps, pf(stock)) : [],
         error: "",
       };
     } catch (cause) {
@@ -908,11 +940,12 @@ function G72Panel() {
         result: null,
         code: [],
         moves: [],
+        points: [],
         error: cause instanceof Error ? cause.message : "Check the values.",
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stock, finish, facing, doc, allowX, allowZ, retract, feed]);
+  }, [stock, finish, facing, doc, allowX, allowZ, retract, feed, JSON.stringify(faceRows)]);
 
   return (
     <div className="space-y-4">
@@ -960,13 +993,28 @@ function G72Panel() {
                   </span>
                 </div>
                 <Table
-                  head={["Pass", "Z", "Depth"]}
-                  rows={out.result.passes.map((p) => [p.pass, p.z, p.depth])}
+                  head={["Pass", "Z", "Depth", "In to Ø"]}
+                  rows={out.result.passes.map((p) => [p.pass, p.z, p.depth, p.toDiameter])}
                 />
               </>
             )
           )}
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FaceProfileEditor rows={faceRows} setRows={setFaceRows} />
+        {out.points.length > 0 && (
+          <Card variant="solid" padding="md" className="border-dark-600">
+            <SectionHeader title="Face Coordinates" />
+            <Table head={["X (Ø)", "Z"]} rows={out.points.map((p) => [p.x, p.z])} />
+            <p className="mt-2 text-[10px] text-gray-600 leading-relaxed">
+              The finished face, walked the way the cycle reads it: in at one depth, along the wall
+              of the step, in again. The first block after P carries Z alone, which is what tells
+              the control it is a Type I facing shape.
+            </p>
+          </Card>
+        )}
       </div>
       <LatheSimulation
         moves={out.moves}
@@ -983,6 +1031,97 @@ function G72Panel() {
         />
       )}
     </div>
+  );
+}
+
+/** One row of the face table as it is typed. */
+export type FaceRow = { d: string; z: string };
+export const emptyFaceRow = (): FaceRow => ({ d: "", z: "" });
+
+/** The typed rows as levels, dropping any row not yet filled in. */
+function faceRowsToSteps(rows: FaceRow[]): FaceStep[] {
+  return rows
+    .map((row) => ({ diameter: pf(row.d), depth: pf(row.z) }))
+    .filter((s) => Number.isFinite(s.diameter) && Number.isFinite(s.depth));
+}
+
+/**
+ * The face as a staircase of levels, entered from the outside diameter in.
+ *
+ * G72 reads its contour the opposite way round from G71 — largest diameter
+ * first, working towards the centre — so the table is written that way too
+ * rather than making the operator invert the drawing in their head.
+ */
+function FaceProfileEditor({
+  rows,
+  setRows,
+}: {
+  rows: FaceRow[];
+  setRows: React.Dispatch<React.SetStateAction<FaceRow[]>>;
+}) {
+  const setRow = (i: number, key: keyof FaceRow, v: string) =>
+    setRows((cur) => cur.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
+
+  return (
+    <Card variant="solid" padding="md" className="border-dark-600">
+      <div className="flex items-center justify-between mb-3">
+        <SectionHeader title="Face Profile" className="!mb-0" />
+        <span className="text-[10px] text-gray-600">optional — from the outside in</span>
+      </div>
+      {rows.length > 0 && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1.4rem_1fr_1fr_1.6rem] gap-2 text-[10px] uppercase tracking-wider text-gray-600">
+            <span>#</span>
+            <span>In to Ø</span>
+            <span>Depth</span>
+            <span />
+          </div>
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[1.4rem_1fr_1fr_1.6rem] gap-2 items-center">
+              <span className="font-mono text-xs text-gray-500">{i + 1}</span>
+              <input
+                className={field}
+                value={r.d}
+                inputMode="decimal"
+                aria-label={`Level ${i + 1} diameter`}
+                onChange={(e) =>
+                  /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "d", e.target.value)
+                }
+              />
+              <input
+                className={field}
+                value={r.z}
+                inputMode="decimal"
+                aria-label={`Level ${i + 1} depth`}
+                onChange={(e) =>
+                  /^[0-9]*\.?[0-9]*$/.test(e.target.value) && setRow(i, "z", e.target.value)
+                }
+              />
+              <button
+                onClick={() => setRows((c) => c.filter((_, j) => j !== i))}
+                aria-label={`Remove level ${i + 1}`}
+                className="text-gray-600 hover:text-accent-red text-lg leading-none cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button
+        onClick={() => setRows((c) => [...c, emptyFaceRow()])}
+        className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
+      >
+        + Add level
+      </button>
+      <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
+        Leave this empty and the cycle faces straight in to the diameter above, which is the usual
+        job. Add levels for a face that steps: each row is a diameter to sweep in to and how deep
+        the face sits there, written from the outside diameter inwards. The face has to get
+        shallower as it goes in — a level deeper than the one outside it is a recess with metal
+        standing over it, which only Type II reaches, and G72 here is Type I.
+      </p>
+    </Card>
   );
 }
 
@@ -1170,7 +1309,7 @@ function G73Panel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <ProfileEditor rows={rows} setRows={setRows} />
-          <TypeIIWarning points={profile.error ? [] : profile.points} />
+          <ProfileFormNotice points={profile.error ? [] : profile.points} hasTypeII={false} />
         </div>
         <Card variant="solid" padding="md" className="border-dark-600">
           <SectionHeader title="Profile Coordinates" />
