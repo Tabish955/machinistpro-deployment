@@ -64,6 +64,18 @@ const DISTANCE_ADDRESSES = ["X", "Z", "U", "W", "I", "K", "R"] as const;
 /** Cycles whose P and Q name a range of blocks that has to exist. */
 const CONTOUR_CYCLES = [70, 71, 72, 73];
 
+/** Every cycle that takes metal off, so the first cut can be found. */
+const CUTTING_CYCLES = [70, 71, 72, 73, 74, 75, 76, 90, 92, 94];
+
+/** What was set up by the time the first cut ran. */
+interface SetupState {
+  line: number;
+  spindleStarted: boolean;
+  spindleSpeed?: number;
+  toolCalled: boolean;
+  feedMode?: number;
+}
+
 export function checkProgram(source: string): Diagnostic[] {
   const rawLines = source.replace(/\r\n?/g, "\n").split("\n");
   const found: Diagnostic[] = [];
@@ -81,6 +93,14 @@ export function checkProgram(source: string): Diagnostic[] {
   let sawCuttingMove = false;
   let feedInForce: number | undefined;
   let motion: number | undefined;
+  // The state a cutting move needs to have been set up before it runs. None of
+  // these are geometry — they are the difference between a cut and a crash, and
+  // a control will run the program without any of them.
+  let spindleStarted = false;
+  let spindleSpeed: number | undefined;
+  let toolCalled = false;
+  let feedMode: number | undefined;
+  let setupAtFirstCut: SetupState | undefined;
 
   rawLines.forEach((raw, index) => {
     const line = index + 1;
@@ -128,13 +148,34 @@ export function checkProgram(source: string): Diagnostic[] {
       }
     }
 
+    // ── The state a cut needs before it runs ──────────────────────────────
+    // Gathered as the program is read so it can be judged against the first
+    // move that cuts, wherever that turns out to be.
+    if (mCodes.includes(3) || mCodes.includes(4)) spindleStarted = true;
+    if (mCodes.includes(5)) spindleStarted = false;
+    const s = first(block, "S");
+    if (s !== undefined) spindleSpeed = s;
+    if (first(block, "T") !== undefined) toolCalled = true;
+    for (const g of gs) if (g === 98 || g === 99) feedMode = g;
+
     // ── Feed before a cutting move ────────────────────────────────────────
     const f = first(block, "F");
     if (f !== undefined) feedInForce = f;
     const cutting = motion === 1 || motion === 2 || motion === 3;
     const movesHere = ["X", "Z", "U", "W"].some((l) => first(block, l) !== undefined);
-    if (cutting && movesHere && !sawCuttingMove) {
+    // A canned cycle cuts too, and usually before any G01 in the program, so the
+    // first cut is not always a motion block. Which of its blocks does the
+    // cutting matters: `G73 U4.0 W1.0 R3` sets the cycle up and moves nothing,
+    // and the F that feeds it is on the line after — so counting the header as
+    // the first cut reports a missing feed that is one line further down.
+    const hasPQ = first(block, "P") !== undefined && first(block, "Q") !== undefined;
+    const cycleCutsHere = gs.some((g) =>
+      CONTOUR_CYCLES.includes(g) ? hasPQ : CUTTING_CYCLES.includes(g) && movesHere,
+    );
+    const cutsHere = (cutting && movesHere) || cycleCutsHere;
+    if (cutsHere && !sawCuttingMove) {
       sawCuttingMove = true;
+      setupAtFirstCut = { line, spindleStarted, spindleSpeed, toolCalled, feedMode };
       if (feedInForce === undefined) {
         add(
           line,
@@ -198,6 +239,50 @@ export function checkProgram(source: string): Diagnostic[] {
     );
   }
 
+  // ── What was never set up before the first cut ──────────────────────────
+  // Only for something that means to be a whole program. Cycle blocks pasted on
+  // their own have no spindle line and are not supposed to: telling somebody
+  // their four-line G71 is missing an M03 teaches them to ignore the checker.
+  if (sawProgramEnd && setupAtFirstCut) {
+    const setup = setupAtFirstCut;
+    if (!setup.spindleStarted) {
+      add(
+        setup.line,
+        "error",
+        "no-spindle",
+        "Nothing starts the spindle before this cut — there is no M03 or M04 above it. The tool " +
+          "feeds into stationary metal, which breaks the insert at best and moves the part at worst.",
+      );
+    } else if (setup.spindleSpeed === undefined) {
+      add(
+        setup.line,
+        "error",
+        "no-speed",
+        "The spindle is started but no S has been given, so it runs at whatever speed the last " +
+          "program left in force.",
+      );
+    }
+    if (!setup.toolCalled) {
+      add(
+        setup.line,
+        "warning",
+        "no-tool",
+        "No T word before this cut. The control uses the tool and the offset left in force by the " +
+          "last program, so the geometry is right and the part is still scrap.",
+      );
+    }
+    if (setup.feedMode === undefined) {
+      add(
+        setup.line,
+        "warning",
+        "no-feed-mode",
+        "Neither G99 nor G98 appears before this cut, so F is read in whichever mode the control " +
+          "was left in. F0.25 is a sensible cut at 0.25 mm/rev under G99 and a burnt insert at " +
+          "0.25 mm/min under G98. Turning programs state G99.",
+      );
+    }
+  }
+
   found.push(...checkContours(rawLines, sequenceLines));
 
   return found.sort((a, b) => a.line - b.line || a.code.localeCompare(b.code));
@@ -218,6 +303,12 @@ function checkContours(rawLines: string[], sequenceLines: Map<number, number>): 
   const add = (line: number, severity: Severity, code: string, message: string) =>
     out.push({ line, severity, code, message, text: rawLines[line - 1].trim() });
 
+  // Compensation is turned on outside the contour — before the cycle, or on the
+  // first block of the shape — so it is a fact about the program, not the block.
+  const compensated = rawLines.some((raw) =>
+    gCodes(stripComment(raw)).some((g) => g === 41 || g === 42),
+  );
+
   for (let index = 0; index < rawLines.length; index++) {
     const block = stripComment(rawLines[index]);
     const gs = gCodes(block);
@@ -235,6 +326,8 @@ function checkContours(rawLines: string[], sequenceLines: Map<number, number>): 
     let x: number | undefined;
     let z = 0;
     let firstBlockHasZ = false;
+    /** The line of the first surface that is not square to an axis, if any. */
+    let shaped: number | undefined;
 
     for (let i = from; i <= to; i++) {
       const line = rawLines[i - 1];
@@ -270,7 +363,38 @@ function checkContours(rawLines: string[], sequenceLines: Map<number, number>): 
           }
         }
       }
+      // A taper or an arc is a surface the nose radius sits against at an
+      // angle, which is the whole of the compensation question below.
+      const previous = points[points.length - 1];
+      const slanted =
+        previous !== undefined &&
+        nx !== undefined &&
+        nz !== undefined &&
+        Math.abs(x - previous.x) > 1e-9 &&
+        Math.abs(z - previous.z) > 1e-9;
+      if (slanted || arcG !== undefined) shaped = i;
+
       points.push({ x, z, move: "turn" });
+    }
+
+    // ── Nose radius compensation ──────────────────────────────────────────
+    // A cylinder and a face are both cut by the point of the insert, so a plain
+    // stepped shaft comes out right with no compensation at all — which is why
+    // this is so easy to leave off and so rarely missed until it matters. Put a
+    // taper or a radius in the profile and the nose sits against the surface at
+    // an angle instead, and the part is out by a fixed amount everywhere the
+    // shape is not square to an axis.
+    if (shaped !== undefined && !compensated) {
+      add(
+        shaped,
+        "warning",
+        "no-nose-radius-comp",
+        "This profile has a taper or a radius in it and nothing turns on tool nose radius " +
+          "compensation — there is no G41 or G42 in the program. The insert cuts on its nose " +
+          "rather than its point, so every sloped or curved surface is out: an 0.8 mm nose leaves " +
+          "a 45° taper about 0.33 mm off the surface, and blends run oversize into a corner. " +
+          "Straight diameters and faces are unaffected, which is what makes it easy to miss.",
+      );
     }
 
     if (points.length > 1) {

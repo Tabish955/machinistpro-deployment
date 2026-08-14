@@ -9,6 +9,7 @@ import {
 } from "./toolpaths";
 import { applyCut, createNearNetStock, createStock } from "./simulate";
 import { profileCoordinates } from "./g71";
+import { calcG76 } from "./cycles";
 
 /** Remaining radius nearest a given Z. */
 const radiusAt = (stock: ReturnType<typeof createStock>, z: number) => {
@@ -238,10 +239,26 @@ describe("G76 motion", () => {
     }
   });
 
-  it("cuts outward for a nut", () => {
-    const moves = buildG76Toolpath({ ...g76, internal: true });
+  it("cuts a nut outward from the bore, never past the major diameter", () => {
+    const input = { ...g76, internal: true };
+    const { height } = calcG76(input);
+    const bore = input.majorDiameter - 2 * height;
+    const moves = buildG76Toolpath(input);
     const cuts = moves.filter((m) => m.cutting);
-    for (const cut of cuts) expect(cut.x).toBeGreaterThanOrEqual(20);
+
+    expect(cuts.length).toBeGreaterThan(0);
+    for (const cut of cuts) {
+      expect(cut.x).toBeGreaterThan(bore);
+      expect(cut.x).toBeLessThanOrEqual(input.majorDiameter + 1e-9);
+    }
+    // Each pass takes it further out than the last.
+    for (let i = 1; i < cuts.length; i++) {
+      expect(cuts[i].x).toBeGreaterThanOrEqual(cuts[i - 1].x - 1e-9);
+    }
+    // And every rapid sits inside the bore, clear of the wall.
+    for (const move of moves.filter((m) => !m.cutting && m.kind !== "retract")) {
+      expect(move.x).toBeLessThanOrEqual(input.majorDiameter);
+    }
   });
 });
 

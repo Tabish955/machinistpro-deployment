@@ -208,10 +208,14 @@ export function buildG75Toolpath(input: G75Input, approach = DEFAULT_APPROACH): 
 /* ── G76 · Threading ───────────────────────────────────────────────────────── */
 
 export function buildG76Toolpath(input: G76Input, approach = DEFAULT_APPROACH): Move[] {
-  const { passes } = calcG76(input);
+  const { passes, height, finalDiameter } = calcG76(input);
   const startZ = Math.max(approach.clearZ, input.pitch * 2);
+  // Clear of the thread means clear of the metal, and for a nut that is inside
+  // the bore rather than outside the major diameter. Measuring the clearance
+  // from the major diameter puts the "safe" position in the wall, since the bore
+  // is a full thread height smaller than it.
   const clearDia = input.internal
-    ? input.majorDiameter - approach.clearX
+    ? finalDiameter - 2 * height - approach.clearX
     : input.majorDiameter + approach.clearX;
   const moves: Move[] = [];
 
