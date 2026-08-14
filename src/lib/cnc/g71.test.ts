@@ -138,6 +138,89 @@ describe("Fanuc G71 roughing", () => {
   });
 });
 
+/**
+ * The same cycle bores as well as turns, and every part of it is the other way
+ * round: the stock is the hole that is already there, the passes open it
+ * outwards, and the roughing stops inside the finished bore rather than outside
+ * the finished diameter.
+ */
+describe("boring rather than turning", () => {
+  // A counterbore out of a Ø18 drilled hole: Ø30 for 15 deep, then Ø24 deeper.
+  const steps: ProfileStep[] = [
+    { diameter: 30, length: 15 },
+    { diameter: 24, length: 20 },
+  ];
+  const bore = {
+    stockDiameter: 18,
+    finishDiameter: 30,
+    length: 35,
+    depthOfCut: 1.5,
+    finishAllowanceX: 0.4,
+    finishAllowanceZ: 0.1,
+    retract: 1,
+    internal: true,
+  };
+
+  it("opens the hole outwards instead of cutting the bar down", () => {
+    const r = calculateG71(bore, profileCoordinates(steps, true));
+    // Roughing runs from the drilled hole out to the widest part of the bore,
+    // stopping the allowance short of it — which for a hole means smaller.
+    expect(r.roughedDiameter).toBeCloseTo(29.6, 6);
+    expect(r.radialStock).toBeCloseTo(5.8, 6);
+    for (let i = 1; i < r.passes.length; i++) {
+      expect(r.passes[i].diameter).toBeGreaterThan(r.passes[i - 1].diameter);
+    }
+    expect(r.passes.at(-1)!.diameter).toBe(r.roughedDiameter);
+  });
+
+  it("stops each pass where the bore narrows in front of it", () => {
+    const r = calculateG71(bore, profileCoordinates(steps, true));
+    const zAt = (diameter: number) => r.passes.find((p) => p.diameter >= diameter)!.z;
+    // Below the small bore the pass runs the whole depth; above it the pass can
+    // only cut the counterbore, and stops at its shoulder.
+    expect(zAt(21)).toBeCloseTo(-34.9, 6);
+    expect(zAt(27)).toBeCloseTo(-15, 6);
+  });
+
+  it("writes the finishing allowance negative, which is what tells the control", () => {
+    const code = generateG71Code(bore, { steps, feed: 0.15 });
+    // U positive on a bore leaves the allowance on the outside of the hole: the
+    // roughing opens it past size and the finishing pass cuts nothing.
+    expect(code[1]).toBe("G71 P100 Q110 U-0.4 W0.1 F0.15");
+    // The contour starts at the mouth and works in, and the Q block retracts to
+    // the drilled hole — inwards, clear of the wall.
+    expect(code[2]).toBe("N100 G00 X30.0");
+    expect(code.at(-1)).toBe("N110 X18.0");
+  });
+
+  it("chamfers the mouth of the bore outwards, not into it", () => {
+    // A lead-in at a bore mouth comes off the face around the hole, so it
+    // starts wider than the bore. Taken off the axis side instead it would cut
+    // a cone the wrong way round and leave the mouth undersize.
+    const code = generateG71Code(bore, {
+      steps: [{ ...steps[0], cornerChamfer: 1 }, steps[1]],
+      feed: 0.15,
+    });
+    expect(code[2]).toBe("N100 G00 X32.0");
+    expect(code).toContain("      X30.0 Z-1.0");
+  });
+
+  it("refuses a bore that is not bigger than the hole it starts from", () => {
+    expect(() =>
+      calculateG71(
+        { ...bore, finishDiameter: 12 },
+        profileCoordinates([{ diameter: 12, length: 20 }], true),
+      ),
+    ).toThrow("nothing to bore out");
+  });
+
+  it("still turns the outside when it is not asked to bore", () => {
+    const r = calculateG71({ ...base });
+    expect(r.roughedDiameter).toBe(40.5);
+    expect(r.passes[0].diameter).toBeLessThan(base.stockDiameter);
+  });
+});
+
 describe("profile coordinates", () => {
   // A three-step shaft: Ø20 for 15, Ø30 for 20, Ø40 for 25.
   const steps = [
