@@ -623,6 +623,10 @@ function G71Panel() {
   const [feed, setFeed] = useState("0.25");
   const [ns, setNs] = useState("100");
   const [nf, setNf] = useState("110");
+  // The same cycle bores as well as turns, and everything about it is the other
+  // way round: the stock is the hole that is already there, the passes open it
+  // outwards, and the allowance is left on the inside.
+  const [internal, setInternal] = useState(false);
   // The part as it is dimensioned on the drawing: a diameter and a length per step.
   const [rows, setRows] = useState<ProfileRow[]>([
     { ...emptyRow(), d: "20", l: "15" },
@@ -634,7 +638,11 @@ function G71Panel() {
 
   const profile = useMemo(() => {
     try {
-      return { points: profileCoordinates(steps), total: profileLength(steps), error: "" };
+      return {
+        points: profileCoordinates(steps, internal),
+        total: profileLength(steps),
+        error: "",
+      };
     } catch (cause) {
       return {
         points: [],
@@ -643,16 +651,20 @@ function G71Panel() {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(rows)]);
+  }, [JSON.stringify(rows), internal]);
 
   const drawing = useMemo(() => {
+    // The half-section draws a bar with metal taken off the outside of it, which
+    // is not what a bore looks like. Rather than show a picture of the wrong
+    // part, it is left out for internal work.
+    if (internal) return null;
     try {
       return profileDrawing(steps, pf(stock) || 0);
     } catch {
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(rows), stock]);
+  }, [JSON.stringify(rows), stock, internal]);
 
   // Which form the control will read this as is not a setting: it is decided by
   // whether the shape has a pocket in it, and the program says so by whether the
@@ -669,6 +681,7 @@ function G71Panel() {
     finishAllowanceZ: pf(allowZ),
     retract: pf(retract),
     type: cycleType,
+    internal,
   };
 
   const { result, code, error } = useMemo(() => {
@@ -712,6 +725,7 @@ function G71Panel() {
     ns,
     nf,
     cycleType,
+    internal,
     JSON.stringify(rows),
   ]);
 
@@ -720,7 +734,10 @@ function G71Panel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
           <div className="flex items-center justify-between">
-            <SectionHeader title="G71 — OD Roughing" className="!mb-0" />
+            <SectionHeader
+              title={internal ? "G71 — Boring" : "G71 — OD Roughing"}
+              className="!mb-0"
+            />
             {/* Read out, not chosen: the shape decides this and the program says
                 which by whether the P block carries a Z. */}
             <span
@@ -735,10 +752,26 @@ function G71Panel() {
               Type {cycleType}
             </span>
           </div>
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={internal}
+              onChange={(e) => setInternal(e.target.checked)}
+              aria-label="Bore rather than turn"
+              className="accent-accent-cyan cursor-pointer"
+            />
+            Bore it out — the stock is the hole, not the bar
+          </label>
           <div className="grid grid-cols-2 gap-3">
-            <Num label="Stock Ø" value={stock} onChange={setStock} suffix="mm" />
             <Num
-              label="Finished Ø"
+              label={internal ? "Hole Ø" : "Stock Ø"}
+              value={stock}
+              onChange={setStock}
+              suffix="mm"
+              hint={internal ? "the hole that is already there" : undefined}
+            />
+            <Num
+              label={internal ? "Bore to Ø" : "Finished Ø"}
               value={finish}
               onChange={setFinish}
               suffix="mm"
@@ -882,8 +915,22 @@ function G71Panel() {
         </Card>
       )}
 
-      {!error && !profile.error && steps.length > 0 && (
+      {/* The material model takes metal off the outside of a bar, so run against
+          a bore it would animate the wrong part being cut the wrong way. Left
+          out for boring rather than shown wrong; the pass table and the blocks
+          are the answer there. */}
+      {!error && !profile.error && steps.length > 0 && !internal && (
         <G71Simulation input={input} steps={steps} includeFinish />
+      )}
+      {internal && !error && !profile.error && (
+        <Card variant="solid" padding="md" className="border-dark-600">
+          <p className="text-[11px] leading-relaxed text-gray-400">
+            The shape and the material simulation are left out for boring. Both draw metal coming
+            off the outside of a bar, which is not what is happening in a hole, and a picture of the
+            wrong part is worse than none. The pass table above and the blocks below are worked out
+            for the bore.
+          </p>
+        </Card>
       )}
 
       {!error && code.length > 0 && (

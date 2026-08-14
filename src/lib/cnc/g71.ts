@@ -32,6 +32,18 @@ export interface G71Input {
   retract: number;
   /** Which form of the cycle to plan. Type I when left out, as before. */
   type?: G71Type;
+  /**
+   * Bore the part out rather than turn it down.
+   *
+   * The same cycle does both, but everything about it is the other way round.
+   * `stockDiameter` becomes the hole that is already there — drilled, cored or
+   * cast — the passes open it outwards instead of cutting it down, and the
+   * roughing stops *inside* the finished bore rather than outside the finished
+   * diameter. That last one is why the finishing allowance is written negative
+   * on the second G71 line for internal work: a positive U on a bore leaves the
+   * allowance on the wrong side and the finishing pass cuts nothing at all.
+   */
+  internal?: boolean;
 }
 
 /**
@@ -109,12 +121,18 @@ export function reachableZ(points: ProfilePoint[], passDiameter: number, limitZ:
  * A shoulder stands at one Z with two diameters; the larger is what matters,
  * because that is the metal the tool has to clear.
  */
-export function profileDiameterAt(points: ProfilePoint[], z: number): number {
+export function profileDiameterAt(points: ProfilePoint[], z: number, internal = false): number {
   if (z >= points[0].z) return points[0].x;
   const last = points[points.length - 1];
   if (z <= last.z) return last.x;
 
-  let widest = -Infinity;
+  // Turning down, the widest metal at a Z is what the tool has to clear.
+  // Boring out, it is the narrowest: the tightest part of the hole is what
+  // stops the bar, and the wider mouth in front of it is already gone.
+  let found = internal ? Infinity : -Infinity;
+  const keep = (value: number) => {
+    found = internal ? Math.min(found, value) : Math.max(found, value);
+  };
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
     const b = points[i];
@@ -122,13 +140,14 @@ export function profileDiameterAt(points: ProfilePoint[], z: number): number {
     const lo = Math.min(a.z, b.z);
     if (z > hi || z < lo) continue;
     if (Math.abs(b.z - a.z) < 1e-12) {
-      widest = Math.max(widest, a.x, b.x);
+      keep(a.x);
+      keep(b.x);
       continue;
     }
     const t = (z - a.z) / (b.z - a.z);
-    widest = Math.max(widest, a.x + t * (b.x - a.x));
+    keep(a.x + t * (b.x - a.x));
   }
-  return widest === -Infinity ? last.x : widest;
+  return Number.isFinite(found) ? found : last.x;
 }
 
 /** One stretch of Z a single pass actually cuts through. */
@@ -152,6 +171,7 @@ export function reachableSpans(
   points: ProfilePoint[],
   passDiameter: number,
   limitZ: number,
+  internal = false,
 ): CutSpan[] {
   // Every Z worth testing: the profile's own corners, plus wherever it crosses
   // the pass diameter. Between two neighbouring boundaries the answer cannot
@@ -176,8 +196,10 @@ export function reachableSpans(
     const from = edges[i - 1];
     const to = edges[i];
     if (from - to < 1e-9) continue;
-    // Material is here when the finished part is narrower than the pass.
-    if (profileDiameterAt(points, (from + to) / 2) >= passDiameter - 1e-9) continue;
+    // Material is here when the finished part is narrower than the pass —
+    // or, boring, when the finished hole is wider than it.
+    const at = profileDiameterAt(points, (from + to) / 2, internal);
+    if (internal ? at <= passDiameter + 1e-9 : at >= passDiameter - 1e-9) continue;
     const previous = spans[spans.length - 1];
     // Neighbouring intervals that both cut are one cut, not two.
     if (previous && Math.abs(previous.to - from) < 1e-9) previous.to = to;
@@ -210,16 +232,31 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
     retract,
   } = input;
 
-  if (!(stockDiameter > 0)) throw new Error("Stock diameter must be greater than zero.");
+  const internal = input.internal ?? false;
+
+  if (!(stockDiameter > 0)) {
+    throw new Error(
+      internal
+        ? "The hole must be greater than zero."
+        : "Stock diameter must be greater than zero.",
+    );
+  }
   if (!(finishDiameter > 0)) throw new Error("Finished diameter must be greater than zero.");
 
-  // The roughing has to reach the smallest diameter the part has anywhere, or
-  // the material below the first shoulder is never taken off.
-  const targetDiameter = profile?.length ? Math.min(...profile.map((p) => p.x)) : finishDiameter;
+  // Turning down, the roughing has to reach the smallest diameter the part has
+  // anywhere or the material below the first shoulder is never taken off.
+  // Boring out, it is the largest: the widest the hole opens to.
+  const targetDiameter = profile?.length
+    ? internal
+      ? Math.max(...profile.map((p) => p.x))
+      : Math.min(...profile.map((p) => p.x))
+    : finishDiameter;
 
-  if (targetDiameter >= stockDiameter) {
+  if (internal ? targetDiameter <= stockDiameter : targetDiameter >= stockDiameter) {
     throw new Error(
-      `Finished diameter (${targetDiameter}) must be smaller than the stock diameter (${stockDiameter}) — there is nothing to turn off.`,
+      internal
+        ? `The finished bore (${targetDiameter}) must be larger than the hole it starts from (${stockDiameter}) — there is nothing to bore out.`
+        : `Finished diameter (${targetDiameter}) must be smaller than the stock diameter (${stockDiameter}) — there is nothing to turn off.`,
     );
   }
   if (!(length > 0)) throw new Error("Length of cut must be greater than zero.");
@@ -230,15 +267,18 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
   if (retract < 0) throw new Error("Retract cannot be negative.");
 
   // Roughing stops short of the finished size by the X allowance, which is a
-  // diameter, so it costs half that on the radius.
-  const roughedDiameter = targetDiameter + finishAllowanceX;
-  if (roughedDiameter >= stockDiameter) {
+  // diameter, so it costs half that on the radius. Short of a bore means
+  // smaller than it; short of a diameter means larger.
+  const roughedDiameter = internal
+    ? targetDiameter - finishAllowanceX
+    : targetDiameter + finishAllowanceX;
+  if (internal ? roughedDiameter <= stockDiameter : roughedDiameter >= stockDiameter) {
     throw new Error(
       `The finishing allowance (${finishAllowanceX}) leaves nothing for the roughing cycle to remove.`,
     );
   }
 
-  const radialStock = (stockDiameter - roughedDiameter) / 2;
+  const radialStock = Math.abs(roughedDiameter - stockDiameter) / 2;
   const roughedZ = -(length - finishAllowanceZ);
 
   const type: G71Type = input.type ?? "I";
@@ -249,13 +289,20 @@ export function calculateG71(input: G71Input, profile?: ProfilePoint[]): G71Resu
     // whatever is left rather than overshooting the finish allowance.
     const cumulative = Math.min(i * depthOfCut, radialStock);
     const previous = Math.min((i - 1) * depthOfCut, radialStock);
-    const diameter = Number((stockDiameter - 2 * cumulative).toFixed(4));
+    const diameter = Number(
+      (internal ? stockDiameter + 2 * cumulative : stockDiameter - 2 * cumulative).toFixed(4),
+    );
 
     let spans: CutSpan[];
     if (!profile?.length) {
       spans = [{ from: 0, to: roughedZ }];
     } else {
-      const all = reachableSpans(profile, diameter + finishAllowanceX, roughedZ);
+      const all = reachableSpans(
+        profile,
+        internal ? diameter - finishAllowanceX : diameter + finishAllowanceX,
+        roughedZ,
+        internal,
+      );
       // Type I cuts in from the face and stops at the first standing metal. It
       // cannot lift over a pocket and come back down, so anything past that
       // wall is simply not cut — which is the whole reason a pocketed part
@@ -666,7 +713,7 @@ export function arcPoints(
  * it. Each step contributes a move out to its diameter, then a cut along to the
  * running total.
  */
-export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
+export function profileCoordinates(steps: ProfileStep[], internal = false): ProfilePoint[] {
   if (!steps.length) throw new Error("Add at least one step to the profile.");
   steps.forEach((s, i) => {
     if (!(s.diameter > 0)) throw new Error(`Step ${i + 1}: diameter must be greater than zero.`);
@@ -785,9 +832,21 @@ export function profileCoordinates(steps: ProfileStep[]): ProfilePoint[] {
   // Worked out against the sharp corners, all of them, before any one round
   // moves the points the next one is measured from.
   const fillets = rounds.map((round) => {
-    // Nothing precedes the front corner but the face itself, which runs out
-    // from the axis — so that is the face the corner is taken off.
-    const from = round.at === 0 ? { z: vertices[0].z, r: 0 } : vertices[round.at - 1];
+    // Nothing precedes the front corner but the face itself. On a turned part
+    // that face runs out from the axis, so the corner is taken off it going
+    // outwards. On a bore it is the other way about: the face is the ring
+    // around the mouth of the hole, so the corner comes off it going inwards,
+    // and a chamfer there is the lead-in that lets a shaft start into the bore.
+    //
+    // How far that ring reaches is the wall thickness, which the profile does
+    // not know — so it is taken as exactly the size asked for, and a chamfer
+    // wider than the wall is not caught here.
+    const from =
+      round.at === 0
+        ? internal
+          ? { z: vertices[0].z, r: vertices[0].r + round.size }
+          : { z: vertices[0].z, r: 0 }
+        : vertices[round.at - 1];
     const at = vertices[round.at];
     const to = vertices[round.at + 1];
     const label = `Step ${round.step + 1}`;
@@ -860,6 +919,7 @@ export function profileBlocks(
   feed: number,
   exitDiameter: number,
   type: G71Type = "I",
+  internal = false,
 ): string[] {
   const num = (v: number) => wordValue(v);
   const lines: string[] = [];
@@ -921,10 +981,12 @@ export function profileBlocks(
     if (size === undefined) return undefined;
     const kind = step.cornerChamfer !== undefined ? "chamfer" : "round";
     if (i === 0) {
+      // The face the front corner comes off runs outwards from the axis on a
+      // turned part, and inwards from the wall on a bore.
       return cut(
         kind,
         size,
-        { z: 0, r: 0 },
+        internal ? { z: 0, r: step.diameter / 2 + size } : { z: 0, r: 0 },
         { z: 0, r: step.diameter / 2 },
         { z: -step.length, r: endR(0) },
         "Step 1",
@@ -1086,9 +1148,14 @@ export function generateG71Code(
   const nf = options.endBlock ?? 110;
   const feed = options.feed ?? 0.2;
 
+  // Boring, the allowance is left on the inside of the hole, and the control is
+  // told that by the sign of U. Written positive on a bore it is left on the
+  // wrong side: the roughing opens the hole past the finished size and the
+  // finishing pass has nothing to cut.
+  const allowanceX = input.internal ? -input.finishAllowanceX : input.finishAllowanceX;
   const header = [
     `G71 U${word(input.depthOfCut)} R${word(input.retract)}`,
-    `G71 P${ns} Q${nf} U${word(input.finishAllowanceX)} W${word(input.finishAllowanceZ)} F${word(feed)}`,
+    `G71 P${ns} Q${nf} U${word(allowanceX)} W${word(input.finishAllowanceZ)} F${word(feed)}`,
   ];
 
   if (!options.steps?.length) {
@@ -1106,7 +1173,15 @@ export function generateG71Code(
 
   return [
     ...header,
-    ...profileBlocks(options.steps, ns, nf, feed, input.stockDiameter, input.type ?? "I"),
+    ...profileBlocks(
+      options.steps,
+      ns,
+      nf,
+      feed,
+      input.stockDiameter,
+      input.type ?? "I",
+      input.internal,
+    ),
   ];
 }
 
