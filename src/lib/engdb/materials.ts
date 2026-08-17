@@ -335,8 +335,12 @@ export const MATERIAL_PROFILES: MaterialProfile[] = [
     applications: "Aerospace, electronics housings, lightweight parts",
   },
   {
-    id: "zinc",
-    name: "Zinc (Zamak 3)",
+    // Was filed under the id "zinc" while the Weight & Cost table used that
+    // same id for pure zinc at 7135 kg/m³. Two different metals 8% apart
+    // answering to one name: nothing was shown wrong, because the tables were
+    // never joined, but the first join would have swapped one for the other.
+    id: "zamak3",
+    name: "Zinc Alloy (Zamak 3)",
     category: "other_metal",
     density: 6600,
     yieldStrength: 228,
@@ -346,6 +350,49 @@ export const MATERIAL_PROFILES: MaterialProfile[] = [
     thermalConductivity: 113,
     meltingPoint: 386,
     applications: "Die casting, hardware, automotive parts",
+  },
+  {
+    id: "zinc",
+    name: "Zinc (Pure)",
+    category: "other_metal",
+    density: 7135,
+    tensileStrength: 140,
+    hardness: "30 HB",
+    elasticModulus: 108,
+    thermalConductivity: 116,
+    meltingPoint: 420,
+    applications: "Galvanising, sacrificial anodes, battery cases",
+    notes: "Rolled zinc. Die-cast work uses the Zamak alloys, which are lighter.",
+  },
+  {
+    // Present in Weight & Cost but missing here, so it could be weighed and
+    // costed with no properties to look up.
+    id: "cast_iron",
+    name: "Cast Iron (Gray, Class 30)",
+    category: "steel",
+    density: 7150,
+    tensileStrength: 210,
+    hardness: "180–220 HB",
+    elasticModulus: 100,
+    thermalConductivity: 46,
+    meltingPoint: 1175,
+    machinability: 80,
+    applications: "Machine bases, engine blocks, brake discs, counterweights",
+    notes:
+      "Gray iron is brittle and has no meaningful yield point — it fractures rather than yielding, so no yield strength is quoted.",
+  },
+  {
+    id: "lead",
+    name: "Lead",
+    category: "other_metal",
+    density: 11340,
+    tensileStrength: 12,
+    hardness: "4 HB",
+    elasticModulus: 16,
+    thermalConductivity: 35,
+    meltingPoint: 327,
+    applications: "Radiation shielding, ballast, counterweights, flashing",
+    notes: "Toxic. Machining and grinding need extraction and hygiene controls.",
   },
   {
     id: "nickel200",
