@@ -25,12 +25,14 @@ function Num({
   unit?: string;
   placeholder?: string;
 }) {
+  // h-full + mt-auto keeps the boxes on a row bottom-aligned when one label
+  // wraps to two lines on a narrow screen and its neighbour does not.
   return (
-    <div>
+    <div className="flex flex-col h-full">
       <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1 block">
         {label}
       </label>
-      <div className="relative">
+      <div className="relative mt-auto">
         <input
           type="text"
           inputMode="decimal"
@@ -64,7 +66,7 @@ function Sel<V extends string | number>({
   options: { value: V; label: string }[];
 }) {
   return (
-    <div>
+    <div className="flex flex-col h-full">
       <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1 block">
         {label}
       </label>
@@ -75,7 +77,7 @@ function Sel<V extends string | number>({
           const match = options.find((o) => String(o.value) === raw);
           if (match) onChange(match.value);
         }}
-        className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm font-mono text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer"
+        className="w-full mt-auto px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm font-mono text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer"
       >
         {options.map((o) => (
           <option key={String(o.value)} value={String(o.value)}>
