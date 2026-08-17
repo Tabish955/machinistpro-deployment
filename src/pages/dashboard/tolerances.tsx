@@ -7,6 +7,7 @@ import {
   GDT_SYMBOLS,
   GDT_CATEGORIES,
   SURFACE_FINISHES,
+  raToMicroinch,
   PREFERRED_NUMBERS,
   type FitResult,
 } from "@/lib/tolerances";
@@ -276,6 +277,7 @@ function SurfaceTab() {
             <tr className="text-gray-500 border-b border-dark-700">
               <th className="text-left py-2 px-3 font-semibold">Grade</th>
               <th className="text-right py-2 px-3 font-semibold">Ra (μm)</th>
+              <th className="text-right py-2 px-2 font-semibold">Ra (μin)</th>
               <th className="text-right py-2 px-2 font-semibold">Rz (μm)</th>
               <th className="text-left py-2 px-2 font-semibold">Process</th>
               <th className="text-left py-2 px-2 font-semibold">Quality</th>
@@ -288,6 +290,9 @@ function SurfaceTab() {
                 <td className="py-2 px-3 font-mono text-accent-amber font-semibold">{s.n}</td>
                 <td className="py-2 px-3 text-right font-mono text-accent-cyan font-semibold">
                   {s.ra}
+                </td>
+                <td className="py-2 px-2 text-right font-mono text-gray-400">
+                  {Math.round(raToMicroinch(parseFloat(s.ra)))}
                 </td>
                 <td className="py-2 px-2 text-right font-mono text-gray-400">{s.rz}</td>
                 <td className="py-2 px-2 text-gray-300">{s.process}</td>

@@ -1409,6 +1409,10 @@ function G74Panel() {
   const [retract, setRetract] = useState("1");
   const [feed, setFeed] = useState("0.15");
   const [clearance, setClearance] = useState("2");
+  // What is actually in the chuck. Without it the picture invented a bar three
+  // times the drill, so a 10 mm hole through a 100 mm billet was drawn in a
+  // 30 mm one — a part nobody was making.
+  const [bar, setBar] = useState("");
 
   const input = {
     depth: pf(depth),
@@ -1452,6 +1456,17 @@ function G74Panel() {
             <Num label="Retract (R)" value={retract} onChange={setRetract} suffix="mm" />
             <Num label="Feed (F)" value={feed} onChange={setFeed} suffix="mm/rev" />
             <Num label="Start Clearance" value={clearance} onChange={setClearance} suffix="mm" />
+            <Num
+              label="Bar Ø"
+              value={bar}
+              onChange={setBar}
+              suffix="mm"
+              hint={
+                pf(bar) > 0
+                  ? "the workpiece being drilled"
+                  : `guessed at Ø${Math.max((pf(drill) || 10) * 3, 20)} — say what it really is`
+              }
+            />
           </div>
           <p className="text-[10px] text-gray-600 leading-relaxed">
             Q is written in microns with no decimal point, which is the trap in this cycle: a peck
@@ -1485,7 +1500,7 @@ function G74Panel() {
       </div>
       <LatheSimulation
         moves={out.moves}
-        stockDiameter={Math.max((pf(drill) || 10) * 3, 20)}
+        stockDiameter={pf(bar) > 0 ? pf(bar) : Math.max((pf(drill) || 10) * 3, 20)}
         length={Math.max(pf(depth) * 1.25, pf(depth) + 5)}
         start={{ x: pf(drill) || 10, z: pf(clearance) || 2 }}
         error={out.error}
@@ -1634,6 +1649,15 @@ function G76Panel() {
   const [chamfer, setChamfer] = useState("10");
   const [taper, setTaper] = useState("0");
   const [internal, setInternal] = useState(false);
+  /**
+   * The bar the thread is cut on, or bored into.
+   *
+   * Guessing it as major + 8 drew a Ø28 billet for an M20 screw. For a nut it
+   * is wrong the other way about: there the major diameter is the bore, and
+   * the bar has to be larger than it, not eight millimetres larger than the
+   * thread it contains.
+   */
+  const [threadBar, setThreadBar] = useState("");
 
   const input = {
     majorDiameter: pf(major),
@@ -1721,7 +1745,34 @@ function G76Panel() {
               suffix="mm"
               hint="0 is parallel"
             />
+            <Num
+              label="Bar Ø"
+              value={threadBar}
+              onChange={setThreadBar}
+              suffix="mm"
+              hint={
+                pf(threadBar) > 0
+                  ? internal
+                    ? "the billet the nut is bored from"
+                    : "the bar the screw is cut from"
+                  : `guessed at Ø${pf(major) + 8} — say what it really is`
+              }
+            />
           </div>
+          {/* An internal thread is cut into a bore, so the billet has to be
+              bigger than the major diameter. The other way round there is no
+              metal for the thread to be in. */}
+          {internal && pf(threadBar) > 0 && pf(threadBar) <= pf(major) && (
+            <div className="rounded-lg border border-accent-red/30 bg-accent-red/10 p-3">
+              <p className="text-xs font-semibold text-accent-red">
+                A Ø{pf(threadBar)} bar cannot hold a Ø{pf(major)} internal thread.
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
+                For a nut the major diameter is the bore, so the billet has to be larger than it —
+                enough larger to leave a wall once the thread is in.
+              </p>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-xs text-gray-400">
             <input
               type="checkbox"
@@ -1782,7 +1833,7 @@ function G76Panel() {
 
       <LatheSimulation
         moves={out.moves}
-        stockDiameter={pf(major) + 8}
+        stockDiameter={pf(threadBar) > 0 ? pf(threadBar) : pf(major) + 8}
         length={Math.abs(pf(zEnd)) + 10}
         error={out.error}
         passLabel={(p) =>
@@ -1812,6 +1863,15 @@ function SimplePanel() {
   const [feed, setFeed] = useState("0.2");
   const [taper, setTaper] = useState("0");
   const [pitch, setPitch] = useState("2.5");
+  /**
+   * The bar in the chuck, which is not the same thing as where the cut starts.
+   *
+   * Turning happens to begin at the outside, so borrowing the start diameter
+   * for the bar looked right under G90. Under G94 it is not: a facing cut
+   * starts at whatever diameter it starts at, and drawing the billet that size
+   * showed a part narrower than the one being faced.
+   */
+  const [bar, setBar] = useState("");
 
   const facing = cycle === "g94";
   const threading = cycle === "g92";
@@ -1893,6 +1953,17 @@ function SimplePanel() {
               suffix="mm"
               hint="0 is parallel"
             />
+            <Num
+              label="Bar Ø"
+              value={bar}
+              onChange={setBar}
+              suffix="mm"
+              hint={
+                pf(bar) > 0
+                  ? "the workpiece in the chuck"
+                  : `guessed at Ø${Math.max(pf(start), pf(finish)) || 0} — say what it really is`
+              }
+            />
           </div>
           <p className="text-[10px] text-gray-600 leading-relaxed">
             {SIMPLE_CYCLES[cycle].description} These cycles cut once per block, so the programmer
@@ -1926,7 +1997,7 @@ function SimplePanel() {
       </div>
       <LatheSimulation
         moves={out.moves}
-        stockDiameter={pf(start)}
+        stockDiameter={pf(bar) > 0 ? pf(bar) : Math.max(pf(start), pf(finish))}
         length={Math.abs(pf(zEnd)) + 10}
         error={out.error}
         passLabel={(p) => `block ${p}`}

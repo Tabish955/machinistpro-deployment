@@ -110,8 +110,26 @@ export interface PolygonStats {
   centroid: Cartesian2D;
   sides: number[];
   interiorAngles: number[]; // degrees
+  /**
+   * The angles actually measured, added up.
+   *
+   * Not the same thing as (n−2)·180. That identity only holds for a simple
+   * polygon, and the screen was printing it in place of the measurement — so a
+   * crossed quadrilateral reported 360° while its own corners came to 720°, and
+   * the figure would have read the same for any four points whatsoever.
+   */
+  interiorAngleSum: number;
   convex: boolean;
   selfIntersecting: boolean;
+  /**
+   * True when the shoelace area means what it appears to mean.
+   *
+   * A polygon that crosses itself encloses its lobes in opposite senses and
+   * they cancel: the bowtie (0,0) (4,4) (4,0) (0,4) covers 8 units of paper and
+   * shoelace returns 0. Zero is not a small area, it is no answer at all, and it
+   * has to be marked as such rather than printed as a result.
+   */
+  areaIsMeaningful: boolean;
   boundingBox: { width: number; height: number; minX: number; minY: number };
 }
 
@@ -227,8 +245,10 @@ export function polygonStats(points: Cartesian2D[]): PolygonStats | null {
     centroid,
     sides,
     interiorAngles,
+    interiorAngleSum: interiorAngles.reduce((sum, a) => sum + a, 0),
     convex: positive === 0 || negative === 0,
     selfIntersecting,
+    areaIsMeaningful: !selfIntersecting,
     boundingBox: { width: Math.max(...xs) - minX, height: Math.max(...ys) - minY, minX, minY },
   };
 }

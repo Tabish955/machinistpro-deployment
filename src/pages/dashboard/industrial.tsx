@@ -128,12 +128,21 @@ function SheetMetalCalc() {
   const [K, setK] = useState("0.33");
   const [leg1, setLeg1] = useState("");
   const [leg2, setLeg2] = useState("");
+  const [datum, setDatum] = useState<I.LegDatum>("flange");
 
   const ba = pf(R) > 0 && pf(T) > 0 ? I.bendAllowance(pf(angle), pf(R), pf(T), pf(K)) : null;
   const ossb = pf(R) > 0 && pf(T) > 0 ? I.outsideSetback(pf(R), pf(T), pf(angle)) : null;
   const bd = ba !== null && ossb !== null ? I.bendDeduction(ossb, ba) : null;
   const flat =
-    ba !== null && pf(leg1) > 0 && pf(leg2) > 0 ? I.flatPattern(pf(leg1), pf(leg2), ba) : null;
+    ba !== null && pf(leg1) > 0 && pf(leg2) > 0
+      ? I.flatPattern(pf(leg1), pf(leg2), ba, datum, bd ?? 0)
+      : null;
+  // The figure the other reading of the drawing would give, so the choice can
+  // be checked rather than taken on trust.
+  const flatOther =
+    ba !== null && bd !== null && pf(leg1) > 0 && pf(leg2) > 0
+      ? I.flatPattern(pf(leg1), pf(leg2), ba, datum === "flange" ? "outside" : "flange", bd)
+      : null;
   const na = pf(R) > 0 && pf(T) > 0 ? I.neutralAxis(pf(R), pf(K), pf(T)) : null;
 
   return (
@@ -148,6 +157,38 @@ function SheetMetalCalc() {
           <Num label="Leg 1" value={leg1} onChange={setLeg1} unit="mm" placeholder="Optional" />
           <Num label="Leg 2" value={leg2} onChange={setLeg2} unit="mm" placeholder="Optional" />
         </div>
+        {/* Which end of the leg the drawing dimensions to changes the blank by
+            the whole bend deduction, so it is asked rather than assumed. */}
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Legs measured to
+          </label>
+          <div className="flex w-fit rounded-lg border border-dark-600 bg-dark-800 p-0.5">
+            {(
+              [
+                ["flange", "Tangent (flange)"],
+                ["outside", "Outside (mould line)"],
+              ] as [I.LegDatum, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setDatum(value)}
+                className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                  datum === value
+                    ? "bg-accent-cyan/20 text-accent-cyan"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-gray-400">
+            {datum === "flange"
+              ? "From the edge to where the flat stops and the radius starts. Flat = Leg1 + Leg2 + BA."
+              : "To the mould line — the corner the faces would meet at if the bend were sharp. Flat = Leg1 + Leg2 − BD."}
+          </p>
+        </div>
         <Hint text="K-factor: 0.33 air bending, 0.42 coining, 0.50 bottoming. Varies by material." />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
@@ -158,7 +199,25 @@ function SheetMetalCalc() {
             {ossb !== null && <Row label="Outside Setback" value={I.fmt(ossb, 3)} unit="mm" />}
             {bd !== null && <Row label="Bend Deduction" value={I.fmt(bd, 3)} unit="mm" />}
             {na !== null && <Row label="Neutral Axis" value={I.fmt(na, 3)} unit="mm" />}
-            {flat !== null && <Row label="Flat Pattern" value={I.fmt(flat, 2)} unit="mm" accent />}
+            {flat !== null && (
+              <Row
+                label={`Flat Pattern (${datum === "flange" ? "tangent" : "outside"} legs)`}
+                value={I.fmt(flat, 2)}
+                unit="mm"
+                accent
+              />
+            )}
+            {flatOther !== null && flat !== null && (
+              <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
+                Read the other way, those legs would give{" "}
+                <span className="font-mono text-gray-300">{I.fmt(flatOther, 2)} mm</span> — a
+                difference of{" "}
+                <span className="font-mono text-gray-300">
+                  {I.fmt(Math.abs(flat - flatOther), 2)} mm
+                </span>
+                . Check which the drawing means before cutting.
+              </p>
+            )}
             <Formula formula="BA = (π/180) × θ × (R + K×T)" />
           </>
         ) : (
