@@ -13,6 +13,7 @@ const ROUTES = new Set([
   "/dashboard/level",
   "/dashboard/engineering",
   "/dashboard/industrial",
+  "/dashboard/electrical",
   "/dashboard/formulas",
   "/dashboard/tolerances",
   "/dashboard/materials",

@@ -395,21 +395,6 @@ const CORE_FORMULAS: FormulaEntry[] = [
     calcLink: "/dashboard/weight",
   },
   {
-    id: "round_bar_w",
-    name: "Round Bar Weight",
-    category: "material",
-    expression: "W = (π/4) × D² × L × ρ",
-    description: "Weight of a solid round bar.",
-    variables: [v("D", "Diameter", "m"), v("L", "Length", "m"), v("ρ", "Density", "kg/m³")],
-    example: {
-      description: "D=50mm, L=1m, Steel",
-      inputs: { D: 0.05, L: 1, ρ: 7850 },
-      result: "W = 15.42 kg",
-    },
-    keywords: ["round", "bar", "rod", "weight"],
-    calcLink: "/dashboard/weight",
-  },
-  {
     id: "pipe_weight",
     name: "Pipe Weight",
     category: "pipe",
@@ -477,7 +462,7 @@ const CORE_FORMULAS: FormulaEntry[] = [
     example: { description: "I=2A, R=10Ω", inputs: { I: 2, R: 10 }, result: "V = 20 V" },
     related: ["power_elec"],
     keywords: ["ohm", "voltage", "current", "resistance"],
-    calcLink: "/dashboard/scientific",
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "power_elec",
@@ -494,6 +479,7 @@ const CORE_FORMULAS: FormulaEntry[] = [
     example: { description: "V=12, I=3", inputs: { V: 12, I: 3 }, result: "P = 36 W" },
     related: ["ohms_law"],
     keywords: ["power", "watt", "electrical", "dc"],
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "resistors_series",
@@ -508,6 +494,7 @@ const CORE_FORMULAS: FormulaEntry[] = [
       result: "R_total = 60 Ω",
     },
     keywords: ["resistor", "series", "total", "resistance"],
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "resistors_parallel",
@@ -518,6 +505,7 @@ const CORE_FORMULAS: FormulaEntry[] = [
     variables: [v("R₁,R₂…", "Resistances", "Ω")],
     example: { description: "10Ω ∥ 20Ω", inputs: { R1: 10, R2: 20 }, result: "R_total = 6.67 Ω" },
     keywords: ["resistor", "parallel", "total", "resistance"],
+    calcLink: "/dashboard/electrical",
   },
 
   // ═══ PHYSICS ══════════════════════════════════════════════════════════════
@@ -549,7 +537,14 @@ const CORE_FORMULAS: FormulaEntry[] = [
     expression: "PE = mgh",
     description: "Gravitational potential energy.",
     variables: [v("m", "Mass", "kg"), v("g", "Gravity", "m/s²"), v("h", "Height", "m")],
-    example: { description: "m=10, h=5", inputs: { m: 10, h: 5 }, result: "PE = 490.3 J" },
+    // g is stated in the inputs because the reader cannot reproduce the answer
+    // without it. 10 × 9.81 × 5 is 490.5 J; the 490.3 that stood here came from
+    // quietly using 9.80665 while the entry above it uses 9.81.
+    example: {
+      description: "m=10, g=9.81, h=5",
+      inputs: { m: 10, g: 9.81, h: 5 },
+      result: "PE = 490.5 J",
+    },
     keywords: ["potential", "energy", "gravity", "height"],
   },
 
@@ -603,13 +598,18 @@ const CORE_FORMULAS: FormulaEntry[] = [
   },
   {
     id: "torque",
-    name: "Torque",
+    // Two torque entries used to share the name "Torque" and looked like
+    // duplicates in search. They are not the same formula: this one assumes the
+    // force is square to the arm, `torque_phys` carries the sin θ for when it
+    // is not. The names now say which is which, and each points at the other.
+    name: "Torque (Force at Right Angles)",
     category: "mechanics",
     expression: "τ = F × d",
-    description: "Torque = Force × lever arm distance.",
+    description: "Torque from a force acting perpendicular to the lever arm — the usual shop case.",
     variables: [v("τ", "Torque", "N·m"), v("F", "Force", "N"), v("d", "Distance", "m")],
     example: { description: "F=50N, d=0.3m", inputs: { F: 50, d: 0.3 }, result: "τ = 15 N·m" },
-    keywords: ["torque", "moment", "force", "lever"],
+    related: ["torque_phys"],
+    keywords: ["torque", "moment", "force", "lever", "spanner", "tightening"],
   },
   {
     id: "beam_deflection",
@@ -728,10 +728,14 @@ const CORE_FORMULAS: FormulaEntry[] = [
   },
 ];
 
-// Thirteen ids appear in both sets. Concatenating listed each twice on the page,
-// and FORMULA_MAP silently kept whichever came last, so a lookup returned the
-// extended copy while the list showed both. The core entry wins, being the
-// curated set, and the extended duplicate is dropped.
+// No id appears in both sets any more — the thirteen extended copies that were
+// being silently dropped here have been deleted, so the file no longer carries
+// entries that could never be reached.
+//
+// The guard stays as a safety net. Without it a re-introduced duplicate would
+// list twice on the page while FORMULA_MAP silently kept whichever came last,
+// so a lookup and the list would disagree. The core entry wins, being the
+// curated set. `formulas-examples.test.ts` fails on any new collision.
 export const FORMULAS: FormulaEntry[] = (() => {
   const byId = new Map<string, FormulaEntry>();
   for (const f of [...CORE_FORMULAS, ...EXTENDED_FORMULAS]) {
