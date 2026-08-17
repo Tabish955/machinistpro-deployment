@@ -696,6 +696,12 @@ function TheoryCalc() {
   const solved = given >= 2;
   const power = solved ? E.powerVI(sv, si) : null;
 
+  // With all three entered, voltage and current win and the resistance is
+  // recomputed from them. That is a reasonable rule, but silently replacing a
+  // figure the user typed — showing 4 Ω while their box still reads 99 — looks
+  // like the calculator is broken rather than like they have a typo. Say so.
+  const overridden = given === 3 && Math.abs(sr - nr) > Math.max(1e-9, nr * 1e-6);
+
   const [rs, setRs] = useState("10, 22, 47");
   const list = rs
     .split(/[,\s]+/)
@@ -731,6 +737,11 @@ function TheoryCalc() {
             <Row label="Resistance" value={E.fmt(sr, 4)} unit="Ω" accent={!(nr > 0)} />
             <Row label="Power" value={E.fmt(power!, 4)} unit="W" />
             <Formula formula={"V = I × R\nP = V × I = I²R = V²/R"} />
+            {overridden && (
+              <Hint
+                text={`All three were entered and they do not agree. ${v} V across ${r} Ω would draw ${E.fmt(E.current(nv, nr), 4)} A, not ${i} A. Voltage and current have been used, giving ${E.fmt(sr, 4)} Ω — clear one box to solve for it properly.`}
+              />
+            )}
           </div>
         ) : (
           <Empty text="Enter any two values" />
@@ -843,6 +854,7 @@ function EdmCalc() {
   const [cavity, setCavity] = useState("20");
   const [overcut, setOvercut] = useState("0.05");
   const [finishOvercut, setFinishOvercut] = useState("0.03");
+  const [finishUndersize, setFinishUndersize] = useState("0.18");
   const [cavityVol, setCavityVol] = useState("9000");
   const [ampsEdm, setAmpsEdm] = useState("30");
   const [mrrPerAmp, setMrrPerAmp] = useState("3");
@@ -851,8 +863,14 @@ function EdmCalc() {
   const [vdi, setVdi] = useState("30");
 
   const elecDim = pf(cavity) > 0 ? D.electrodeUndersize(pf(cavity), pf(overcut)) : null;
+  // How much smaller the finish electrode is made is a decision the toolmaker
+  // takes, not something derivable from the cavity — it is what the electrode
+  // is then orbited to sweep back out. Deriving it from a fixed undersize made
+  // the orbit cancel to that constant and read the same for every input.
   const finishElec =
-    pf(cavity) > 0 ? D.electrodeUndersize(pf(cavity), pf(finishOvercut) + 0.15) : null;
+    pf(cavity) > 0 && pf(finishUndersize) > 0
+      ? D.electrodeUndersize(pf(cavity), pf(finishUndersize))
+      : null;
   const orbit =
     pf(cavity) > 0 && finishElec !== null
       ? D.orbitRadius(pf(cavity), finishElec, pf(finishOvercut))
@@ -995,6 +1013,12 @@ function EdmCalc() {
                 onChange={setFinishOvercut}
                 unit="mm"
               />
+              <Num
+                label="Finish Electrode Undersize"
+                value={finishUndersize}
+                onChange={setFinishUndersize}
+                unit="mm/side"
+              />
               <Num label="Cavity Volume" value={cavityVol} onChange={setCavityVol} unit="mm³" />
               <Num label="Discharge Current" value={ampsEdm} onChange={setAmpsEdm} unit="A" />
               <Num
@@ -1022,8 +1046,14 @@ function EdmCalc() {
                   {finishElec !== null && (
                     <Row label="Finish Electrode" value={D.fmt(finishElec, 4)} unit="mm" />
                   )}
-                  {orbit !== null && (
+                  {orbit !== null && orbit > 0 && (
                     <Row label="Orbit Radius" value={D.fmt(orbit, 4)} unit="mm" accent />
+                  )}
+                  {orbit !== null && orbit <= 0 && (
+                    <Hint
+                      tone="red"
+                      text={`This finish electrode cannot orbit the cavity to size. Undersized by ${finishUndersize} mm a side, the spark's own ${finishOvercut} mm overcut already reaches the wall, so there is nothing left to sweep — the electrode must be made smaller than the overcut for an orbit to have anywhere to go.`}
+                    />
                   )}
                   {nElec !== null && <Row label="Electrodes Needed" value={String(nElec)} />}
                   {wearVol !== null && (
@@ -1044,7 +1074,7 @@ function EdmCalc() {
                 <>
                   <Row label="Burn Time" value={D.fmt(sinkT, 1)} unit="min" accent />
                   <Row
-                    label="Burn Time"
+                    label="Burn Time (h:min)"
                     value={`${Math.floor(sinkT / 60)} h ${D.fmt(sinkT % 60, 0)} min`}
                   />
                 </>

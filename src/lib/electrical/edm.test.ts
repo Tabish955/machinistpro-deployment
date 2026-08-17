@@ -93,6 +93,25 @@ describe("sinker EDM", () => {
     expect(D.orbitRadius(20, 19.7, 0.03)).toBeCloseTo(0.12, 9);
   });
 
+  it("moves the orbit when the electrode or the overcut moves", () => {
+    // Regression guard. Deriving the finish electrode from the cavity by a
+    // fixed undersize makes the orbit cancel algebraically to that constant,
+    // so it reads the same for every input while still looking plausible.
+    // The orbit must track both the electrode size and the overcut.
+    const base = D.orbitRadius(20, 19.7, 0.03);
+    expect(D.orbitRadius(20, 19.6, 0.03)).not.toBeCloseTo(base, 6);
+    expect(D.orbitRadius(20, 19.7, 0.05)).not.toBeCloseTo(base, 6);
+    // A smaller electrode sweeps further; a wider spark sweeps less.
+    expect(D.orbitRadius(20, 19.6, 0.03)).toBeGreaterThan(base);
+    expect(D.orbitRadius(20, 19.7, 0.05)).toBeLessThan(base);
+  });
+
+  it("goes non-positive when the electrode is too big to orbit", () => {
+    // Undersized by less than the spark's own overcut, there is nothing left
+    // to sweep. The page has to catch this rather than print a negative radius.
+    expect(D.orbitRadius(20, 19.96, 0.03)).toBeLessThanOrEqual(0);
+  });
+
   it("times a cavity from a measured removal rate", () => {
     // 30 A at a measured 3 mm³/min/A is 90 mm³/min.
     expect(D.sinkerMRR(30, 3)).toBe(90);
