@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as I from "./formulas";
+import { bendAllowance, bendDeduction, outsideSetback, flatPattern } from "./formulas";
 
 describe("industrial formulas", () => {
   it("computes sheet metal bends", () => {
@@ -55,5 +56,38 @@ describe("industrial formulas", () => {
     expect(I.pipeWeightPerLength(area, 7850)).toBeCloseTo(5.55, 2);
     // The bore holds less than the outside sweeps.
     expect(I.pipeInternalVolume(0.04)).toBeLessThan(I.pipeInternalVolume(0.05));
+  });
+});
+
+describe("which end of the leg the drawing dimensions to", () => {
+  // 90° bend, 3 mm inside radius, 2 mm thick, K 0.44.
+  const angle = 90,
+    R = 3,
+    T = 2,
+    K = 0.44;
+  const ba = bendAllowance(angle, R, T, K);
+  const bd = bendDeduction(outsideSetback(R, T, angle), ba);
+
+  it("adds the bend allowance to flange legs", () => {
+    expect(flatPattern(50, 50, ba, "flange", bd)).toBeCloseTo(106.09, 2);
+  });
+
+  it("takes the bend deduction off outside legs", () => {
+    expect(flatPattern(50, 50, ba, "outside", bd)).toBeCloseTo(96.09, 2);
+  });
+
+  /**
+   * The reason the datum is asked for at all. Ten millimetres on a hundred is
+   * not a rounding difference, it is a scrapped blank.
+   */
+  it("separates the two readings by the whole bend deduction plus allowance", () => {
+    const flange = flatPattern(50, 50, ba, "flange", bd);
+    const outside = flatPattern(50, 50, ba, "outside", bd);
+    expect(flange - outside).toBeCloseTo(ba + bd, 6);
+    expect(flange - outside).toBeCloseTo(10, 2);
+  });
+
+  it("still behaves as it always did when no datum is given", () => {
+    expect(flatPattern(50, 50, ba)).toBeCloseTo(50 + 50 + ba, 6);
   });
 });

@@ -503,16 +503,42 @@ function PolygonCalc({ inputUnit, outputUnit }: { inputUnit: string; outputUnit:
         {stats && area && per ? (
           <div>
             <ResultRow r={{ label: "Vertices", value: points.length, unit: "" }} />
-            <ResultRow r={{ label: "Area (shoelace)", value: area.value, unit: area.unit }} />
-            <ResultRow r={{ label: "Perimeter", value: per.value, unit: per.unit }} />
-            <div className="flex justify-between py-2 border-b border-dark-700/50">
-              <span className="text-xs text-gray-500">Centroid</span>
-              <span className="text-sm font-mono text-white">
-                ({fmt(stats.centroid.x)}, {fmt(stats.centroid.y)})
-              </span>
-            </div>
+            {stats.areaIsMeaningful ? (
+              <>
+                <ResultRow r={{ label: "Area (shoelace)", value: area.value, unit: area.unit }} />
+                <ResultRow r={{ label: "Perimeter", value: per.value, unit: per.unit }} />
+                <div className="flex justify-between py-2 border-b border-dark-700/50">
+                  <span className="text-xs text-gray-500">Centroid</span>
+                  <span className="text-sm font-mono text-white">
+                    ({fmt(stats.centroid.x)}, {fmt(stats.centroid.y)})
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Shoelace adds the lobes of a crossed polygon in opposite
+                    senses, so they cancel. Printing the result would put a
+                    confident number where there is no answer. */}
+                <div className="flex justify-between py-2 border-b border-dark-700/50">
+                  <span className="text-xs text-gray-500">Area (shoelace)</span>
+                  <span className="text-sm font-mono text-accent-amber">not defined</span>
+                </div>
+                <ResultRow r={{ label: "Perimeter", value: per.value, unit: per.unit }} />
+                <div className="flex justify-between py-2 border-b border-dark-700/50">
+                  <span className="text-xs text-gray-500">Centroid</span>
+                  <span className="text-sm font-mono text-accent-amber">not defined</span>
+                </div>
+              </>
+            )}
+            {/* The angles as measured, not the (n−2)·180 identity — that only
+                holds for a simple polygon and printing it in place of the
+                measurement hid the difference. */}
             <ResultRow
-              r={{ label: "Sum of Interior Angles", value: (points.length - 2) * 180, unit: "°" }}
+              r={{
+                label: "Sum of Interior Angles",
+                value: Number(stats.interiorAngleSum.toFixed(2)),
+                unit: "°",
+              }}
             />
             <div className="flex justify-between py-2 border-b border-dark-700/50">
               <span className="text-xs text-gray-500">Shape</span>
@@ -520,6 +546,19 @@ function PolygonCalc({ inputUnit, outputUnit }: { inputUnit: string; outputUnit:
                 {stats.selfIntersecting ? "Self-intersecting" : stats.convex ? "Convex" : "Concave"}
               </span>
             </div>
+            {stats.selfIntersecting && (
+              <div className="mt-3 rounded-lg border border-accent-amber/30 bg-accent-amber/10 p-3">
+                <p className="text-xs font-semibold text-accent-amber">
+                  The edges of this outline cross, so it has no single enclosed area.
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-300">
+                  Shoelace adds the two halves in opposite senses and they cancel — a bowtie the
+                  size of this one would come back as zero. Perimeter and the corner angles are
+                  still real. Check the order the points are listed in: a crossed outline is usually
+                  two vertices swapped.
+                </p>
+              </div>
+            )}
             <div className="mt-3">
               <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1">
                 Side lengths

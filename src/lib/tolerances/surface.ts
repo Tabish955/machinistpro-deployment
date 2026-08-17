@@ -89,7 +89,39 @@ export const SURFACE_FINISHES: SurfaceFinish[] = [
     quality: "Optical",
     applications: "Precision optics, semiconductor",
   },
+  {
+    n: "N2",
+    ra: "0.05",
+    rz: "0.2",
+    process: "Lapping",
+    quality: "Optical",
+    applications: "Gauge blocks, sealing faces",
+  },
+  {
+    n: "N1",
+    ra: "0.025",
+    rz: "0.1",
+    process: "Fine lapping, superfinishing",
+    quality: "Optical",
+    applications: "Reference gauges, measuring faces",
+  },
 ];
+
+/**
+ * Ra in microinches, which is how a US drawing calls out a finish.
+ *
+ * 1 µm is 39.37 µin. A drawing asking for 32 µin and one asking for 0.8 µm are
+ * the same surface, and a machinist reading either should not have to do the
+ * sum in their head against a table printed only in microns.
+ */
+export function raToMicroinch(ra_um: number): number {
+  return ra_um * 39.3701;
+}
+
+/** The reverse, for a drawing that specifies in microinches. */
+export function microinchToRa(ra_uin: number): number {
+  return ra_uin / 39.3701;
+}
 
 export const PREFERRED_NUMBERS: { series: string; values: number[]; description: string }[] = [
   {

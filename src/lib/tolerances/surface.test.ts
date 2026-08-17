@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SURFACE_FINISHES, PREFERRED_NUMBERS } from "./surface";
+import { SURFACE_FINISHES, PREFERRED_NUMBERS, raToMicroinch, microinchToRa } from "./surface";
 
 describe("preferred numbers", () => {
   it("follows the Renard definition, not a typed-out list", () => {
@@ -45,7 +45,7 @@ describe("surface finish table", () => {
   it("descends through the standard Ra series", () => {
     // ISO 1302 roughness grades, each about half the one before.
     const ra = SURFACE_FINISHES.map((f) => Number(f.ra));
-    expect(ra).toEqual([50, 25, 12.5, 6.3, 3.2, 1.6, 0.8, 0.4, 0.2, 0.1]);
+    expect(ra).toEqual([50, 25, 12.5, 6.3, 3.2, 1.6, 0.8, 0.4, 0.2, 0.1, 0.05, 0.025]);
     for (let i = 1; i < ra.length; i++) {
       expect(ra[i]).toBeLessThan(ra[i - 1]);
     }
@@ -86,6 +86,8 @@ describe("ISO 1302 N grades", () => {
       N5: 0.4,
       N4: 0.2,
       N3: 0.1,
+      N2: 0.05,
+      N1: 0.025,
     };
     for (const f of SURFACE_FINISHES) {
       expect(Number(f.ra), `${f.n} should be Ra ${expected[f.n]}`).toBe(expected[f.n]);
@@ -97,5 +99,28 @@ describe("ISO 1302 N grades", () => {
     for (let i = 1; i < grades.length; i++) {
       expect(grades[i]).toBe(grades[i - 1] - 1);
     }
+  });
+});
+
+describe("Ra in the units the drawing uses", () => {
+  it("converts the grades a US drawing calls out", () => {
+    // 0.8 µm is the 32 µin finish; 1.6 µm is 63; 3.2 µm is 125.
+    expect(raToMicroinch(0.8)).toBeCloseTo(31.5, 1);
+    expect(raToMicroinch(1.6)).toBeCloseTo(63.0, 1);
+    expect(raToMicroinch(3.2)).toBeCloseTo(126.0, 1);
+  });
+
+  it("round trips", () => {
+    for (const ra of [0.025, 0.4, 3.2, 50]) {
+      expect(microinchToRa(raToMicroinch(ra))).toBeCloseTo(ra, 9);
+    }
+  });
+
+  it("carries the lapping grades the table used to stop short of", () => {
+    const grades = SURFACE_FINISHES.map((f) => f.n);
+    expect(grades).toContain("N2");
+    expect(grades).toContain("N1");
+    // ISO 1302 runs N12 down to N1 and every step is half the one before.
+    expect(SURFACE_FINISHES.find((f) => f.n === "N1")!.ra).toBe("0.025");
   });
 });

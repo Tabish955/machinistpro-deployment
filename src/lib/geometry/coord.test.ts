@@ -76,3 +76,40 @@ describe("coordinate geometry", () => {
     expect(back.z).toBeCloseTo(3, 9);
   });
 });
+
+describe("a polygon whose edges cross", () => {
+  const bowtie = [
+    { x: 0, y: 0 },
+    { x: 4, y: 4 },
+    { x: 4, y: 0 },
+    { x: 0, y: 4 },
+  ];
+
+  it("marks the shoelace area as no answer rather than reporting zero", () => {
+    const s = polygonStats(bowtie)!;
+    expect(s.selfIntersecting).toBe(true);
+    // The lobes cancel: the figure covers 8 units of paper and shoelace says 0.
+    expect(s.area).toBe(0);
+    expect(s.areaIsMeaningful).toBe(false);
+  });
+
+  it("reports the angles it measured, not the (n−2)·180 identity", () => {
+    const s = polygonStats(bowtie)!;
+    // The identity would give 360 for four points. The corners really come to 720.
+    expect(s.interiorAngleSum).toBeCloseTo(720, 6);
+    expect(s.interiorAngleSum).not.toBeCloseTo((bowtie.length - 2) * 180, 1);
+  });
+
+  it("still agrees with the identity on a polygon that does not cross", () => {
+    const lShape = polygonStats([
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 2 },
+      { x: 2, y: 2 },
+      { x: 2, y: 4 },
+      { x: 0, y: 4 },
+    ])!;
+    expect(lShape.areaIsMeaningful).toBe(true);
+    expect(lShape.interiorAngleSum).toBeCloseTo((6 - 2) * 180, 6);
+  });
+});

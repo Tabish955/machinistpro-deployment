@@ -17,8 +17,35 @@ export const outsideSetback = (R: number, T: number, angle: number) =>
 /** Bend Deduction: BD = 2 × OSSB − BA */
 export const bendDeduction = (ossb: number, ba: number) => 2 * ossb - ba;
 
-/** Flat Pattern Length: L = Leg1 + Leg2 + BA */
-export const flatPattern = (leg1: number, leg2: number, ba: number) => leg1 + leg2 + ba;
+/**
+ * Where the two leg dimensions are taken from on the drawing.
+ *
+ * This is not a preference, it is two different parts. A flange length is
+ * measured from the edge to where the flat stops and the radius begins; an
+ * outside dimension runs to the mould line, the corner the two faces would
+ * meet at if the bend were sharp. The same "50 and 50" therefore unfolds to
+ * two lengths that differ by the whole bend deduction — 10 mm apart on a
+ * 90° bend in 2 mm with a 3 mm radius, which is a scrapped blank.
+ */
+export type LegDatum = "flange" | "outside";
+
+/**
+ * Flat Pattern Length.
+ *
+ *   flange legs (to the tangent point):  L = Leg1 + Leg2 + BA
+ *   outside legs (to the mould line):    L = Leg1 + Leg2 − BD
+ *
+ * Adding the bend allowance to outside dimensions double-counts the corner,
+ * which is the mistake this signature exists to make impossible to reach by
+ * accident.
+ */
+export const flatPattern = (
+  leg1: number,
+  leg2: number,
+  ba: number,
+  datum: LegDatum = "flange",
+  bd = 0,
+) => (datum === "outside" ? leg1 + leg2 - bd : leg1 + leg2 + ba);
 
 /** Min Bend Radius (rule of thumb): R_min ≈ T for mild steel */
 export const minBendRadius = (T: number, factor: number) => T * factor;
