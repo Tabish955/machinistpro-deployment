@@ -15,6 +15,55 @@ import {
   type ConstantCategory,
 } from "@/lib/core/constants";
 import { formatNumber } from "@/lib/core/format";
+
+/**
+ * Render a constant at its own precision rather than padded to a fixed width.
+ *
+ * The list used to call formatNumber with precision 10, which forced nine
+ * decimals onto every value. Avogadro's number is defined as exactly
+ * 6.02214076e23 and printed as "6.022140760e+23" — a trailing zero implying a
+ * digit of precision that does not exist. Worse, the padded exponent butted up
+ * against the unit, so "e+23" beside "1/mol" read as "e+231" at a glance.
+ *
+ * Trailing zeros in the mantissa are dropped and the exponent is spelled with
+ * a multiplication sign, which is how a constant is written down anyway.
+ */
+function formatConstant(value: number): string {
+  // The upper bound is high on purpose: 299,792,458 and 101,325 are read as
+  // whole numbers, and turning them into powers of ten helps nobody. Only the
+  // genuinely unwriteable values go scientific.
+  const abs = Math.abs(value);
+  if (abs !== 0 && (abs < 1e-4 || abs >= 1e9)) {
+    const [mantissa, exponent] = value.toExponential(9).split("e");
+    const trimmed = mantissa.includes(".")
+      ? mantissa.replace(/0+$/, "").replace(/\.$/, "")
+      : mantissa;
+    const exp = Number(exponent);
+    return `${trimmed} × 10${superscript(exp)}`;
+  }
+  return formatNumber(value, { precision: 10 });
+}
+
+const SUPERSCRIPTS: Record<string, string> = {
+  "0": "⁰",
+  "1": "¹",
+  "2": "²",
+  "3": "³",
+  "4": "⁴",
+  "5": "⁵",
+  "6": "⁶",
+  "7": "⁷",
+  "8": "⁸",
+  "9": "⁹",
+  "-": "⁻",
+};
+
+function superscript(n: number): string {
+  return String(n)
+    .split("")
+    .map((ch) => SUPERSCRIPTS[ch] ?? ch)
+    .join("");
+}
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -366,9 +415,13 @@ export default function FormulasPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-sm font-mono text-white">
-                        {formatNumber(c.value, { precision: 10 })}
+                        {formatConstant(c.value)}
                       </span>
-                      {c.unit && <span className="text-xs text-gray-600 ml-1">{c.unit}</span>}
+                      {c.unit && (
+                        <span className="text-xs text-gray-500 ml-1.5 whitespace-nowrap">
+                          {c.unit}
+                        </span>
+                      )}
                     </div>
                     <CBtn text={c.value.toString()} />
                   </div>

@@ -189,17 +189,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     calcLink: "/dashboard/geometry",
   },
   {
-    id: "cone_vol",
-    name: "Cone Volume",
-    category: "geometry",
-    expression: "V = (1 ÷ 3) × π × r² × h",
-    description: "Volume of a right circular cone.",
-    variables: [v("r", "Radius", "mm"), v("h", "Height", "mm")],
-    example: { description: "r=3, h=9", inputs: { r: 3, h: 9 }, result: "V = 84.82" },
-    keywords: ["cone", "volume", "taper"],
-    calcLink: "/dashboard/geometry",
-  },
-  {
     id: "cone_slant",
     name: "Cone Slant Height",
     category: "geometry",
@@ -282,30 +271,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
 
   // ═══ TRIGONOMETRY ═════════════════════════════════════════════════════════
   {
-    id: "law_sines",
-    name: "Law of Sines",
-    category: "trigonometry",
-    expression: "a ÷ sin A = b ÷ sin B = c ÷ sin C",
-    description: "Relates sides and opposite angles of any triangle.",
-    variables: [v("a", "Side a"), v("A", "Angle A", "°"), v("b", "Side b"), v("B", "Angle B", "°")],
-    example: {
-      description: "a=7, A=30°, B=45°",
-      inputs: { a: 7, A: 30, B: 45 },
-      result: "b = 9.90",
-    },
-    keywords: ["sine", "triangle", "oblique", "law"],
-  },
-  {
-    id: "law_cosines",
-    name: "Law of Cosines",
-    category: "trigonometry",
-    expression: "c² = a² + b² − 2ab × cos C",
-    description: "Third side of a triangle from two sides and the included angle.",
-    variables: [v("a", "Side a"), v("b", "Side b"), v("C", "Included angle", "°")],
-    example: { description: "a=5, b=7, C=60°", inputs: { a: 5, b: 7, C: 60 }, result: "c = 6.24" },
-    keywords: ["cosine", "triangle", "law", "sss", "sas"],
-  },
-  {
     id: "tri_area_sas",
     name: "Triangle Area (SAS)",
     category: "trigonometry",
@@ -314,16 +279,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     variables: [v("a", "Side a"), v("b", "Side b"), v("C", "Included angle", "°")],
     example: { description: "a=5, b=7, C=60°", inputs: { a: 5, b: 7, C: 60 }, result: "A = 15.16" },
     keywords: ["triangle", "area", "sas", "sine"],
-  },
-  {
-    id: "heron",
-    name: "Heron's Formula",
-    category: "trigonometry",
-    expression: "A = √(s × (s−a) × (s−b) × (s−c)), s = (a+b+c) ÷ 2",
-    description: "Triangle area from three sides.",
-    variables: [v("a", "Side a"), v("b", "Side b"), v("c", "Side c")],
-    example: { description: "3,4,5", inputs: { a: 3, b: 4, c: 5 }, result: "A = 6" },
-    keywords: ["heron", "triangle", "area", "sss"],
   },
   {
     id: "pythag_identity",
@@ -457,7 +412,16 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     expression: "∫ f dx ≈ (h ÷ 2) × (f₀ + 2f₁ + … + 2fₙ₋₁ + fₙ)",
     description: "Numerical integration by trapezoids.",
     variables: [v("h", "Step size"), v("n", "Intervals")],
-    example: { description: "n=4 strips", inputs: { n: 4 }, result: "Approximate area" },
+    // "Approximate area" was the stated result, which tells the reader nothing
+    // they did not already know from the name. Both rules now run the same
+    // integral so the pair can be compared: ∫₀⁴x²dx is exactly 21.33.
+    example: {
+      description: "∫₀⁴ x² dx with 4 strips (h=1)",
+      inputs: { h: 1, n: 4 },
+      result: "≈ 22 (exact 21.33)",
+    },
+    notes: "Straight-line tops overshoot a convex curve, so this reads high here.",
+    related: ["simpson"],
     keywords: ["numerical", "integration", "trapezoid", "simpson"],
   },
   {
@@ -468,10 +432,13 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     description: "Numerical integration using parabolic segments (n even).",
     variables: [v("h", "Step size"), v("n", "Intervals (even)")],
     example: {
-      description: "n=4 strips",
-      inputs: { n: 4 },
-      result: "Higher accuracy than trapezoid",
+      description: "∫₀⁴ x² dx with 4 strips (h=1)",
+      inputs: { h: 1, n: 4 },
+      result: "= 21.33 (exact)",
     },
+    notes:
+      "Parabolic segments fit a quadratic exactly, so this returns the true value here while the trapezoidal rule reads 22.",
+    related: ["trapezoid_rule"],
     keywords: ["simpson", "numerical", "integration"],
   },
   {
@@ -495,18 +462,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     variables: [v("xᵢ", "Data value"), v("x̄", "Mean"), v("n", "Sample size")],
     example: { description: "2,4,4,4,5,5,7,9", inputs: { n: 8 }, result: "s² = 4.57" },
     keywords: ["variance", "spread", "sample"],
-    calcLink: "/dashboard/scientific",
-  },
-  {
-    id: "std_dev",
-    name: "Standard Deviation",
-    category: "statistics",
-    expression: "s = √(Σ(xᵢ − x̄)² ÷ (n − 1))",
-    description: "Square root of the variance.",
-    variables: [v("xᵢ", "Data value"), v("x̄", "Mean"), v("n", "Sample size")],
-    example: { description: "2,4,4,4,5,5,7,9", inputs: { n: 8 }, result: "s = 2.14" },
-    related: ["variance"],
-    keywords: ["standard deviation", "sigma", "spread"],
     calcLink: "/dashboard/scientific",
   },
   {
@@ -556,7 +511,10 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     ],
     example: {
       description: "μ=10.02, USL=10.1, LSL=9.9, σ=0.02",
-      inputs: { mu: 10.02 },
+      // Cpk is the smaller of the two sides, so both limits and σ have to be
+      // present or the 1.33 cannot be checked: (10.1−10.02)/0.06 = 1.33 against
+      // (10.02−9.9)/0.06 = 2.00, and the tighter upper side wins.
+      inputs: { USL: 10.1, LSL: 9.9, μ: 10.02, σ: 0.02 },
       result: "Cpk = 1.33",
     },
     related: ["cp"],
@@ -568,8 +526,21 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     category: "statistics",
     expression: "m = (nΣxy − ΣxΣy) ÷ (nΣx² − (Σx)²)",
     description: "Least-squares best-fit slope.",
-    variables: [v("n", "Data count"), v("x", "X values"), v("y", "Y values")],
-    example: { description: "Simple trend fit", inputs: { n: 5 }, result: "m = best-fit slope" },
+    // The formula consumes the four sums, not the raw x and y lists, so those
+    // are what the entry now names — and the example carries a real dataset
+    // instead of restating the definition as its "result".
+    variables: [
+      v("n", "Data count"),
+      v("Σx", "Sum of x"),
+      v("Σy", "Sum of y"),
+      v("Σxy", "Sum of xy"),
+      v("Σx²", "Sum of x²"),
+    ],
+    example: {
+      description: "(1,2) (2,4) (3,5) (4,4) (5,5)",
+      inputs: { n: 5, Σx: 15, Σy: 20, Σxy: 66, "Σx²": 55 },
+      result: "m = 0.6",
+    },
     keywords: ["regression", "least squares", "trend", "fit"],
   },
   {
@@ -584,25 +555,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
   },
 
   // ═══ TURNING / MILLING / DRILLING ═════════════════════════════════════════
-  {
-    id: "surface_speed",
-    name: "Surface Speed from RPM",
-    category: "turning",
-    expression: "Vc = (π × D × n) ÷ 1000",
-    description: "Cutting speed in m/min from diameter and spindle speed.",
-    variables: [
-      v("D", "Diameter", "mm"),
-      v("n", "Spindle speed", "rpm"),
-      v("Vc", "Cutting speed", "m/min"),
-    ],
-    example: {
-      description: "D=50, n=1000",
-      inputs: { D: 50, n: 1000 },
-      result: "Vc = 157.1 m/min",
-    },
-    keywords: ["surface speed", "sfm", "vc", "cutting speed"],
-    calcLink: "/dashboard/machining",
-  },
   {
     id: "turning_mrr",
     name: "Turning Material Removal Rate",
@@ -703,26 +655,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     calcLink: "/dashboard/machining",
   },
   {
-    id: "chip_load",
-    name: "Chip Load per Tooth",
-    category: "milling",
-    expression: "fz = vf ÷ (n × z)",
-    description: "Feed per tooth from table feed, rpm and flute count.",
-    variables: [
-      v("vf", "Feed rate", "mm/min"),
-      v("n", "Spindle speed", "rpm"),
-      v("z", "Number of flutes"),
-    ],
-    example: {
-      description: "vf=600, n=2000, z=4",
-      inputs: { vf: 600, n: 2000, z: 4 },
-      result: "fz = 0.075 mm",
-    },
-    notes: "Flute count must be a positive whole number.",
-    keywords: ["chip load", "feed per tooth", "fz", "flutes"],
-    calcLink: "/dashboard/machining",
-  },
-  {
     id: "milling_engage",
     name: "Cutter Engagement Angle",
     category: "milling",
@@ -760,7 +692,9 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     ],
     example: {
       description: "L=30, Lₚ=3, Lₐ=2, f=0.15, n=1200",
-      inputs: { L: 30, f: 0.15, n: 1200 },
+      // The point and approach allowances were named in the description but
+      // left out of the inputs, so (30+3+2)/180 could not be followed.
+      inputs: { L: 30, Lₚ: 3, Lₐ: 2, f: 0.15, n: 1200 },
       result: "T ≈ 0.19 min",
     },
     notes: "Ideal cutting time — peck retracts and dwell are not included.",
@@ -785,17 +719,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
       result: "Ff ≈ 750 N",
     },
     keywords: ["thrust", "force", "drilling", "axial"],
-  },
-  {
-    id: "tap_drill",
-    name: "Tap Drill Size (metric)",
-    category: "threading",
-    expression: "d = D − P",
-    description: "Tapping drill diameter for a metric coarse thread (75% engagement).",
-    variables: [v("D", "Nominal diameter", "mm"), v("P", "Pitch", "mm")],
-    example: { description: "M10 × 1.5", inputs: { D: 10, P: 1.5 }, result: "d = 8.5 mm" },
-    keywords: ["tap drill", "metric", "thread", "pitch"],
-    calcLink: "/dashboard/machining",
   },
   {
     id: "thread_pitch_dia",
@@ -844,25 +767,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
 
   // ═══ SHEET METAL / WELDING / GEARS ════════════════════════════════════════
   {
-    id: "bend_allowance",
-    name: "Bend Allowance",
-    category: "sheet_metal",
-    expression: "BA = (π ÷ 180) × A × (R + K × T)",
-    description: "Flat-length allowance consumed by a sheet metal bend.",
-    variables: [
-      v("A", "Bend angle", "°"),
-      v("R", "Inside radius", "mm"),
-      v("K", "K-factor"),
-      v("T", "Thickness", "mm"),
-    ],
-    example: {
-      description: "A=90, R=2, T=2, K=0.44",
-      inputs: { A: 90, R: 2, T: 2, K: 0.44 },
-      result: "BA = 4.52 mm",
-    },
-    keywords: ["bend allowance", "sheet metal", "k-factor", "flat pattern"],
-  },
-  {
     id: "bend_deduction",
     name: "Bend Deduction",
     category: "sheet_metal",
@@ -874,7 +778,7 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
       inputs: { OSSB: 4, BA: 4.52 },
       result: "BD = 3.48 mm",
     },
-    related: ["bend_allowance"],
+    related: ["bend_allow"],
     keywords: ["bend deduction", "flat pattern", "sheet metal"],
   },
   {
@@ -1088,35 +992,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     keywords: ["stress", "axial", "tension", "compression"],
   },
   {
-    id: "strain",
-    name: "Engineering Strain",
-    category: "mechanics",
-    expression: "ε = ΔL ÷ L₀",
-    description: "Relative deformation under load.",
-    variables: [v("ΔL", "Change in length", "mm"), v("L₀", "Original length", "mm")],
-    example: {
-      description: "ΔL=0.5, L₀=1000",
-      inputs: { dL: 0.5, L0: 1000 },
-      result: "ε = 0.0005",
-    },
-    keywords: ["strain", "deformation", "elongation"],
-  },
-  {
-    id: "hooke",
-    name: "Hooke's Law",
-    category: "mechanics",
-    expression: "σ = E × ε",
-    description: "Linear elastic relation between stress and strain.",
-    variables: [v("E", "Young's modulus", "MPa"), v("ε", "Strain")],
-    example: {
-      description: "E=210000, ε=0.0005",
-      inputs: { E: 210000, eps: 0.0005 },
-      result: "σ = 105 MPa",
-    },
-    related: ["strain", "stress_normal"],
-    keywords: ["hooke", "elastic", "modulus", "young"],
-  },
-  {
     id: "bending_stress",
     name: "Bending Stress",
     category: "mechanics",
@@ -1169,25 +1044,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     keywords: ["torsion", "shaft", "shear", "torque"],
   },
   {
-    id: "beam_defl_simple",
-    name: "Simply Supported Beam Deflection",
-    category: "mechanics",
-    expression: "δ = (5 × w × L⁴) ÷ (384 × E × I)",
-    description: "Mid-span deflection under a uniform load.",
-    variables: [
-      v("w", "Load", "N/mm"),
-      v("L", "Span", "mm"),
-      v("E", "Modulus", "MPa"),
-      v("I", "Inertia", "mm⁴"),
-    ],
-    example: {
-      description: "w=10, L=1000, E=210000, I=520833",
-      inputs: { w: 10, L: 1000 },
-      result: "δ = 1.19 mm",
-    },
-    keywords: ["deflection", "beam", "udl", "simply supported"],
-  },
-  {
     id: "beam_defl_cant",
     name: "Cantilever Beam Deflection",
     category: "mechanics",
@@ -1200,8 +1056,10 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
       v("I", "Inertia", "mm⁴"),
     ],
     example: {
-      description: "F=1000, L=500, E=210000, I=520833",
-      inputs: { F: 1000, L: 500 },
+      description: "F=1000, L=500, E=210000 (steel), I=520833 (50×50 square)",
+      // The modulus and the section were assumed silently; without them the
+      // 0.38 mm arrives from nowhere.
+      inputs: { F: 1000, L: 500, E: 210000, I: 520833 },
       result: "δ = 0.38 mm",
     },
     keywords: ["cantilever", "deflection", "beam", "tip load"],
@@ -1257,16 +1115,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
 
   // ═══ PHYSICS ══════════════════════════════════════════════════════════════
   {
-    id: "newton2",
-    name: "Newton's Second Law",
-    category: "physics",
-    expression: "F = m × a",
-    description: "Force equals mass times acceleration.",
-    variables: [v("m", "Mass", "kg"), v("a", "Acceleration", "m/s²")],
-    example: { description: "m=10, a=9.81", inputs: { m: 10, a: 9.81 }, result: "F = 98.1 N" },
-    keywords: ["newton", "force", "mass", "acceleration"],
-  },
-  {
     id: "work",
     name: "Work Done",
     category: "physics",
@@ -1292,26 +1140,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     keywords: ["power", "watt", "work", "rate"],
   },
   {
-    id: "kinetic_energy",
-    name: "Kinetic Energy",
-    category: "physics",
-    expression: "KE = ½ × m × v²",
-    description: "Energy of a moving mass.",
-    variables: [v("m", "Mass", "kg"), v("v", "Velocity", "m/s")],
-    example: { description: "m=2, v=10", inputs: { m: 2, v: 10 }, result: "KE = 100 J" },
-    keywords: ["kinetic", "energy", "motion"],
-  },
-  {
-    id: "potential_energy",
-    name: "Gravitational Potential Energy",
-    category: "physics",
-    expression: "PE = m × g × h",
-    description: "Energy stored by height in a gravity field.",
-    variables: [v("m", "Mass", "kg"), v("g", "Gravity", "m/s²"), v("h", "Height", "m")],
-    example: { description: "m=2, h=10", inputs: { m: 2, g: 9.81, h: 10 }, result: "PE = 196.2 J" },
-    keywords: ["potential", "energy", "gravity", "height"],
-  },
-  {
     id: "momentum",
     name: "Linear Momentum",
     category: "physics",
@@ -1323,16 +1151,19 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
   },
   {
     id: "torque_phys",
-    name: "Torque",
+    name: "Torque (Force at an Angle)",
     category: "physics",
     expression: "τ = F × r × sin θ",
-    description: "Moment of a force about a point.",
+    description:
+      "Moment of a force about a point when the force is not square to the arm. At θ = 90° the sine is 1 and this reduces to F × r.",
     variables: [v("F", "Force", "N"), v("r", "Lever arm", "m"), v("θ", "Angle", "°")],
     example: {
       description: "F=100, r=0.5, θ=90°",
-      inputs: { F: 100, r: 0.5 },
+      // θ was left out while the result depended on it being 90°.
+      inputs: { F: 100, r: 0.5, θ: 90 },
       result: "τ = 50 N·m",
     },
+    related: ["torque"],
     keywords: ["torque", "moment", "lever"],
   },
   {
@@ -1397,26 +1228,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
 
   // ═══ ELECTRICAL ═══════════════════════════════════════════════════════════
   {
-    id: "ohms_law",
-    name: "Ohm's Law",
-    category: "electrical",
-    expression: "V = I × R",
-    description: "Voltage across a resistance carrying a current.",
-    variables: [v("V", "Voltage", "V"), v("I", "Current", "A"), v("R", "Resistance", "Ω")],
-    example: { description: "I=2, R=10", inputs: { I: 2, R: 10 }, result: "V = 20 V" },
-    keywords: ["ohm", "voltage", "current", "resistance"],
-  },
-  {
-    id: "elec_power",
-    name: "Electrical Power",
-    category: "electrical",
-    expression: "P = V × I = I² × R",
-    description: "Power dissipated in a circuit element.",
-    variables: [v("V", "Voltage", "V"), v("I", "Current", "A"), v("R", "Resistance", "Ω")],
-    example: { description: "V=230, I=5", inputs: { V: 230, I: 5 }, result: "P = 1150 W" },
-    keywords: ["power", "watt", "electrical"],
-  },
-  {
     id: "three_phase_power",
     name: "Three-Phase Power",
     category: "electrical",
@@ -1433,6 +1244,7 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
       result: "P ≈ 5.89 kW",
     },
     keywords: ["three phase", "power factor", "motor", "kw"],
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "motor_current",
@@ -1448,30 +1260,14 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     ],
     example: {
       description: "P=7.5, V=400, PF=0.85, η=0.9",
-      inputs: { P: 7.5 },
+      // All four are stated. With only P given the reader cannot arrive at
+      // 14.2 A, and the voltage, power factor and efficiency it was worked at
+      // were invisible.
+      inputs: { P: 7.5, V: 400, "cos φ": 0.85, η: 0.9 },
       result: "I ≈ 14.2 A",
     },
     keywords: ["motor", "current", "fla", "amps"],
-  },
-  {
-    id: "res_series",
-    name: "Resistors in Series",
-    category: "electrical",
-    expression: "Rₜ = R₁ + R₂ + … + Rₙ",
-    description: "Total resistance of series resistors.",
-    variables: [v("Rᵢ", "Resistance", "Ω")],
-    example: { description: "10 + 20 + 30", inputs: { n: 3 }, result: "Rₜ = 60 Ω" },
-    keywords: ["series", "resistance", "circuit"],
-  },
-  {
-    id: "res_parallel",
-    name: "Resistors in Parallel",
-    category: "electrical",
-    expression: "1 ÷ Rₜ = 1 ÷ R₁ + 1 ÷ R₂ + …",
-    description: "Total resistance of parallel resistors.",
-    variables: [v("Rᵢ", "Resistance", "Ω")],
-    example: { description: "10 ∥ 10", inputs: { R1: 10, R2: 10 }, result: "Rₜ = 5 Ω" },
-    keywords: ["parallel", "resistance", "circuit"],
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "cap_reactance",
@@ -1482,6 +1278,7 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     variables: [v("f", "Frequency", "Hz"), v("C", "Capacitance", "F")],
     example: { description: "f=50, C=100µF", inputs: { f: 50, C: 0.0001 }, result: "Xc ≈ 31.8 Ω" },
     keywords: ["reactance", "capacitor", "ac", "impedance"],
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "ind_reactance",
@@ -1492,6 +1289,7 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
     variables: [v("f", "Frequency", "Hz"), v("L", "Inductance", "H")],
     example: { description: "f=50, L=0.1", inputs: { f: 50, L: 0.1 }, result: "Xl ≈ 31.4 Ω" },
     keywords: ["reactance", "inductor", "ac", "impedance"],
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "wire_resistance",
@@ -1506,6 +1304,7 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
       result: "R ≈ 0.069 Ω",
     },
     keywords: ["wire", "resistance", "cable", "voltage drop"],
+    calcLink: "/dashboard/electrical",
   },
   {
     id: "voltage_divider",
@@ -1524,6 +1323,7 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
       result: "Vout = 6 V",
     },
     keywords: ["divider", "voltage", "resistor"],
+    calcLink: "/dashboard/electrical",
   },
 
   // ═══ THERMAL ══════════════════════════════════════════════════════════════
@@ -1544,43 +1344,6 @@ export const EXTENDED_FORMULAS: FormulaEntry[] = [
       result: "ΔL = 0.6 mm",
     },
     keywords: ["expansion", "thermal", "temperature", "growth"],
-  },
-  {
-    id: "heat_capacity",
-    name: "Sensible Heat",
-    category: "thermal",
-    expression: "Q = m × c × ΔT",
-    description: "Heat needed to change a material's temperature.",
-    variables: [
-      v("m", "Mass", "kg"),
-      v("c", "Specific heat", "J/kg·K"),
-      v("ΔT", "Temp change", "K"),
-    ],
-    example: {
-      description: "1 kg steel, +100 K",
-      inputs: { m: 1, c: 490, dT: 100 },
-      result: "Q = 49 kJ",
-    },
-    keywords: ["heat", "specific heat", "energy", "temperature"],
-  },
-  {
-    id: "conduction",
-    name: "Fourier Heat Conduction",
-    category: "thermal",
-    expression: "Q = (k × A × ΔT) ÷ L",
-    description: "Steady-state conduction through a wall.",
-    variables: [
-      v("k", "Conductivity", "W/m·K"),
-      v("A", "Area", "m²"),
-      v("ΔT", "Temp difference", "K"),
-      v("L", "Thickness", "m"),
-    ],
-    example: {
-      description: "k=50, A=1, ΔT=100, L=0.01",
-      inputs: { k: 50, A: 1, dT: 100, L: 0.01 },
-      result: "Q = 500 kW",
-    },
-    keywords: ["conduction", "fourier", "heat transfer"],
   },
   {
     id: "convection",

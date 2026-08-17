@@ -319,9 +319,16 @@ export const ENGINEERING_CONSTANTS: EngineeringConstant[] = [
     id: "rho_cu",
     name: "Copper Resistivity",
     symbol: "ρ",
-    value: 1.68e-8,
+    // Two figures are in circulation and this page used to disagree with the
+    // rest of the app. 1.68e-8 is pure annealed copper, the physics-textbook
+    // value. 1.7241e-8 is the International Annealed Copper Standard, which is
+    // what IEC 60228 conductors are specified against and what the Electrical
+    // Suite computes cable resistance and volt drop from. They differ by 2.6%,
+    // and a reader who worked a cable out from the constant printed here got a
+    // different answer from the calculator two pages away.
+    value: 1.7241e-8,
     unit: "Ω·m",
-    description: "At 20 °C",
+    description: "At 20 °C — IACS annealed copper, as used for cable sizing",
     category: "electrical",
   },
 
