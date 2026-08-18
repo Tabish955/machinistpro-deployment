@@ -652,7 +652,13 @@ function MillingCalc() {
         <div className="grid grid-cols-2 gap-3">
           <Num label="Tool Diameter" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} />
           <Num label="Flutes" value={teeth} onChange={setTeeth} suffix="z" />
-          <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
+          <Num
+            label="Cut Length"
+            value={length}
+            onChange={setLength}
+            suffix={isM ? "mm" : "in"}
+            placeholder="tool travel"
+          />
           <Num label="Depth of Cut" value={doc} onChange={setDoc} suffix={isM ? "mm" : "in"} />
           <Num label="Width of Cut" value={woc} onChange={setWoc} suffix={isM ? "mm" : "in"} />
           <Num
@@ -784,7 +790,13 @@ function TurningCalc() {
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="grid grid-cols-2 gap-3">
           <Num label="Workpiece Dia" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} />
-          <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
+          <Num
+            label="Turned Length"
+            value={length}
+            onChange={setLength}
+            suffix={isM ? "mm" : "in"}
+            placeholder="along the axis"
+          />
           <Num
             label="Cutting Speed"
             value={csOverride}
@@ -822,6 +834,11 @@ function TurningCalc() {
           />
         </div>
         <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          Turned length is how far the tool travels along the bar on one pass — the length of the
+          section being turned, not the length of the stock. Turning 80 mm on the end of a 300 mm
+          bar is 80.
+        </p>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
