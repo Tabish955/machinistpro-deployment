@@ -233,7 +233,12 @@ describe("DXF converter", () => {
     const stats = analyzeCadGeometry(paths, 1);
     expect(stats.arcs).toBeGreaterThan(0);
     const dxf = createDxf(paths, 1, "mm", 1);
-    expect(dxf).toContain("\r\nARC\r\n");
+    // This used to come out as an arc of about 349 degrees plus a straight
+    // chord closing the gap the fitter could not reach round to: a shape
+    // that is not quite round, carrying a stray line. A traced disc is a circle.
+    expect(dxf).toContain("\r\nCIRCLE\r\n");
+    expect(dxf).not.toContain("\r\nARC\r\n");
+    expect(dxf).not.toContain("\r\nLINE\r\n");
     expect(dxf).not.toContain("\r\nPOLYLINE\r\n");
   });
 });

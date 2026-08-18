@@ -71,6 +71,18 @@ export interface SplinePrimitive {
 
 export type CadPrimitive = LinePrimitive | ArcPrimitive | SplinePrimitive;
 
+/**
+ * A full turn is held as an arc whose end angle is a whole revolution past its
+ * start, rather than as a separate primitive type.
+ *
+ * Normalising it into the 0–360 range would collapse the sweep to zero, which
+ * is the difference between a circle and nothing at all, so the un-normalised
+ * end angle is the carrier of the fact. Exporters ask this rather than
+ * comparing angles themselves.
+ */
+export const isFullTurn = (arc: ArcPrimitive): boolean =>
+  Math.abs(arc.endAngle - arc.startAngle) >= 359.999;
+
 const numberPattern = /[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g;
 
 function numbers(value: string | null): number[] {
@@ -1212,6 +1224,75 @@ function fitSpan(points: DxfPoint[], tolerance: number): CadPrimitive[] {
   return mergeSplines(result);
 }
 
+/**
+ * A traced circle comes back as a long arc plus a straight chord closing the
+ * last few degrees the fitter could not reach round to. The result is a shape
+ * that is not quite round and carries a stray chord — junk in a drawing
+ * someone is about to cut from.
+ *
+ * Where a closed outline is nothing but arcs on one common circle and chords
+ * that hug that same circle, the whole thing is one circle and leaves as one.
+ *
+ * The test that keeps this honest is the sagitta: how far a chord bulges away
+ * from the arc it replaces, r(1 − cos(θ/2)). A chord closing a 10° gap on a
+ * 40 mm circle strays 0.18 mm and is within any sane fit tolerance, so folding
+ * it into the circle changes nothing anyone could measure. The flat on a
+ * D-shape subtends 180° and strays by the whole radius, so it survives
+ * untouched — which is the case this guard exists for.
+ */
+function closeFullCircle(
+  primitives: CadPrimitive[],
+  closed: boolean,
+  tolerance: number,
+): CadPrimitive[] {
+  if (!closed || primitives.length === 0) return primitives;
+
+  const arcs = primitives.filter((item): item is ArcPrimitive => item.type === "arc");
+  if (arcs.length === 0) return primitives;
+  // A curve fitted as a spline is not being second-guessed here.
+  if (primitives.some((item) => item.type === "spline")) return primitives;
+
+  const [first] = arcs;
+  const { center, radius } = first;
+  if (radius <= 0) return primitives;
+
+  const onCircle = (pt: DxfPoint) =>
+    Math.abs(Math.hypot(pt.x - center.x, pt.y - center.y) - radius) <= tolerance;
+  const angleAt = (pt: DxfPoint) =>
+    ((Math.atan2(-(pt.y - center.y), pt.x - center.x) * 180) / Math.PI + 360) % 360;
+  const sweepOf = (from: number, to: number) => (((to - from) % 360) + 360) % 360;
+
+  const sameCircle = arcs.every(
+    (arc) =>
+      Math.hypot(arc.center.x - center.x, arc.center.y - center.y) <= tolerance &&
+      Math.abs(arc.radius - radius) <= tolerance,
+  );
+  if (!sameCircle) return primitives;
+
+  let swept = 0;
+  for (const arc of arcs) swept += sweepOf(arc.startAngle, arc.endAngle);
+
+  for (const item of primitives) {
+    if (item.type === "arc") continue;
+    if (item.type !== "line") return primitives;
+    if (!onCircle(item.start) || !onCircle(item.end)) return primitives;
+    // The chord may only stand in for its arc if it never strays further from
+    // the circle than the fitter was allowed to stray from the traced pixels.
+    const subtended = Math.min(
+      sweepOf(angleAt(item.start), angleAt(item.end)),
+      sweepOf(angleAt(item.end), angleAt(item.start)),
+    );
+    const sagitta = radius * (1 - Math.cos((subtended * Math.PI) / 360));
+    if (sagitta > tolerance) return primitives;
+    swept += subtended;
+  }
+
+  // Everything present must add up to one revolution, not two and not most of one.
+  if (Math.abs(swept - 360) > 1) return primitives;
+
+  return [{ type: "arc", center, radius, startAngle: 0, endAngle: 360 }];
+}
+
 /** Neighbouring cubics are one curve, so they leave as one SPLINE rather than a
  *  string of them. They already share an end point and a tangent direction. */
 function mergeSplines(primitives: CadPrimitive[]): CadPrimitive[] {
@@ -1240,10 +1321,119 @@ export function fitPrimitives(path: DxfPath, tolerance: number): CadPrimitive[] 
     ...new Set([0, ...(path.corners ?? []).filter((mark) => mark > 0 && mark < last), last]),
   ].sort((a, b) => a - b);
 
+  // A ring has to be recognised before the outline is cut into spans. Fitting
+  // arcs span by span and hoping to glue them back into a circle does not work:
+  // a traced disc came out as a 100 mm arc and a 125 mm arc that shared neither
+  // centre nor radius, because each span was fitted with no knowledge of the
+  // others. Asking the whole point set whether it is a circle avoids that.
+  const whole = path.closed === true ? detectCircle(points, tolerance) : null;
+  if (whole)
+    return [
+      { type: "arc", center: whole.center, radius: whole.radius, startAngle: 0, endAngle: 360 },
+    ];
+
   const result: CadPrimitive[] = [];
   for (let index = 0; index + 1 < boundaries.length; index++)
     result.push(...fitSpan(points.slice(boundaries[index], boundaries[index + 1] + 1), tolerance));
-  return result;
+  return closeFullCircle(result, path.closed === true, tolerance);
+}
+
+/**
+ * Least-squares circle through every point of a closed outline, accepted only
+ * if no point strays further from it than the fit tolerance.
+ *
+ * This is Kåsa's algebraic fit: writing the circle as
+ * x² + y² + Dx + Ey + F = 0 makes the residual linear in D, E and F, so the
+ * best fit is one 3×3 solve rather than an iteration. It is slightly biased
+ * when only a short arc is present, which does not matter here because the
+ * result is thrown away unless every point already lies on the answer.
+ *
+ * The point set must also go the whole way round. A half-circle fits a circle
+ * perfectly well, and turning a D-shape's curved half into a full ring would be
+ * a far worse error than the stray chord this exists to remove.
+ */
+function detectCircle(
+  points: DxfPoint[],
+  tolerance: number,
+): { center: DxfPoint; radius: number } | null {
+  if (points.length < 8) return null;
+
+  let sx = 0;
+  let sy = 0;
+  for (const pt of points) {
+    sx += pt.x;
+    sy += pt.y;
+  }
+  const mx = sx / points.length;
+  const my = sy / points.length;
+
+  // Solving about the centroid keeps the numbers small and the matrix sane.
+  let suu = 0;
+  let suv = 0;
+  let svv = 0;
+  let suuu = 0;
+  let svvv = 0;
+  let suvv = 0;
+  let svuu = 0;
+  for (const pt of points) {
+    const u = pt.x - mx;
+    const v = pt.y - my;
+    suu += u * u;
+    suv += u * v;
+    svv += v * v;
+    suuu += u * u * u;
+    svvv += v * v * v;
+    suvv += u * v * v;
+    svuu += v * u * u;
+  }
+
+  const det = suu * svv - suv * suv;
+  if (Math.abs(det) < 1e-12) return null;
+
+  const c1 = (suuu + suvv) / 2;
+  const c2 = (svvv + svuu) / 2;
+  const uc = (c1 * svv - c2 * suv) / det;
+  const vc = (c2 * suu - c1 * suv) / det;
+
+  const center = { x: uc + mx, y: vc + my };
+  const radius = Math.sqrt(uc * uc + vc * vc + (suu + svv) / points.length);
+  if (!isFinite(radius) || radius <= 0) return null;
+
+  // Every point must sit on it, not merely most of them.
+  for (const pt of points) {
+    if (Math.abs(Math.hypot(pt.x - center.x, pt.y - center.y) - radius) > tolerance) return null;
+  }
+
+  // Vertices on the circle are not enough. Simplification deletes the points
+  // along a straight run, and the four corners left of a traced square all sit
+  // on its circumcircle — so a vertex-only test turns a square into a ring.
+  // What matters is the straight edge between two vertices, which sags away
+  // from the circle by r(1 − cos(θ/2)). On a square that is 29% of the radius
+  // and fails at once; on a finely traced ring it is a fraction of a pixel.
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const chord = Math.hypot(b.x - a.x, b.y - a.y);
+    if (chord > 2 * radius) return null;
+    const half = Math.asin(Math.min(1, chord / (2 * radius)));
+    if (radius * (1 - Math.cos(half)) > tolerance) return null;
+  }
+
+  // And the outline must actually close the loop rather than being an arc that
+  // happens to be round. Angles are summed as signed steps so that a there-and-
+  // back sweep cancels instead of counting twice.
+  let turned = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = Math.atan2(points[i - 1].y - center.y, points[i - 1].x - center.x);
+    const b = Math.atan2(points[i].y - center.y, points[i].x - center.x);
+    let step = b - a;
+    while (step > Math.PI) step -= 2 * Math.PI;
+    while (step < -Math.PI) step += 2 * Math.PI;
+    turned += step;
+  }
+  if (Math.abs(turned) < 2 * Math.PI - 0.2) return null;
+
+  return { center, radius };
 }
 
 export function analyzeCadGeometry(paths: DxfPath[], tolerance = 0.8): CadGeometryStats {
@@ -1322,12 +1512,21 @@ export function toSvgPathData(paths: DxfPath[], tolerance = 0.8): string[] {
           x: primitive.center.x + Math.cos(radians(degrees)) * primitive.radius,
           y: primitive.center.y - Math.sin(radians(degrees)) * primitive.radius,
         });
-        const swept = (((primitive.endAngle - primitive.startAngle) % 360) + 360) % 360;
         const r = primitive.radius.toFixed(3);
-        const from = on(primitive.startAngle);
-        const to = on(primitive.endAngle);
-        parts.push(`${moveTo(from)}A${r},${r} 0 ${swept > 180 ? 1 : 0} 0 ${xy(to)}`);
-        cursor = to;
+        if (isFullTurn(primitive)) {
+          // One 360° arc has identical endpoints and SVG draws nothing at all
+          // between them, so a full turn leaves as two half turns.
+          const start = on(0);
+          const half = on(180);
+          parts.push(`${moveTo(start)}A${r},${r} 0 0 0 ${xy(half)} A${r},${r} 0 0 0 ${xy(start)}`);
+          cursor = start;
+        } else {
+          const swept = (((primitive.endAngle - primitive.startAngle) % 360) + 360) % 360;
+          const from = on(primitive.startAngle);
+          const to = on(primitive.endAngle);
+          parts.push(`${moveTo(from)}A${r},${r} 0 ${swept > 180 ? 1 : 0} 0 ${xy(to)}`);
+          cursor = to;
+        }
       } else {
         const [first, ...rest] = primitive.controls;
         let data = moveTo(first);
@@ -1423,6 +1622,11 @@ export function createDxf(
   const paperSpace = handle();
   const rootDictionary = handle();
   const groupDictionary = handle();
+  const layoutDictionary = handle();
+  const mlineDictionary = handle();
+  const plotStyleDictionary = handle();
+  const modelLayout = handle();
+  const paperLayout = handle();
 
   // The drawing is moved so its bottom-left corner sits on the origin, and y is
   // flipped: image and SVG space count downwards, CAD space counts upwards.
@@ -1571,9 +1775,9 @@ export function createDxf(
   );
 
   openTable("BLOCK_RECORD", 2);
-  for (const [name, id] of [
-    ["*Model_Space", modelSpace],
-    ["*Paper_Space", paperSpace],
+  for (const [name, id, layoutId] of [
+    ["*Model_Space", modelSpace, modelLayout],
+    ["*Paper_Space", paperSpace, paperLayout],
   ]) {
     tables.push(
       [0, "BLOCK_RECORD"],
@@ -1581,6 +1785,10 @@ export function createDxf(
       [100, "AcDbSymbolTableRecord"],
       [100, "AcDbBlockTableRecord"],
       [2, name],
+      // 340 ties the block record to its layout. AutoCAD walks this link when
+      // it opens the file; a block record with no layout behind it is what
+      // makes it call an otherwise well-formed DXF incomplete.
+      [340, layoutId],
       [70, 0],
     );
   }
@@ -1639,16 +1847,31 @@ export function createDxf(
             [31, "0.0"],
           );
         } else if (primitive.type === "arc") {
-          entity("ARC", layer, "AcDbCircle");
-          entities.push(
-            [10, px(primitive.center.x)],
-            [20, py(primitive.center.y)],
-            [30, "0.0"],
-            [40, (primitive.radius * scale).toFixed(6)],
-            [100, "AcDbArc"],
-            [50, primitive.startAngle.toFixed(6)],
-            [51, primitive.endAngle.toFixed(6)],
-          );
+          // A whole revolution is a CIRCLE, not an ARC. Written as an arc it
+          // would carry a 360° end angle, which AutoCAD normalises back to 0
+          // and draws as nothing — and a circle is what the geometry is.
+          if (isFullTurn(primitive)) {
+            entity("CIRCLE", layer, "AcDbCircle");
+            entities.push(
+              [10, px(primitive.center.x)],
+              [20, py(primitive.center.y)],
+              [30, "0.0"],
+              [40, (primitive.radius * scale).toFixed(6)],
+            );
+          } else {
+            entity("ARC", layer, "AcDbCircle");
+            entities.push(
+              [10, px(primitive.center.x)],
+              [20, py(primitive.center.y)],
+              [30, "0.0"],
+              [40, (primitive.radius * scale).toFixed(6)],
+              [100, "AcDbArc"],
+              // Angles belong in 0–360; anything outside it is a file AutoCAD
+              // has to repair before it can draw.
+              [50, (((primitive.startAngle % 360) + 360) % 360).toFixed(6)],
+              [51, (((primitive.endAngle % 360) + 360) % 360).toFixed(6)],
+            );
+          }
         } else {
           const controls = primitive.controls;
           const knots = splineKnots((controls.length - 1) / 3);
@@ -1680,17 +1903,93 @@ export function createDxf(
 
   objects.push(
     // The root dictionary is the one record that owns itself into nothing.
+    //
+    // AutoCAD expects ACAD_GROUP, ACAD_LAYOUT, ACAD_MLINESTYLE and
+    // ACAD_PLOTSTYLENAME to be named here, and expects a LAYOUT object behind
+    // the layout dictionary for model space and for a paper space sheet. A
+    // file without them opens in most viewers and is refused by AutoCAD, which
+    // is the whole reason this section exists rather than being left empty.
     [0, "DICTIONARY"],
     [5, rootDictionary],
     [330, "0"],
     [100, "AcDbDictionary"],
     [3, "ACAD_GROUP"],
     [350, groupDictionary],
+    [3, "ACAD_LAYOUT"],
+    [350, layoutDictionary],
+    [3, "ACAD_MLINESTYLE"],
+    [350, mlineDictionary],
+    [3, "ACAD_PLOTSTYLENAME"],
+    [350, plotStyleDictionary],
     [0, "DICTIONARY"],
     [5, groupDictionary],
     [330, rootDictionary],
     [100, "AcDbDictionary"],
+    [0, "DICTIONARY"],
+    [5, mlineDictionary],
+    [330, rootDictionary],
+    [100, "AcDbDictionary"],
+    [0, "ACDBDICTIONARYWDFLT"],
+    [5, plotStyleDictionary],
+    [330, rootDictionary],
+    [100, "AcDbDictionary"],
+    [281, 1],
+    [100, "AcDbDictionaryWithDefault"],
+    [0, "DICTIONARY"],
+    [5, layoutDictionary],
+    [330, rootDictionary],
+    [100, "AcDbDictionary"],
+    [3, "Model"],
+    [350, modelLayout],
+    [3, "Layout1"],
+    [350, paperLayout],
   );
+
+  // The two layouts. Model space is tab order 0 by convention and the paper
+  // sheet follows it; the plot settings are left at their defaults because
+  // nothing here is being plotted, only opened.
+  for (const [name, id, block, order] of [
+    ["Model", modelLayout, modelSpace, 0],
+    ["Layout1", paperLayout, paperSpace, 1],
+  ] as Array<[string, string, string, number]>) {
+    objects.push(
+      [0, "LAYOUT"],
+      [5, id],
+      [330, layoutDictionary],
+      [100, "AcDbPlotSettings"],
+      [1, ""],
+      [2, ""],
+      [100, "AcDbLayout"],
+      [1, name],
+      [70, 1],
+      [71, order],
+      [10, "0.0"],
+      [20, "0.0"],
+      [11, (bounds.width * scale).toFixed(6)],
+      [21, (bounds.height * scale).toFixed(6)],
+      [12, "0.0"],
+      [22, "0.0"],
+      [32, "0.0"],
+      [14, "0.0"],
+      [24, "0.0"],
+      [34, "0.0"],
+      [15, (bounds.width * scale).toFixed(6)],
+      [25, (bounds.height * scale).toFixed(6)],
+      [35, "0.0"],
+      [146, "0.0"],
+      [13, "0.0"],
+      [23, "0.0"],
+      [33, "0.0"],
+      [16, "1.0"],
+      [26, "0.0"],
+      [36, "0.0"],
+      [17, "0.0"],
+      [27, "1.0"],
+      [37, "0.0"],
+      [76, 0],
+      [330, block],
+    );
+  }
 
   const header: Pair[] = [
     [0, "SECTION"],
