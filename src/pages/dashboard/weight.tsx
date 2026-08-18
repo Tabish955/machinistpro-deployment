@@ -210,6 +210,16 @@ export default function WeightPage() {
     return calculateCost(result.weight_kg, costInputs);
   }, [result, pricePerKg, quantity, wastePct, taxPct, discountPct]);
 
+  // ── Batch quantity ──
+  // Quantity is a property of the job, not of the pricing, so it sits with the
+  // dimensions as well as in the cost estimator. Both inputs drive this one
+  // piece of state, so the two boxes can never disagree. Before this, a
+  // quantity of ten priced ten pieces but still weighed one.
+  const qty = Math.max(1, parseInt(quantity) || 1);
+  const totalDisplayWeight = result ? result.displayWeight * qty : 0;
+  const totalWeightKg = result ? result.weight_kg * qty : 0;
+  const totalVolumeMm3 = result ? result.volume_m3 * 1e9 * qty : 0;
+
   // ── Grouped materials ──
   const materialGroups = useMemo(() => {
     const groups = new Map<MaterialCategory, Material[]>();
@@ -223,7 +233,11 @@ export default function WeightPage() {
 
   const handleCopy = () => {
     if (!result) return;
-    void copy(`${fmt(result.displayWeight)} ${weightUnit}`);
+    void copy(
+      qty > 1
+        ? `${fmt(result.displayWeight * qty)} ${weightUnit} (${qty} × ${fmt(result.displayWeight)} ${weightUnit})`
+        : `${fmt(result.displayWeight)} ${weightUnit}`,
+    );
   };
 
   // When shape changes, clear dims
@@ -332,6 +346,7 @@ export default function WeightPage() {
                   suffix={dimUnit}
                 />
               ))}
+              <NumInput label="Quantity" value={quantity} onChange={setQuantity} suffix="pcs" />
             </div>
           </Card>
 
@@ -392,22 +407,37 @@ export default function WeightPage() {
                   {/* Main weight */}
                   <div className="text-center py-4">
                     <p className="text-4xl font-bold text-white font-mono">
-                      {fmt(result.displayWeight)}
+                      {fmt(qty > 1 ? totalDisplayWeight : result.displayWeight)}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">{weightUnit}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {weightUnit}
+                      {qty > 1 ? ` · ${qty} pieces` : ""}
+                    </p>
                   </div>
 
                   {/* Details */}
                   <div className="space-y-2 text-sm">
+                    {qty > 1 && (
+                      <div className="flex justify-between py-1.5 border-b border-dark-700">
+                        <span className="text-gray-500">Per piece</span>
+                        <span className="text-gray-300 font-mono">
+                          {fmt(result.displayWeight)} {weightUnit}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between py-1.5 border-b border-dark-700">
-                      <span className="text-gray-500">Volume</span>
+                      <span className="text-gray-500">{qty > 1 ? "Volume (total)" : "Volume"}</span>
                       <span className="text-gray-300 font-mono">
-                        {fmt(result.volume_m3 * 1e9)} mm³
+                        {fmt(qty > 1 ? totalVolumeMm3 : result.volume_m3 * 1e9)} mm³
                       </span>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-dark-700">
-                      <span className="text-gray-500">Weight (kg)</span>
-                      <span className="text-gray-300 font-mono">{fmt(result.weight_kg)}</span>
+                      <span className="text-gray-500">
+                        {qty > 1 ? "Weight (kg, total)" : "Weight (kg)"}
+                      </span>
+                      <span className="text-gray-300 font-mono">
+                        {fmt(qty > 1 ? totalWeightKg : result.weight_kg)}
+                      </span>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-dark-700">
                       <span className="text-gray-500">Material</span>
