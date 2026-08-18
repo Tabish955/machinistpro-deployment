@@ -104,6 +104,56 @@ function Num({
   );
 }
 
+/**
+ * A feed rate, in both of the units a control might want it in.
+ *
+ * A mill is normally programmed in feed per minute (G94) and a lathe in feed
+ * per revolution (G95), and the same cut is both figures at once —
+ * f = Vf / n, exactly. Showing one and making the operator divide by the
+ * spindle speed in their head is where a decimal goes missing.
+ *
+ * Both are shown rather than offered behind a toggle: a mode would mean the
+ * screen sometimes says 0.2 and sometimes 442 for the same cut with only a
+ * small label to tell them apart, and picking the wrong one off the screen is
+ * exactly the kind of mistake this app exists to prevent.
+ */
+function FeedRow({
+  label = "Feed Rate",
+  feedMmMin,
+  rpm,
+  metric,
+  accent,
+}: {
+  label?: string;
+  feedMmMin: number;
+  rpm: number;
+  metric: boolean;
+  accent?: boolean;
+}) {
+  const perMin = metric ? fmt(feedMmMin) : fmt(mmToIn(feedMmMin), 3);
+  const perRev = rpm > 0 ? feedMmMin / rpm : 0;
+  const perRevText = metric ? fmt(perRev, 3) : fmt(mmToIn(perRev), 4);
+  return (
+    <div className="flex justify-between py-2 border-b border-dark-700/50 last:border-0 gap-3">
+      <span className="text-xs text-gray-500">{label}</span>
+      <span className="text-right">
+        <span
+          className={`text-sm font-mono ${accent ? "text-accent-cyan font-semibold" : "text-gray-300"}`}
+        >
+          {perMin}
+          <span className="text-gray-600 ml-1">{metric ? "mm/min" : "IPM"}</span>
+        </span>
+        {rpm > 0 && (
+          <span className="block text-xs font-mono text-gray-400">
+            {perRevText}
+            <span className="text-gray-600 ml-1">{metric ? "mm/rev" : "in/rev"}</span>
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 function ResultRow({
   label,
   value,
@@ -558,12 +608,7 @@ function FeedCalc() {
           </p>
         ) : (
           <>
-            <ResultRow
-              label="Feed Rate"
-              value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-              unit={isM ? "mm/min" : "in/min"}
-              accent
-            />
+            <FeedRow feedMmMin={feed} rpm={n} metric={isM} accent />
             <ResultRow
               label={op === "mill" ? "Chip Load" : "Feed per Rev"}
               value={isM ? fmt(flMm, 3) : fmt(mmToIn(flMm), 4)}
@@ -694,12 +739,7 @@ function MillingCalc() {
         <SectionHeader title="Results" />
         <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow
-          label="Feed Rate"
-          value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-          unit={isM ? "mm/min" : "IPM"}
-          accent
-        />
+        <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
         <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
         <ResultRow
           label="Material Removal Rate"
@@ -856,11 +896,7 @@ function TurningCalc() {
         <SectionHeader title="Results" />
         <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow
-          label="Feed Rate"
-          value={isM ? fmt(feedRate) : fmt(mmToIn(feedRate), 3)}
-          unit={isM ? "mm/min" : "IPM"}
-        />
+        <FeedRow feedMmMin={feedRate} rpm={rpm} metric={isM} />
         <ResultRow
           label="Surface Speed"
           value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))}
@@ -1021,12 +1057,7 @@ function DrillCalc() {
           value={isM ? fmt(fprMm, 3) : fmt(mmToIn(fprMm), 4)}
           unit={isM ? "mm/rev" : "in/rev"}
         />
-        <ResultRow
-          label="Feed Rate"
-          value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-          unit={isM ? "mm/min" : "IPM"}
-          accent
-        />
+        <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
         <ResultRow
           label="Drill Point Depth"
           value={pointDepthMm > 0 ? (isM ? fmt(pointDepthMm) : fmt(mmToIn(pointDepthMm), 3)) : "—"}
@@ -1490,12 +1521,7 @@ function TapCalc() {
               units={units}
             />
             <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-            <ResultRow
-              label="Feed Rate"
-              value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-              unit={isM ? "mm/min" : "IPM"}
-              accent
-            />
+            <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
             <ResultRow label="Pitch" value={fmt(pitch, 3)} unit="mm" />
             <ResultRow
               label={`Tap Drill at ${fmt(pct, 0)}%`}
