@@ -16,6 +16,15 @@ import {
   type WeightUnit,
   type CostInputs,
   type MaterialCategory,
+  loadCustomMaterials,
+  saveCustomMaterials,
+  createCustomMaterial,
+  validateMaterial,
+  toKgM3,
+  isCustom,
+  DENSITY_UNIT_LABELS,
+  type CustomMaterial,
+  type DensityUnit,
 } from "@/lib/materials";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -141,9 +150,62 @@ function NumInput({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function WeightPage() {
+  // ── Custom materials ──
+  // Read once on mount. The list is small and the store is synchronous, so
+  // there is nothing to gain from doing it any later.
+  const [customs, setCustoms] = useState<CustomMaterial[]>(() => loadCustomMaterials());
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDensity, setNewDensity] = useState("");
+  const [newUnit, setNewUnit] = useState<DensityUnit>("kg_m3");
+  const [newCategory, setNewCategory] = useState<MaterialCategory>("ferrous");
+  const [addError, setAddError] = useState("");
+  const [addWarning, setAddWarning] = useState("");
+
+  const allMaterials = useMemo<Material[]>(() => [...MATERIALS, ...customs], [customs]);
+
   // ── Material selection ──
   const [materialId, setMaterialId] = useState("mild_steel");
-  const material = useMemo(() => MATERIALS.find((m) => m.id === materialId)!, [materialId]);
+  // Falls back to the first built-in if the chosen material has been deleted,
+  // so the page cannot end up with no material and a crash on every render.
+  const material = useMemo(
+    () => allMaterials.find((m) => m.id === materialId) ?? MATERIALS[0],
+    [allMaterials, materialId],
+  );
+
+  const densityKgM3 = toKgM3(parseFloat(newDensity) || 0, newUnit);
+  const addMaterial = () => {
+    const check = validateMaterial(newName, densityKgM3, customs);
+    if (!check.ok) {
+      setAddError(check.error ?? "That will not do.");
+      setAddWarning("");
+      return;
+    }
+    const created = createCustomMaterial({
+      name: newName,
+      densityKgM3,
+      category: newCategory,
+    });
+    const next = [...customs, created];
+    if (!saveCustomMaterials(next)) {
+      setAddError("The material could not be saved on this device, so it would vanish on reload.");
+      return;
+    }
+    setCustoms(next);
+    setMaterialId(created.id);
+    setNewName("");
+    setNewDensity("");
+    setAddError("");
+    setAddWarning(check.warning ?? "");
+    setShowAdd(false);
+  };
+
+  const removeMaterial = (id: string) => {
+    const next = customs.filter((m) => m.id !== id);
+    saveCustomMaterials(next);
+    setCustoms(next);
+    if (materialId === id) setMaterialId("mild_steel");
+  };
 
   // ── Shape selection ──
   const [shapeId, setShapeId] = useState<string>("round_bar");
@@ -223,13 +285,13 @@ export default function WeightPage() {
   // ── Grouped materials ──
   const materialGroups = useMemo(() => {
     const groups = new Map<MaterialCategory, Material[]>();
-    for (const m of MATERIALS) {
+    for (const m of allMaterials) {
       const arr = groups.get(m.category) ?? [];
       arr.push(m);
       groups.set(m.category, arr);
     }
     return groups;
-  }, []);
+  }, [allMaterials]);
 
   const handleCopy = () => {
     if (!result) return;
@@ -270,17 +332,28 @@ export default function WeightPage() {
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {mats.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => setMaterialId(m.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                          materialId === m.id
-                            ? "bg-accent-purple/20 text-accent-purple border border-accent-purple/30"
-                            : "bg-dark-700/50 text-gray-400 border border-dark-600 hover:text-white hover:bg-dark-700"
-                        }`}
-                      >
-                        {m.name}
-                      </button>
+                      <span key={m.id} className="inline-flex items-center">
+                        <button
+                          onClick={() => setMaterialId(m.id)}
+                          className={`px-3 py-1.5 text-xs font-medium transition-all cursor-pointer ${isCustom(m) ? "rounded-l-lg" : "rounded-lg"} ${
+                            materialId === m.id
+                              ? "bg-accent-purple/20 text-accent-purple border border-accent-purple/30"
+                              : "bg-dark-700/50 text-gray-400 border border-dark-600 hover:text-white hover:bg-dark-700"
+                          }`}
+                        >
+                          {m.name}
+                          {isCustom(m) && <span className="ml-1 text-[9px] opacity-60">yours</span>}
+                        </button>
+                        {isCustom(m) && (
+                          <button
+                            onClick={() => removeMaterial(m.id)}
+                            title={`Remove ${m.name}`}
+                            className="px-1.5 py-1.5 rounded-r-lg border border-l-0 border-dark-600 bg-dark-700/50 text-gray-500 hover:text-accent-red cursor-pointer"
+                          >
+                            <X size={11} />
+                          </button>
+                        )}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -293,6 +366,122 @@ export default function WeightPage() {
                 {" · "}
                 {material.description}
               </p>
+
+              {/* Adding a material of your own */}
+              <div className="border-t border-dark-700 pt-3">
+                {!showAdd ? (
+                  <button
+                    onClick={() => {
+                      setShowAdd(true);
+                      setAddError("");
+                    }}
+                    className="text-xs font-semibold text-accent-purple hover:text-accent-purple/80 cursor-pointer"
+                  >
+                    + Add your own material
+                  </button>
+                ) : (
+                  <div className="space-y-3 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1 block">
+                          Name
+                        </label>
+                        <input
+                          type="text"
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          placeholder="e.g. Inconel 718"
+                          className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white placeholder:text-gray-600 focus:border-accent-purple/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1 block">
+                          Density
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={newDensity}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (/^[0-9]*\.?[0-9]*$/.test(v) || v === "") setNewDensity(v);
+                          }}
+                          placeholder="7850"
+                          className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm font-mono text-white placeholder:text-gray-600 focus:border-accent-purple/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1 block">
+                          Density Unit
+                        </label>
+                        <select
+                          value={newUnit}
+                          onChange={(e) => setNewUnit(e.target.value as DensityUnit)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-purple/50 focus:outline-none cursor-pointer"
+                        >
+                          {(Object.keys(DENSITY_UNIT_LABELS) as DensityUnit[]).map((u) => (
+                            <option key={u} value={u}>
+                              {DENSITY_UNIT_LABELS[u]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1 block">
+                          Group
+                        </label>
+                        <select
+                          value={newCategory}
+                          onChange={(e) => setNewCategory(e.target.value as MaterialCategory)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-purple/50 focus:outline-none cursor-pointer"
+                        >
+                          {(Object.keys(MATERIAL_CATEGORY_LABELS) as MaterialCategory[]).map(
+                            (c) => (
+                              <option key={c} value={c}>
+                                {MATERIAL_CATEGORY_LABELS[c]}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* The figure that will actually be used, in the unit the
+                        calculation works in, before anything is saved. */}
+                    {densityKgM3 > 0 && (
+                      <p className="text-[11px] text-gray-400">
+                        Will be stored as{" "}
+                        <span className="font-mono text-accent-purple">
+                          {Math.round(densityKgM3).toLocaleString()} kg/m³
+                        </span>
+                        {newUnit !== "kg_m3" && " — the unit every weight here is worked out in."}
+                      </p>
+                    )}
+                    {addError && <p className="text-[11px] text-accent-red">{addError}</p>}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={addMaterial}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold bg-accent-purple/20 text-accent-purple border border-accent-purple/30 cursor-pointer hover:bg-accent-purple/30"
+                      >
+                        Add material
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAdd(false);
+                          setAddError("");
+                        }}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold bg-dark-700/50 text-gray-400 border border-dark-600 cursor-pointer hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {addWarning && !showAdd && (
+                  <p className="text-[11px] text-accent-amber/80 mt-2">{addWarning}</p>
+                )}
+              </div>
             </div>
           </Card>
 
