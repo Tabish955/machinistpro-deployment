@@ -35,6 +35,18 @@ import {
   smmToSfm,
   fmt,
   type MachiningMaterial,
+  bandMid,
+  tapFeedRate,
+  tapDrillForEngagement,
+  engagementFromDrill,
+  engagementIsRisky,
+  tapTravelForFullThread,
+  blindHoleShortfall,
+  tapTurns,
+  tapCycleTimeMin,
+  suggestedTapSpeed,
+  LEAD_THREADS,
+  type TapStyle,
   type UnitSystem,
   type ThreadEntry,
   type ToolMaterial,
@@ -88,6 +100,56 @@ function Num({
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A feed rate, in both of the units a control might want it in.
+ *
+ * A mill is normally programmed in feed per minute (G94) and a lathe in feed
+ * per revolution (G95), and the same cut is both figures at once —
+ * f = Vf / n, exactly. Showing one and making the operator divide by the
+ * spindle speed in their head is where a decimal goes missing.
+ *
+ * Both are shown rather than offered behind a toggle: a mode would mean the
+ * screen sometimes says 0.2 and sometimes 442 for the same cut with only a
+ * small label to tell them apart, and picking the wrong one off the screen is
+ * exactly the kind of mistake this app exists to prevent.
+ */
+function FeedRow({
+  label = "Feed Rate",
+  feedMmMin,
+  rpm,
+  metric,
+  accent,
+}: {
+  label?: string;
+  feedMmMin: number;
+  rpm: number;
+  metric: boolean;
+  accent?: boolean;
+}) {
+  const perMin = metric ? fmt(feedMmMin) : fmt(mmToIn(feedMmMin), 3);
+  const perRev = rpm > 0 ? feedMmMin / rpm : 0;
+  const perRevText = metric ? fmt(perRev, 3) : fmt(mmToIn(perRev), 4);
+  return (
+    <div className="flex justify-between py-2 border-b border-dark-700/50 last:border-0 gap-3">
+      <span className="text-xs text-gray-500">{label}</span>
+      <span className="text-right">
+        <span
+          className={`text-sm font-mono ${accent ? "text-accent-cyan font-semibold" : "text-gray-300"}`}
+        >
+          {perMin}
+          <span className="text-gray-600 ml-1">{metric ? "mm/min" : "IPM"}</span>
+        </span>
+        {rpm > 0 && (
+          <span className="block text-xs font-mono text-gray-400">
+            {perRevText}
+            <span className="text-gray-600 ml-1">{metric ? "mm/rev" : "in/rev"}</span>
+          </span>
+        )}
+      </span>
     </div>
   );
 }
@@ -546,12 +608,7 @@ function FeedCalc() {
           </p>
         ) : (
           <>
-            <ResultRow
-              label="Feed Rate"
-              value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-              unit={isM ? "mm/min" : "in/min"}
-              accent
-            />
+            <FeedRow feedMmMin={feed} rpm={n} metric={isM} accent />
             <ResultRow
               label={op === "mill" ? "Chip Load" : "Feed per Rev"}
               value={isM ? fmt(flMm, 3) : fmt(mmToIn(flMm), 4)}
@@ -682,12 +739,7 @@ function MillingCalc() {
         <SectionHeader title="Results" />
         <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow
-          label="Feed Rate"
-          value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-          unit={isM ? "mm/min" : "IPM"}
-          accent
-        />
+        <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
         <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
         <ResultRow
           label="Material Removal Rate"
@@ -844,11 +896,7 @@ function TurningCalc() {
         <SectionHeader title="Results" />
         <SpindleWarning requiredRpm={requiredRpm} maxRpm={maxRpm} diameterMm={dMm} units={units} />
         <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
-        <ResultRow
-          label="Feed Rate"
-          value={isM ? fmt(feedRate) : fmt(mmToIn(feedRate), 3)}
-          unit={isM ? "mm/min" : "IPM"}
-        />
+        <FeedRow feedMmMin={feedRate} rpm={rpm} metric={isM} />
         <ResultRow
           label="Surface Speed"
           value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))}
@@ -1009,12 +1057,7 @@ function DrillCalc() {
           value={isM ? fmt(fprMm, 3) : fmt(mmToIn(fprMm), 4)}
           unit={isM ? "mm/rev" : "in/rev"}
         />
-        <ResultRow
-          label="Feed Rate"
-          value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-          unit={isM ? "mm/min" : "IPM"}
-          accent
-        />
+        <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
         <ResultRow
           label="Drill Point Depth"
           value={pointDepthMm > 0 ? (isM ? fmt(pointDepthMm) : fmt(mmToIn(pointDepthMm), 3)) : "—"}
@@ -1318,6 +1361,238 @@ function TaperCalc() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Tapping
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * The one calculation in the app where the feed is not a choice.
+ *
+ * A tap is screwed into the thread it is cutting, so it advances exactly one
+ * pitch per revolution. Set the machine to anything else and it either strips
+ * the thread or snaps the tap off inside a part that already has every other
+ * operation in it.
+ */
+function TapCalc() {
+  const [units, setUnits] = useState<UnitSystem>("metric");
+  const [matId, setMatId] = useState("mild_steel");
+  const mat = MATERIAL_MAP.get(matId)!;
+  const isM = units === "metric";
+
+  const [std, setStd] = useState<string>("metric");
+  const [idx, setIdx] = useState(5);
+  const table = THREAD_TABLES[std];
+  const thread: ThreadEntry | undefined = table.entries[idx];
+
+  const [engagement, setEngagement] = useState("75");
+  const [style, setStyle] = useState<TapStyle>("plug");
+  const [threadDepth, setThreadDepth] = useState("");
+  const [drilledDepth, setDrilledDepth] = useState("");
+  const [speedOverride, setSpeedOverride] = useState("");
+  const [reverseFactor, setReverseFactor] = useState("2");
+
+  const { band: drillBand } = useCuttingSpeed(mat, "drill", "metric");
+  const { spindleMax } = useTooling();
+  const maxRpm = parseFloat(spindleMax) || 0;
+
+  // Tapping runs far below drilling and the tap cannot be backed out of a bad
+  // cut, so the seed is a third of the drilling speed and it is overridable.
+  const suggested = suggestedTapSpeed(bandMid(drillBand));
+  const seededSpeed = isM ? suggested : smmToSfm(suggested);
+  const vc = parseFloat(speedOverride) || seededSpeed;
+  const vcMm = isM ? vc : sfmToSmm(vc);
+
+  const pitch = thread?.pitch ?? 0;
+  const major = thread?.major ?? 0;
+  const requiredRpm = major > 0 ? calcRPM(vcMm, major) : 0;
+  const rpm = clampToSpindle(requiredRpm, maxRpm);
+  const feed = pitch > 0 && rpm > 0 ? tapFeedRate(pitch, rpm) : 0;
+
+  const pct = parseFloat(engagement) || 0;
+  const drill = pitch > 0 && pct > 0 ? tapDrillForEngagement(major, pitch, pct) : 0;
+  const chartPct = pitch > 0 && thread ? engagementFromDrill(major, pitch, thread.tapDrill) : 0;
+
+  const depthMm = isM ? parseFloat(threadDepth) || 0 : inToMm(parseFloat(threadDepth) || 0);
+  const drilledMm = isM ? parseFloat(drilledDepth) || 0 : inToMm(parseFloat(drilledDepth) || 0);
+  const travel = depthMm > 0 && pitch > 0 ? tapTravelForFullThread(depthMm, pitch, style) : 0;
+  const shortfall =
+    drilledMm > 0 && depthMm > 0 && pitch > 0
+      ? blindHoleShortfall(drilledMm, depthMm, pitch, style)
+      : null;
+  const rev = parseFloat(reverseFactor) || 1;
+  const cycle = travel > 0 && rpm > 0 ? tapCycleTimeMin(travel, pitch, rpm, rpm * rev) : 0;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Tap" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
+        <MaterialSelect value={matId} onChange={setMatId} />
+        <div className="flex gap-1.5 flex-wrap">
+          {Object.entries(THREAD_TABLES).map(([key, value]) => (
+            <button
+              key={key}
+              onClick={() => {
+                setStd(key);
+                setIdx(0);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${std === key ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30" : "bg-dark-700/50 text-gray-500 border border-dark-600 hover:text-white"}`}
+            >
+              {value.label}
+            </button>
+          ))}
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+            Thread Size
+          </label>
+          <select
+            value={idx}
+            onChange={(event) => setIdx(Number(event.target.value))}
+            className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer appearance-none"
+          >
+            {table.entries.map((entry, i) => (
+              <option key={i} value={i}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Num label="Thread Engagement" value={engagement} onChange={setEngagement} suffix="%" />
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+              Tap Style
+            </label>
+            <select
+              value={style}
+              onChange={(event) => setStyle(event.target.value as TapStyle)}
+              className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer appearance-none"
+            >
+              <option value="taper">Taper (9 thread lead)</option>
+              <option value="plug">Plug (4 thread lead)</option>
+              <option value="bottoming">Bottoming (1.5 thread)</option>
+            </select>
+          </div>
+          <Num
+            label="Cutting Speed"
+            value={speedOverride}
+            onChange={setSpeedOverride}
+            suffix={isM ? "m/min" : "SFM"}
+            placeholder={seededSpeed.toFixed(0)}
+          />
+          <Num
+            label="Reverse Speed"
+            value={reverseFactor}
+            onChange={setReverseFactor}
+            suffix="x fwd"
+          />
+          <Num
+            label="Full Thread Depth"
+            value={threadDepth}
+            onChange={setThreadDepth}
+            suffix={isM ? "mm" : "in"}
+            placeholder="blind hole"
+          />
+          <Num
+            label="Drilled Depth"
+            value={drilledDepth}
+            onChange={setDrilledDepth}
+            suffix={isM ? "mm" : "in"}
+            placeholder="optional"
+          />
+        </div>
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          Tapping speed is seeded at a third of this material&apos;s drilling speed, which is a
+          starting point rather than a recommendation. The tap, its coating, the coolant and how
+          rigid the holder is all move it.
+        </p>
+      </Card>
+
+      <Card variant="solid" padding="md" className="border-dark-600">
+        <SectionHeader title="Results" />
+        {thread ? (
+          <>
+            <SpindleWarning
+              requiredRpm={requiredRpm}
+              maxRpm={maxRpm}
+              diameterMm={major}
+              units={units}
+            />
+            <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
+            <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
+            <ResultRow label="Pitch" value={fmt(pitch, 3)} unit="mm" />
+            <ResultRow
+              label={`Tap Drill at ${fmt(pct, 0)}%`}
+              value={isM ? fmt(drill, 2) : fmt(mmToIn(drill), 4)}
+              unit={isM ? "mm" : "in"}
+              accent
+            />
+            <ResultRow
+              label="Chart Drill"
+              value={`${fmt(thread.tapDrill, 2)} mm at ${fmt(chartPct, 0)}%`}
+            />
+            {travel > 0 && (
+              <>
+                <ResultRow
+                  label="Tap Travel"
+                  value={isM ? fmt(travel, 2) : fmt(mmToIn(travel), 3)}
+                  unit={isM ? "mm" : "in"}
+                />
+                <ResultRow label="Turns to Depth" value={fmt(tapTurns(travel, pitch), 1)} />
+              </>
+            )}
+            {cycle > 0 && (
+              <ResultRow label="Cycle Time (in and out)" value={fmt(cycle, 3)} unit="min" />
+            )}
+            <CopyBtn
+              text={`Tap ${thread.label}: ${fmt(rpm, 0)} RPM, feed ${fmt(feed)} mm/min, drill ${fmt(drill, 2)} mm`}
+            />
+            <FormulaBox
+              formula="Vf = pitch × RPM · drill = major − (% × pitch)/76.98"
+              steps={[
+                `pitch = ${fmt(pitch, 3)} mm`,
+                `RPM = ${fmt(rpm, 0)}`,
+                `Vf = ${fmt(feed)} mm/min`,
+              ]}
+            />
+            <div className="mt-3 space-y-2">
+              <p className="text-[11px] text-accent-amber/80 leading-relaxed">
+                The feed is not adjustable. A tap advances one pitch per turn because the thread it
+                is cutting says so — set the machine to anything else and it strips the thread or
+                breaks the tap.
+              </p>
+              {engagementIsRisky(pct) && (
+                <p className="text-[11px] text-accent-red/90 leading-relaxed">
+                  {fmt(pct, 0)}% engagement is into the range where taps break. Going from 60% to
+                  100% roughly triples the torque and buys only a few percent of strength — the bolt
+                  fails long before the thread strips. Most shops cut 65–75%.
+                </p>
+              )}
+              {shortfall !== null && shortfall > 0 && (
+                <p className="text-[11px] text-accent-red/90 leading-relaxed">
+                  The hole is {fmt(shortfall, 2)} mm too shallow. A {style} tap needs{" "}
+                  {fmt(travel, 2)} mm of travel to leave {fmt(depthMm, 2)} mm of full thread,
+                  because its first {LEAD_THREADS[style]} threads are ground away as a lead.
+                </p>
+              )}
+              {shortfall !== null && shortfall <= 0 && (
+                <p className="text-[11px] text-accent-green leading-relaxed">
+                  Hole depth is enough — {fmt(-shortfall, 2)} mm to spare below the tap.
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-gray-500 py-6 text-center">Pick a thread</p>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Tab definitions
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -1328,6 +1603,7 @@ const TABS = [
   { id: "turning", name: "Turning", comp: TurningCalc },
   { id: "drilling", name: "Drilling", comp: DrillCalc },
   { id: "thread", name: "Threads", comp: ThreadCalc },
+  { id: "tap", name: "Tapping", comp: TapCalc },
   { id: "bolt", name: "Bolt Circle", comp: BoltCircleCalc },
   { id: "taper", name: "Taper", comp: TaperCalc },
   { id: "time", name: "Time", comp: TimeCalc },
