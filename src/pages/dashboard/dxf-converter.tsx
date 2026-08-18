@@ -48,10 +48,22 @@ export default function DxfConverterPage() {
   const [scaleWasSet, setScaleWasSet] = useState(false);
   const [output, setOutput] = useState<OutputFormat>("dxf");
   const [invert, setInvert] = useState(false);
-  const [fitTolerance, setFitTolerance] = useState(0.8);
+  // How far the exported geometry may sit from the traced outline, in source
+  // pixels. This is not slack to be removed: a traced edge is a staircase of
+  // whole pixels, and the tolerance is the room the fitter needs to lay a
+  // clean line or arc along it. At zero every pixel step becomes a vertex,
+  // which is a heavier file and a rougher edge, not a truer one. 0.8 px is
+  // below what any cutter resolves, so it is fixed rather than asked about.
+  const fitTolerance = 0.8;
   const [stlMode, setStlMode] = useState<StlMode>("slice");
   // Left null the tracer decides from the ink; set, the user has overruled it.
-  const [traceMode, setTraceMode] = useState<TraceMode | null>(null);
+  // An image is always read as a filled shape, which traces both edges of
+  // every stroke — the outline you cut to. The centreline reading, which
+  // brings a drawn line through once down its middle, is still in the
+  // importer but is not offered: it answers a different question (reading a
+  // scanned print) and having it on the same screen only invited the wrong
+  // one to be picked.
+  const [traceMode] = useState<TraceMode>("outline");
   const [sliceZ, setSliceZ] = useState<number | null>(null);
 
   // A fresh [] on every render would make every memo below recompute, and
@@ -74,7 +86,6 @@ export default function DxfConverterPage() {
     setAdvice("");
     setBusy("");
     setSliceZ(null);
-    setTraceMode(null);
     setScaleWasSet(false);
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -364,52 +375,6 @@ export default function DxfConverterPage() {
 
               {drawing?.format.kind === "raster" && (
                 <div className="space-y-3 border-t border-dark-700 pt-4">
-                  <div>
-                    <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
-                      How to read the image
-                    </span>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {(
-                        [
-                          ["centerline", "Line drawing"],
-                          ["outline", "Filled shape"],
-                        ] as const
-                      ).map(([mode, label]) => (
-                        <button
-                          key={mode}
-                          onClick={() => {
-                            setTraceMode(mode);
-                            if (file) void run(file, { traceMode: mode });
-                          }}
-                          className={`rounded-lg py-2 text-xs font-semibold border cursor-pointer ${(traceMode ?? drawing.traceMode) === mode ? "border-accent-cyan/50 bg-accent-cyan/10 text-accent-cyan" : "border-dark-600 text-gray-400"}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    <span className="mt-2 block text-xs text-gray-400">
-                      A drawn line has two edges. Read as a line drawing it comes through once, down
-                      its middle; as a filled shape you get both edges.
-                    </span>
-                  </div>
-                  <label className="block">
-                    <span className="flex justify-between text-xs uppercase tracking-wider text-gray-400 font-semibold">
-                      <span>Line/arc tolerance</span>
-                      <span className="text-accent-cyan">{fitTolerance.toFixed(1)} px</span>
-                    </span>
-                    <span className="mt-1 block text-xs text-gray-400">
-                      How far the exported geometry may sit from the traced outline.
-                    </span>
-                    <input
-                      type="range"
-                      min="0.2"
-                      max="3"
-                      step="0.1"
-                      value={fitTolerance}
-                      onChange={(event) => setFitTolerance(Number(event.target.value))}
-                      className="w-full mt-2 accent-cyan-400"
-                    />
-                  </label>
                   <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
                     <input
                       type="checkbox"
