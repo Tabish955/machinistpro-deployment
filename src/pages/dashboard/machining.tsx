@@ -151,6 +151,61 @@ function useCuttingSpeed(mat: MachiningMaterial, op: Operation, units: UnitSyste
   };
 }
 
+/**
+ * Whose diameter goes in the box.
+ *
+ * RPM = Vc×1000/πD is the same equation for all three operations, but D is the
+ * cutter in milling, the drill in drilling, and the *workpiece* in turning.
+ * Labelling it "Tool Diameter" on a turning calculation invites the tool shank
+ * diameter, which is not part of the sum at all.
+ */
+const DIA_LABEL: Record<Operation, string> = {
+  mill: "Cutter Diameter",
+  turn: "Workpiece Diameter",
+  drill: "Drill Diameter",
+};
+
+/**
+ * Which operation the speeds and feeds are for.
+ *
+ * Not cosmetic. The same material has a different cutting-speed band for
+ * milling, turning and drilling, and the three quote feed in three different
+ * ways: milling per tooth, turning per revolution, drilling per revolution
+ * scaled by the drill diameter. A tab that assumes one cannot answer the others.
+ */
+const OPERATIONS: { id: Operation; label: string }[] = [
+  { id: "mill", label: "Milling" },
+  { id: "turn", label: "Turning" },
+  { id: "drill", label: "Drilling" },
+];
+
+function OpToggle({ value, onChange }: { value: Operation; onChange: (v: Operation) => void }) {
+  return (
+    <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600 w-fit">
+      {OPERATIONS.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${value === o.id ? "bg-accent-red/20 text-accent-red" : "text-gray-500 hover:text-white"}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function OpField({ value, onChange }: { value: Operation; onChange: (v: Operation) => void }) {
+  return (
+    <div>
+      <label className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1.5 block">
+        Operation
+      </label>
+      <OpToggle value={value} onChange={onChange} />
+    </div>
+  );
+}
+
 function ToolingBar() {
   const { tool, setTool, spindleMax, setSpindleMax } = useTooling();
   return (
@@ -331,11 +386,12 @@ function RPMCalc() {
   const [units, setUnits] = useState<UnitSystem>("metric");
   const [matId, setMatId] = useState("mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
+  const [op, setOp] = useState<Operation>("mill");
   const [dia, setDia] = useState("");
   const [csOverride, setCsOverride] = useState("");
 
   const isM = units === "metric";
-  const { band, seeded: defaultCs } = useCuttingSpeed(mat, "mill", units);
+  const { band, seeded: defaultCs } = useCuttingSpeed(mat, op, units);
   const { spindleMax } = useTooling();
   const cs = parseFloat(csOverride) || defaultCs;
   const d = parseFloat(dia) || 0;
@@ -356,9 +412,10 @@ function RPMCalc() {
           <SectionHeader title="Inputs" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+        <OpField value={op} onChange={setOp} />
         <MaterialSelect value={matId} onChange={setMatId} />
         <Num
-          label={`Tool Diameter`}
+          label={DIA_LABEL[op]}
           value={dia}
           onChange={setDia}
           suffix={isM ? "mm" : "in"}
@@ -398,20 +455,46 @@ function RPMCalc() {
 // 2) Feed Rate
 function FeedCalc() {
   const [units, setUnits] = useState<UnitSystem>("metric");
+  const [op, setOp] = useState<Operation>("mill");
   const [rpm, setRpm] = useState("");
   const [teeth, setTeeth] = useState("4");
+  const [drillDia, setDrillDia] = useState("");
   const [chipLoad, setChipLoad] = useState("");
   const [matId, setMatId] = useState("mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
   const isM = units === "metric";
 
-  const defaultCl = isM ? mat.chipMillMm : mat.chipMill;
-  const cl = parseFloat(chipLoad) || defaultCl;
   const n = parseFloat(rpm) || 0;
   const z = parseFloat(teeth) || 0;
-  const clMm = isM ? cl : inToMm(cl);
+  const dDrillMm = isM ? parseFloat(drillDia) || 0 : inToMm(parseFloat(drillDia) || 0);
 
-  const feed = n > 0 && z > 0 ? calcFeedRate(n, z, clMm) : 0;
+  // Three operations, three feed models.
+  //
+  // Milling is the only one with teeth: feed is per tooth and the tooth count
+  // multiplies it. Turning is single point, so feed is per revolution and no
+  // tooth count enters the sum. Drilling is per revolution too, but the
+  // sensible figure grows with the drill, so it comes from the diameter rather
+  // than flat off the material — a drill given the turning feed of 0.25 mm/rev
+  // snaps if it is small.
+  const defaultFeedMm =
+    op === "mill"
+      ? mat.chipMillMm
+      : op === "turn"
+        ? mat.chipTurnMm
+        : dDrillMm > 0
+          ? calcDrillFeedPerRev(dDrillMm, mat.drillFeedFactor)
+          : 0;
+  const defaultFeed = isM ? defaultFeedMm : mmToIn(defaultFeedMm);
+
+  const override = parseFloat(chipLoad);
+  const hasOverride = Number.isFinite(override) && override > 0;
+  const flMm = hasOverride ? (isM ? override : inToMm(override)) : defaultFeedMm;
+
+  const feed =
+    op === "mill" ? (n > 0 && z > 0 ? calcFeedRate(n, z, flMm) : 0) : n > 0 ? n * flMm : 0;
+
+  const perUnit = op === "mill" ? (isM ? "mm/tooth" : "in/tooth") : isM ? "mm/rev" : "in/rev";
+  const needsDrillDia = op === "drill" && dDrillMm <= 0 && !hasOverride;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -420,6 +503,7 @@ function FeedCalc() {
           <SectionHeader title="Inputs" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+        <OpField value={op} onChange={setOp} />
         <MaterialSelect value={matId} onChange={setMatId} />
         <Num
           label="Spindle Speed"
@@ -428,40 +512,81 @@ function FeedCalc() {
           suffix="RPM"
           placeholder="e.g. 3000"
         />
-        <Num label="Number of Teeth / Flutes" value={teeth} onChange={setTeeth} suffix="z" />
+        {op === "mill" && (
+          <Num label="Number of Teeth / Flutes" value={teeth} onChange={setTeeth} suffix="z" />
+        )}
+        {op === "drill" && (
+          <Num
+            label="Drill Diameter"
+            value={drillDia}
+            onChange={setDrillDia}
+            suffix={isM ? "mm" : "in"}
+            placeholder="sets the suggested feed"
+          />
+        )}
         <Num
-          label="Chip Load (override)"
+          label={op === "mill" ? "Chip Load (override)" : "Feed / Rev (override)"}
           value={chipLoad}
           onChange={setChipLoad}
           suffix={isM ? "mm" : "in"}
-          placeholder={`default ${defaultCl}`}
+          placeholder={defaultFeedMm > 0 ? `default ${fmt(defaultFeed, 3)}` : "enter a value"}
         />
+        {op === "turn" && (
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            Turning is single point — feed is per revolution, not per tooth, and no tooth count
+            enters the sum.
+          </p>
+        )}
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
-        <ResultRow
-          label="Feed Rate"
-          value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
-          unit={isM ? "mm/min" : "in/min"}
-          accent
-        />
-        <ResultRow
-          label="Chip Load"
-          value={isM ? fmt(clMm, 3) : fmt(mmToIn(clMm), 4)}
-          unit={isM ? "mm/tooth" : "in/tooth"}
-        />
-        <CopyBtn
-          text={`Feed Rate: ${isM ? fmt(feed) + " mm/min" : fmt(mmToIn(feed), 3) + " in/min"}`}
-        />
-        <FormulaBox
-          formula="Vf = N × z × fz"
-          steps={[
-            `N = ${fmt(n, 0)} RPM`,
-            `z = ${fmt(z, 0)}`,
-            `fz = ${fmt(clMm, 3)} mm`,
-            `Vf = ${fmt(feed)} mm/min`,
-          ]}
-        />
+        {needsDrillDia ? (
+          <p className="text-sm text-gray-400 py-6 text-center">
+            Enter the drill diameter — drilling feed per rev scales with it.
+          </p>
+        ) : (
+          <>
+            <ResultRow
+              label="Feed Rate"
+              value={isM ? fmt(feed) : fmt(mmToIn(feed), 3)}
+              unit={isM ? "mm/min" : "in/min"}
+              accent
+            />
+            <ResultRow
+              label={op === "mill" ? "Chip Load" : "Feed per Rev"}
+              value={isM ? fmt(flMm, 3) : fmt(mmToIn(flMm), 4)}
+              unit={perUnit}
+            />
+            {op === "mill" && z > 0 && (
+              <ResultRow
+                label="Feed per Rev"
+                value={isM ? fmt(flMm * z, 3) : fmt(mmToIn(flMm * z), 4)}
+                unit={isM ? "mm/rev" : "in/rev"}
+              />
+            )}
+            <ResultRow label="Material" value={mat.name} />
+            <CopyBtn
+              text={`Feed Rate: ${isM ? fmt(feed) + " mm/min" : fmt(mmToIn(feed), 3) + " in/min"}`}
+            />
+            <FormulaBox
+              formula={op === "mill" ? "Vf = N × z × fz" : "Vf = N × f"}
+              steps={
+                op === "mill"
+                  ? [
+                      `N = ${fmt(n, 0)} RPM`,
+                      `z = ${fmt(z, 0)}`,
+                      `fz = ${fmt(flMm, 3)} mm/tooth`,
+                      `Vf = ${fmt(feed)} mm/min`,
+                    ]
+                  : [
+                      `N = ${fmt(n, 0)} RPM`,
+                      `f = ${fmt(flMm, 3)} mm/rev`,
+                      `Vf = ${fmt(feed)} mm/min`,
+                    ]
+              }
+            />
+          </>
+        )}
       </Card>
     </div>
   );
@@ -527,7 +652,13 @@ function MillingCalc() {
         <div className="grid grid-cols-2 gap-3">
           <Num label="Tool Diameter" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} />
           <Num label="Flutes" value={teeth} onChange={setTeeth} suffix="z" />
-          <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
+          <Num
+            label="Cut Length"
+            value={length}
+            onChange={setLength}
+            suffix={isM ? "mm" : "in"}
+            placeholder="tool travel"
+          />
           <Num label="Depth of Cut" value={doc} onChange={setDoc} suffix={isM ? "mm" : "in"} />
           <Num label="Width of Cut" value={woc} onChange={setWoc} suffix={isM ? "mm" : "in"} />
           <Num
@@ -606,6 +737,7 @@ function TurningCalc() {
   const [feedOverride, setFeedOverride] = useState("");
   const [noseRadius, setNoseRadius] = useState("0.8");
   const [depthOfCut, setDepthOfCut] = useState("");
+  const [finalDia, setFinalDia] = useState("");
 
   const { band, seeded: defaultCs } = useCuttingSpeed(mat, "turn", units);
   const { spindleMax } = useTooling();
@@ -626,7 +758,17 @@ function TurningCalc() {
   const requiredRpm = dMm > 0 ? calcRPM(csMm, dMm) : 0;
   const rpm = clampToSpindle(requiredRpm, maxRpm);
   const feedRate = rpm > 0 ? rpm * fprMm : 0;
-  const time = feedRate > 0 && lenMm > 0 ? calcMachiningTime(lenMm, feedRate, 1) : 0;
+  // Passes, not one pass.
+  //
+  // Taking a bar from Ø50 to Ø30 removes 10 mm of radius, which at 2 mm depth
+  // of cut is five passes and five times the cycle time. This was pinned to a
+  // single pass, so any real roughing job read low by whatever factor the
+  // operator actually needed.
+  const apPassMm = isM ? parseFloat(depthOfCut) || 0 : inToMm(parseFloat(depthOfCut) || 0);
+  const finalMm = isM ? parseFloat(finalDia) || 0 : inToMm(parseFloat(finalDia) || 0);
+  const radialStockMm = finalMm > 0 && dMm > finalMm ? (dMm - finalMm) / 2 : 0;
+  const passes = radialStockMm > 0 && apPassMm > 0 ? Math.ceil(radialStockMm / apPassMm) : 1;
+  const time = feedRate > 0 && lenMm > 0 ? calcMachiningTime(lenMm, feedRate, passes) : 0;
   const surfSpeed = rpm > 0 && dMm > 0 ? calcSurfaceSpeed(rpm, dMm) : 0;
 
   // Finish is set by feed against nose radius, so it can be predicted before cutting
@@ -648,7 +790,13 @@ function TurningCalc() {
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="grid grid-cols-2 gap-3">
           <Num label="Workpiece Dia" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} />
-          <Num label="Cut Length" value={length} onChange={setLength} suffix={isM ? "mm" : "in"} />
+          <Num
+            label="Turned Length"
+            value={length}
+            onChange={setLength}
+            suffix={isM ? "mm" : "in"}
+            placeholder="along the axis"
+          />
           <Num
             label="Cutting Speed"
             value={csOverride}
@@ -664,11 +812,18 @@ function TurningCalc() {
             placeholder={`${defaultFeed}`}
           />
           <Num
+            label="Finished Dia"
+            value={finalDia}
+            onChange={setFinalDia}
+            suffix={isM ? "mm" : "in"}
+            placeholder="for passes"
+          />
+          <Num
             label="Depth of Cut"
             value={depthOfCut}
             onChange={setDepthOfCut}
             suffix={isM ? "mm" : "in"}
-            placeholder="for power"
+            placeholder="per pass"
           />
           <Num
             label="Nose Radius"
@@ -679,6 +834,11 @@ function TurningCalc() {
           />
         </div>
         <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          Turned length is how far the tool travels along the bar on one pass — the length of the
+          section being turned, not the length of the stock. Turning 80 mm on the end of a 300 mm
+          bar is 80.
+        </p>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
@@ -694,7 +854,27 @@ function TurningCalc() {
           value={isM ? fmt(surfSpeed) : fmt(smmToSfm(surfSpeed))}
           unit={isM ? "m/min" : "SFM"}
         />
-        <ResultRow label="Machining Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
+        {radialStockMm > 0 && (
+          <>
+            <ResultRow
+              label="Stock off Radius"
+              value={isM ? fmt(radialStockMm, 2) : fmt(mmToIn(radialStockMm), 3)}
+              unit={isM ? "mm" : "in"}
+            />
+            <ResultRow label="Passes" value={String(passes)} accent />
+          </>
+        )}
+        <ResultRow
+          label={passes > 1 ? `Machining Time (${passes} passes)` : "Machining Time"}
+          value={time > 0 ? fmt(time) : "—"}
+          unit="min"
+        />
+        {radialStockMm > 0 && apPassMm <= 0 && (
+          <p className="text-[11px] text-accent-amber/80 leading-relaxed mt-1">
+            Enter a depth of cut to work out how many passes that stock takes — the time above is
+            for a single pass.
+          </p>
+        )}
         <ResultRow label="Surface Finish Ra" value={ra > 0 ? fmt(ra, 2) : "—"} unit="µm" accent />
         <ResultRow label="Finish (Rz approx.)" value={ra > 0 ? fmt(ra * 4, 2) : "—"} unit="µm" />
         {turnPower > 0 && (
