@@ -2033,3 +2033,165 @@ export function createDxf(
     "",
   ].join("\r\n");
 }
+
+/* ═══ R12 EXPORT ═══════════════════════════════════════════════════════════ */
+
+/**
+ * Write the drawing as an R12 (AC1009) DXF.
+ *
+ * R12 predates everything that makes a modern DXF fragile. There are no
+ * handles to keep unique, no owner pointers to dangle, no object dictionary,
+ * no layouts and no subclass markers — a header, a layer table and a list of
+ * entities, and that is the whole file. Every CAD package and every CAM
+ * post-processor written in the last thirty years reads it, which is why it is
+ * what this tool hands a machinist.
+ *
+ * The cost is that R12 has no SPLINE and no LWPOLYLINE. Curves are flattened
+ * to polylines at the same tolerance the fitting used, so what lands in the
+ * file is never further from the traced outline than the tolerance already
+ * allowed. For cutting geometry that is not a real loss: most CAM wants
+ * polylines anyway.
+ */
+export function createDxfR12(
+  paths: DxfPath[],
+  scale: number,
+  units: "mm" | "in",
+  fitTolerance = 0.8,
+  options: { scaleWasSet?: boolean } = {},
+): string {
+  if (isTraced(paths) && options.scaleWasSet === false) {
+    throw new Error(
+      "Set a known size for this trace before exporting. An image has pixels, not millimetres — until you say what something on it measures, the DXF has no real dimensions.",
+    );
+  }
+
+  const bounds = getBounds(paths);
+  const px = (x: number) => ((x - bounds.minX) * scale).toFixed(6);
+  // DXF counts y upwards and the traced points count it downwards.
+  const py = (y: number) => ((bounds.maxY - y) * scale).toFixed(6);
+
+  const layerNames = new Set<string>(["0"]);
+  for (const path of paths)
+    layerNames.add(path.layer?.replace(/[^A-Za-z0-9_-]/g, "_") || "GEOMETRY");
+
+  const out: Pair[] = [];
+  const push = (...pairs: Pair[]) => out.push(...pairs);
+
+  push(
+    [0, "SECTION"],
+    [2, "HEADER"],
+    [9, "$ACADVER"],
+    [1, "AC1009"],
+    [9, "$INSUNITS"],
+    [70, units === "mm" ? 4 : 1],
+    [9, "$EXTMIN"],
+    [10, "0.0"],
+    [20, "0.0"],
+    [9, "$EXTMAX"],
+    [10, (bounds.width * scale).toFixed(6)],
+    [20, (bounds.height * scale).toFixed(6)],
+    [0, "ENDSEC"],
+  );
+
+  push([0, "SECTION"], [2, "TABLES"]);
+  // One linetype, because every entity here is a solid line.
+  push(
+    [0, "TABLE"],
+    [2, "LTYPE"],
+    [70, 1],
+    [0, "LTYPE"],
+    [2, "CONTINUOUS"],
+    [70, 64],
+    [3, "Solid line"],
+    [72, 65],
+    [73, 0],
+    [40, "0.0"],
+    [0, "ENDTAB"],
+  );
+  push([0, "TABLE"], [2, "LAYER"], [70, layerNames.size]);
+  for (const name of layerNames) push([0, "LAYER"], [2, name], [70, 0], [62, 7], [6, "CONTINUOUS"]);
+  push([0, "ENDTAB"], [0, "ENDSEC"]);
+
+  push([0, "SECTION"], [2, "ENTITIES"]);
+
+  /** R12 has no LWPOLYLINE: a polyline is a POLYLINE, its VERTEXes, and a SEQEND. */
+  const polyline = (points: DxfPoint[], layer: string, closed: boolean) => {
+    if (points.length < 2) return;
+    push(
+      [0, "POLYLINE"],
+      [8, layer],
+      [66, 1],
+      [10, "0.0"],
+      [20, "0.0"],
+      [30, "0.0"],
+      [70, closed ? 1 : 0],
+    );
+    for (const point of points)
+      push([0, "VERTEX"], [8, layer], [10, px(point.x)], [20, py(point.y)], [30, "0.0"]);
+    push([0, "SEQEND"], [8, layer]);
+  };
+
+  for (const path of paths) {
+    const layer = path.layer?.replace(/[^A-Za-z0-9_-]/g, "_") || "GEOMETRY";
+    const geometry = exactGeometry(path, fitTolerance);
+    if (!geometry) {
+      polyline(path.points, layer, path.closed === true);
+      continue;
+    }
+    for (const primitive of geometry) {
+      if (primitive.type === "line") {
+        push(
+          [0, "LINE"],
+          [8, layer],
+          [10, px(primitive.start.x)],
+          [20, py(primitive.start.y)],
+          [30, "0.0"],
+          [11, px(primitive.end.x)],
+          [21, py(primitive.end.y)],
+          [31, "0.0"],
+        );
+      } else if (primitive.type === "arc") {
+        if (isFullTurn(primitive)) {
+          push(
+            [0, "CIRCLE"],
+            [8, layer],
+            [10, px(primitive.center.x)],
+            [20, py(primitive.center.y)],
+            [30, "0.0"],
+            [40, (primitive.radius * scale).toFixed(6)],
+          );
+        } else {
+          push(
+            [0, "ARC"],
+            [8, layer],
+            [10, px(primitive.center.x)],
+            [20, py(primitive.center.y)],
+            [30, "0.0"],
+            [40, (primitive.radius * scale).toFixed(6)],
+            [50, (((primitive.startAngle % 360) + 360) % 360).toFixed(6)],
+            [51, (((primitive.endAngle % 360) + 360) % 360).toFixed(6)],
+          );
+        }
+      } else {
+        // No SPLINE in R12, so the bézier chain is walked out into a polyline.
+        const c = primitive.controls;
+        const points: DxfPoint[] = [];
+        for (let base = 0; base + 3 < c.length; base += 3) {
+          for (let step = base === 0 ? 0 : 1; step <= 16; step++) {
+            const t = step / 16;
+            const m = 1 - t;
+            const [w0, w1, w2, w3] = [m ** 3, 3 * m ** 2 * t, 3 * m * t ** 2, t ** 3];
+            points.push({
+              x: w0 * c[base].x + w1 * c[base + 1].x + w2 * c[base + 2].x + w3 * c[base + 3].x,
+              y: w0 * c[base].y + w1 * c[base + 1].y + w2 * c[base + 2].y + w3 * c[base + 3].y,
+            });
+          }
+        }
+        polyline(points, layer, false);
+      }
+    }
+  }
+
+  push([0, "ENDSEC"], [0, "EOF"]);
+  return [...flatten(out), ""].join("\r\n");
+}

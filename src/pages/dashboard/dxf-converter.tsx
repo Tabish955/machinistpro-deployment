@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   analyzeCadGeometry,
-  createDxf,
+  createDxfR12,
   getBounds,
   toSvgPathData,
   type DxfPath,
@@ -138,7 +138,9 @@ export default function DxfConverterPage() {
         mime = "image/svg+xml";
         extension = "svg";
       } else {
-        text = createDxf(paths, scale, units, fitTolerance, {
+        // R12 rather than the 2000 format: no handles, no object dictionary
+        // and no layouts, which is the bookkeeping AutoCAD rejected the file over.
+        text = createDxfR12(paths, scale, units, fitTolerance, {
           scaleWasSet: drawing?.needsScale ? scaleWasSet : true,
         });
         mime = "application/dxf";
