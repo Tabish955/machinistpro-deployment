@@ -36,6 +36,14 @@ import {
   fmt,
   type MachiningMaterial,
   bandMid,
+  effectiveBand,
+  bandsAreIdentical,
+  loadSpeedOverrides,
+  saveSpeedOverrides,
+  putOverride,
+  removeOverride,
+  validateSpeedBand,
+  type SpeedOverride,
   tapFeedRate,
   tapDrillForEngagement,
   engagementFromDrill,
@@ -190,6 +198,9 @@ interface ToolingValue {
   /** Machine's maximum spindle speed, RPM. Empty means the user has not said. */
   spindleMax: string;
   setSpindleMax: (v: string) => void;
+  /** Speeds this shop has proved, which beat the built-in table when present. */
+  overrides: Map<string, SpeedOverride>;
+  setOverrides: (m: Map<string, SpeedOverride>) => void;
 }
 
 const ToolingContext = createContext<ToolingValue | null>(null);
@@ -205,12 +216,49 @@ function useTooling(): ToolingValue {
  * Returns the band already converted to the units on screen.
  */
 function useCuttingSpeed(mat: MachiningMaterial, op: Operation, units: UnitSystem) {
-  const { tool } = useTooling();
+  const { tool, overrides } = useTooling();
+  const { band: metricBand, fromShop } = effectiveBand(mat, tool, op, overrides);
+  const band =
+    units === "metric"
+      ? metricBand
+      : { min: smmToSfm(metricBand.min), max: smmToSfm(metricBand.max) };
+  const mid = (band.min + band.max) / 2;
   return {
     tool,
-    band: speedBand(mat, tool, op, units),
-    seeded: defaultCuttingSpeed(mat, tool, op, units),
+    band,
+    fromShop,
+    // The built-in table carries one band for both milling and turning, so on
+    // those two the operation selector is changing the label and not the
+    // number. Screens are told, rather than left to imply a precision the data
+    // has not got.
+    notOperationSpecific:
+      !fromShop && (op === "mill" || op === "turn") && bandsAreIdentical(mat, tool, "mill", "turn"),
+    seeded: fromShop ? Math.round(mid) : defaultCuttingSpeed(mat, tool, op, units),
   };
+}
+
+/**
+ * Saving the speed that is currently on screen as this shop's own.
+ *
+ * A single figure is stored as a narrow band around itself. The shop proved
+ * one speed, not a range, and widening it into one they never gave would be
+ * inventing data — the very thing this whole feature exists to avoid.
+ */
+function useSpeedSaving(mat: MachiningMaterial, op: Operation, currentMetricSpeed: number) {
+  const { overrides, setOverrides, tool } = useTooling();
+  const saveSpeed = () => {
+    const lo = currentMetricSpeed * 0.9;
+    const hi = currentMetricSpeed * 1.1;
+    if (!validateSpeedBand(lo, hi).ok) return;
+    const next = putOverride(overrides, mat.id, tool, op, lo, hi);
+    if (saveSpeedOverrides(next)) setOverrides(next);
+  };
+  const clearSpeed = () => {
+    const next = removeOverride(overrides, mat.id, tool, op);
+    saveSpeedOverrides(next);
+    setOverrides(next);
+  };
+  return { saveSpeed, clearSpeed };
 }
 
 /**
@@ -320,11 +368,57 @@ function ToolingBar() {
 }
 
 /** The band a seeded speed came from, shown so the figure does not read as a law. */
-function BandNote({ band, unit }: { band: { min: number; max: number }; unit: string }) {
+function BandNote({
+  band,
+  unit,
+  fromShop,
+  notOperationSpecific,
+  onSave,
+  onClear,
+}: {
+  band: { min: number; max: number };
+  unit: string;
+  fromShop?: boolean;
+  notOperationSpecific?: boolean;
+  onSave?: () => void;
+  onClear?: () => void;
+}) {
   return (
-    <p className="text-[11px] text-gray-400 mt-1">
-      Recommended range {fmt(band.min, 0)}–{fmt(band.max, 0)} {unit}
-    </p>
+    <div className="mt-1 space-y-1">
+      <p className="text-[11px] text-gray-400">
+        {fromShop ? "Your shop's range" : "Recommended range"} {fmt(band.min, 0)}–{fmt(band.max, 0)}{" "}
+        {unit}
+        {fromShop && <span className="text-accent-green ml-1">· saved</span>}
+      </p>
+      {notOperationSpecific && (
+        <p className="text-[11px] text-accent-amber/80 leading-relaxed">
+          This figure is not specific to the operation — the built-in table carries the same band
+          for turning and milling on this material, so switching between them changes the label and
+          not the number. Milling cuts interrupted and is normally run below a turning speed. Put
+          your own proved figures in and they will be used instead.
+        </p>
+      )}
+      {(onSave || onClear) && (
+        <div className="flex gap-3">
+          {onSave && (
+            <button
+              onClick={onSave}
+              className="text-[11px] font-semibold text-accent-cyan hover:text-accent-cyan/80 cursor-pointer"
+            >
+              Save this speed for this material
+            </button>
+          )}
+          {fromShop && onClear && (
+            <button
+              onClick={onClear}
+              className="text-[11px] text-gray-500 hover:text-accent-red cursor-pointer"
+            >
+              Back to built-in
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -453,12 +547,18 @@ function RPMCalc() {
   const [csOverride, setCsOverride] = useState("");
 
   const isM = units === "metric";
-  const { band, seeded: defaultCs } = useCuttingSpeed(mat, op, units);
+  const {
+    band,
+    seeded: defaultCs,
+    fromShop,
+    notOperationSpecific,
+  } = useCuttingSpeed(mat, op, units);
   const { spindleMax } = useTooling();
   const cs = parseFloat(csOverride) || defaultCs;
   const d = parseFloat(dia) || 0;
   const dMm = isM ? d : inToMm(d);
   const csMm = isM ? cs : sfmToSmm(cs);
+  const { saveSpeed, clearSpeed } = useSpeedSaving(mat, op, csMm);
 
   const maxRpm = parseFloat(spindleMax) || 0;
   // What the cut asks for, then what the machine will actually give. Surface
@@ -491,7 +591,14 @@ function RPMCalc() {
             suffix={isM ? "m/min" : "SFM"}
             placeholder={`default ${defaultCs}`}
           />
-          <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
+          <BandNote
+            band={band}
+            unit={isM ? "m/min" : "SFM"}
+            fromShop={fromShop}
+            notOperationSpecific={notOperationSpecific}
+            onSave={saveSpeed}
+            onClear={clearSpeed}
+          />
         </div>
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
@@ -664,7 +771,12 @@ function MillingCalc() {
   const [csOverride, setCsOverride] = useState("");
   const [clOverride, setClOverride] = useState("");
 
-  const { band, seeded: defaultCs } = useCuttingSpeed(mat, "mill", units);
+  const {
+    band,
+    seeded: defaultCs,
+    fromShop,
+    notOperationSpecific,
+  } = useCuttingSpeed(mat, "mill", units);
   const { spindleMax } = useTooling();
   const maxRpm = parseFloat(spindleMax) || 0;
   const defaultCl = isM ? mat.chipMillMm : mat.chipMill;
@@ -678,6 +790,7 @@ function MillingCalc() {
 
   const dMm = isM ? d : inToMm(d);
   const csMm = isM ? cs : sfmToSmm(cs);
+  const { saveSpeed, clearSpeed } = useSpeedSaving(mat, "mill", csMm);
   const clMm = isM ? cl : inToMm(cl);
   const lenMm = isM ? len : inToMm(len);
   const apMm = isM ? ap : inToMm(ap);
@@ -733,7 +846,14 @@ function MillingCalc() {
             placeholder={`${defaultCl}`}
           />
         </div>
-        <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
+        <BandNote
+          band={band}
+          unit={isM ? "m/min" : "SFM"}
+          fromShop={fromShop}
+          notOperationSpecific={notOperationSpecific}
+          onSave={saveSpeed}
+          onClear={clearSpeed}
+        />
       </Card>
       <Card variant="solid" padding="md" className="border-dark-600">
         <SectionHeader title="Results" />
@@ -791,7 +911,12 @@ function TurningCalc() {
   const [depthOfCut, setDepthOfCut] = useState("");
   const [finalDia, setFinalDia] = useState("");
 
-  const { band, seeded: defaultCs } = useCuttingSpeed(mat, "turn", units);
+  const {
+    band,
+    seeded: defaultCs,
+    fromShop,
+    notOperationSpecific,
+  } = useCuttingSpeed(mat, "turn", units);
   const { spindleMax } = useTooling();
   const maxRpm = parseFloat(spindleMax) || 0;
   const defaultFeed = isM ? mat.chipTurnMm : mat.chipTurn;
@@ -802,6 +927,7 @@ function TurningCalc() {
 
   const dMm = isM ? d : inToMm(d);
   const csMm = isM ? cs : sfmToSmm(cs);
+  const { saveSpeed, clearSpeed } = useSpeedSaving(mat, "turn", csMm);
   const fprMm = isM ? fpr : inToMm(fpr);
   const lenMm = isM ? len : inToMm(len);
 
@@ -885,7 +1011,14 @@ function TurningCalc() {
             placeholder="0.8"
           />
         </div>
-        <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
+        <BandNote
+          band={band}
+          unit={isM ? "m/min" : "SFM"}
+          fromShop={fromShop}
+          notOperationSpecific={notOperationSpecific}
+          onSave={saveSpeed}
+          onClear={clearSpeed}
+        />
         <p className="text-[11px] text-gray-400 leading-relaxed">
           Turned length is how far the tool travels along the bar on one pass — the length of the
           section being turned, not the length of the stock. Turning 80 mm on the end of a 300 mm
@@ -963,10 +1096,16 @@ function DrillCalc() {
   const depMm = isM ? dep : inToMm(dep);
   const angle = parseFloat(pointAngle) || 118;
 
-  const { band, seeded: drillCs } = useCuttingSpeed(mat, "drill", units);
+  const {
+    band,
+    seeded: drillCs,
+    fromShop,
+    notOperationSpecific,
+  } = useCuttingSpeed(mat, "drill", units);
   const { spindleMax } = useTooling();
   const maxRpm = parseFloat(spindleMax) || 0;
   const drillCsMm = isM ? drillCs : sfmToSmm(drillCs);
+  const { saveSpeed, clearSpeed } = useSpeedSaving(mat, "drill", drillCsMm);
   // Feed per rev is held across the clamp, so the drill keeps its intended bite
   // per revolution and simply takes longer. Scaling the feed up to recover the
   // lost feed rate is what breaks small drills.
@@ -1051,7 +1190,14 @@ function DrillCalc() {
           value={fmt(achievedCs)}
           unit={isM ? "m/min" : "SFM"}
         />
-        <BandNote band={band} unit={isM ? "m/min" : "SFM"} />
+        <BandNote
+          band={band}
+          unit={isM ? "m/min" : "SFM"}
+          fromShop={fromShop}
+          notOperationSpecific={notOperationSpecific}
+          onSave={saveSpeed}
+          onClear={clearSpeed}
+        />
         <ResultRow
           label="Feed / Rev"
           value={isM ? fmt(fprMm, 3) : fmt(mmToIn(fprMm), 4)}
@@ -1617,8 +1763,14 @@ export default function MachiningPage() {
   const [activeTab, setActiveTab] = useState("rpm");
   const [tool, setTool] = useState<ToolMaterial>("hss");
   const [spindleMax, setSpindleMax] = useState("");
+  const [overrides, setOverrides] = useState<Map<string, SpeedOverride>>(() =>
+    loadSpeedOverrides(),
+  );
   const ActiveComp = TABS.find((t) => t.id === activeTab)!.comp;
-  const tooling = useMemo(() => ({ tool, setTool, spindleMax, setSpindleMax }), [tool, spindleMax]);
+  const tooling = useMemo(
+    () => ({ tool, setTool, spindleMax, setSpindleMax, overrides, setOverrides }),
+    [tool, spindleMax, overrides],
+  );
 
   // Only the tabs that read a cutting speed care what the tool is made of.
   const usesTooling = ["rpm", "milling", "turning", "drilling"].includes(activeTab);
