@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import {
   adminListUsers,
   adminCreateUser,
@@ -68,7 +69,6 @@ function daysLeft(expiry: string | null): number | null {
 type ClientFilter = "all" | "active" | "suspended" | "admins" | "expiring" | "expired";
 type ClientSort = "recent" | "name" | "expiry" | "lastLogin";
 
-
 const inputClass =
   "w-full rounded-xl bg-dark-900 border border-dark-600 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-accent-cyan";
 
@@ -109,7 +109,6 @@ export default function AdminPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
-
   const [nu, setNu] = useState(emptyNewUser);
   const [maint, setMaint] = useState({ enabled: false, message: "" });
   const [ann, setAnn] = useState({ enabled: false, message: "" });
@@ -117,6 +116,23 @@ export default function AdminPage() {
   /** Which client's device list is expanded, and its rows. */
   const [openDevices, setOpenDevices] = useState<string | null>(null);
   const [devices, setDevices] = useState<AdminDeviceRow[]>([]);
+
+  /**
+   * The confirm/edit dialog currently open, if any.
+   *
+   * These four actions used to fire the browser's own prompt() and confirm()
+   * boxes — grey OS popups that broke the dark theme, could not offer a
+   * generate-password button, and showed a typed password in plain sight. They
+   * are now one themed dialog driven by this state, so an admin never leaves
+   * the app's own surface to reset a password or delete a client.
+   */
+  type AdminDialog =
+    | { kind: "password"; user: AdminUserRow; value: string }
+    | { kind: "rename"; user: AdminUserRow; username: string; email: string }
+    | { kind: "deviceLimit"; user: AdminUserRow; value: string }
+    | { kind: "delete"; user: AdminUserRow };
+  const [dialog, setDialog] = useState<AdminDialog | null>(null);
+  const [dialogBusy, setDialogBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!token) {
@@ -139,7 +155,6 @@ export default function AdminPage() {
       setDenied(false);
       setFailure("");
       setLastSync(new Date());
-
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       if (/not authoris|not authoriz|forbidden|401|403/i.test(message)) {
@@ -184,9 +199,10 @@ export default function AdminPage() {
     } else toast.error("Update failed", r.error);
   };
 
-  const handleDelete = async (u: AdminUserRow) => {
+  // Delete goes through the themed confirm dialog rather than the OS confirm().
+  const handleDelete = (u: AdminUserRow) => setDialog({ kind: "delete", user: u });
+  const commitDelete = async (u: AdminUserRow) => {
     if (!token) return;
-    if (!confirm(`Permanently delete ${u.username}? Their access is revoked immediately.`)) return;
     const r = await deleteUser({ data: { sessionToken: token, userId: u.id } });
     if (r.ok) {
       toast.success("Client removed", `${u.username} can no longer sign in.`);
@@ -208,31 +224,59 @@ export default function AdminPage() {
     else toast.error("Save failed", r.error);
   };
 
-  const handleResetPassword = async (u: AdminUserRow) => {
-    const pw = prompt(`New password for ${u.username}:`);
-    if (!pw || pw.length < 4) return;
-    await patch(u.id, { password: pw }, "Password changed");
-  };
+  // Each of these now opens the themed dialog seeded with the client's current
+  // values, rather than a bare OS prompt().
+  const handleResetPassword = (u: AdminUserRow) =>
+    setDialog({ kind: "password", user: u, value: "" });
+  const handleRename = (u: AdminUserRow) =>
+    setDialog({ kind: "rename", user: u, username: u.username, email: u.email ?? "" });
+  const handleDeviceLimit = (u: AdminUserRow) =>
+    setDialog({ kind: "deviceLimit", user: u, value: String(u.device_limit) });
 
-  const handleRename = async (u: AdminUserRow) => {
-    const name = prompt("New username:", u.username);
-    if (!name || name.trim().length < 3 || name.trim() === u.username) return;
-    const email = prompt("Email (leave blank for none):", u.email ?? "") ?? "";
-    await patch(u.id, { username: name.trim(), email: email.trim() }, "Account details updated");
-  };
-
-  const handleDeviceLimit = async (u: AdminUserRow) => {
-    const raw = prompt(
-      `How many devices may "${u.username}" sign in from with these credentials?\n(1 – 100)`,
-      String(u.device_limit),
-    );
-    if (raw === null) return;
-    const n = Number.parseInt(raw, 10);
-    if (!Number.isFinite(n) || n < 1 || n > 100) {
-      toast.error("Invalid number", "Enter a whole number between 1 and 100.");
-      return;
+  /**
+   * Apply whatever the open dialog is asking for. Validation lives here so the
+   * same rules hold however the dialog is submitted (button or Enter key), and
+   * the dialog only closes once the change has actually been sent.
+   */
+  const submitDialog = async () => {
+    if (!dialog) return;
+    setDialogBusy(true);
+    try {
+      if (dialog.kind === "password") {
+        if (dialog.value.length < 4) {
+          toast.error("Too short", "A password needs at least 4 characters.");
+          return;
+        }
+        await patch(dialog.user.id, { password: dialog.value }, "Password changed");
+      } else if (dialog.kind === "rename") {
+        const name = dialog.username.trim();
+        if (name.length < 3) {
+          toast.error("Too short", "A username needs at least 3 characters.");
+          return;
+        }
+        await patch(
+          dialog.user.id,
+          { username: name, email: dialog.email.trim() },
+          "Account details updated",
+        );
+      } else if (dialog.kind === "deviceLimit") {
+        const n = Number.parseInt(dialog.value, 10);
+        if (!Number.isFinite(n) || n < 1 || n > 100) {
+          toast.error("Invalid number", "Enter a whole number between 1 and 100.");
+          return;
+        }
+        await patch(
+          dialog.user.id,
+          { deviceLimit: n, allowMultiDevice: false },
+          `Device allowance set to ${n}`,
+        );
+      } else if (dialog.kind === "delete") {
+        await commitDelete(dialog.user);
+      }
+      setDialog(null);
+    } finally {
+      setDialogBusy(false);
     }
-    await patch(u.id, { deviceLimit: n, allowMultiDevice: false }, `Device allowance set to ${n}`);
   };
 
   const handleExtend = async (u: AdminUserRow, days: number) => {
@@ -372,8 +416,6 @@ export default function AdminPage() {
     toast.success("Export ready", `${filtered.length} client records downloaded.`);
   };
 
-
-
   if (denied) {
     return (
       <div className="max-w-lg mx-auto mt-20 text-center space-y-4">
@@ -482,8 +524,8 @@ export default function AdminPage() {
 
       {stats && (stats.expiringSoon > 0 || stats.expired > 0 || stats.suspended > 0) && (
         <p className="text-xs text-gray-500">
-          {stats.expiringSoon} expiring within 7 days · {stats.expired} expired ·{" "}
-          {stats.suspended} suspended
+          {stats.expiringSoon} expiring within 7 days · {stats.expired} expired · {stats.suspended}{" "}
+          suspended
         </p>
       )}
 
@@ -900,6 +942,195 @@ export default function AdminPage() {
           )}
         </div>
       )}
+
+      {/* Themed action dialogs — replacing the browser's OS prompt/confirm boxes */}
+      <Dialog
+        open={dialog?.kind === "password"}
+        onClose={() => setDialog(null)}
+        title="Set a new password"
+        description={dialog?.kind === "password" ? `For ${dialog.user.username}` : undefined}
+        size="sm"
+      >
+        {dialog?.kind === "password" && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                className={`${inputClass} font-mono`}
+                placeholder="New password"
+                value={dialog.value}
+                onChange={(e) => setDialog({ ...dialog, value: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !dialogBusy) void submitDialog();
+                }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Wand2 size={13} />}
+                onClick={() => setDialog({ ...dialog, value: generatePassword() })}
+              >
+                Generate
+              </Button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Shown in the clear on purpose, so you can copy it to the client. It replaces their old
+              password the moment you save, and signs their devices out.
+            </p>
+            <DialogFooter>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Copy size={13} />}
+                disabled={!dialog.value}
+                onClick={() => void copyToClipboard(dialog.value, "Password")}
+              >
+                Copy
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={dialogBusy || dialog.value.length < 4}
+                onClick={() => void submitDialog()}
+              >
+                Save password
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={dialog?.kind === "rename"}
+        onClose={() => setDialog(null)}
+        title="Edit account details"
+        size="sm"
+      >
+        {dialog?.kind === "rename" && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+                Username
+              </label>
+              <input
+                autoFocus
+                className={inputClass}
+                value={dialog.username}
+                onChange={(e) => setDialog({ ...dialog, username: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+                Email <span className="text-gray-600 normal-case">(optional)</span>
+              </label>
+              <input
+                className={inputClass}
+                placeholder="none"
+                value={dialog.email}
+                onChange={(e) => setDialog({ ...dialog, email: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !dialogBusy) void submitDialog();
+                }}
+              />
+            </div>
+            <DialogFooter>
+              <Button size="sm" variant="secondary" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={dialogBusy || dialog.username.trim().length < 3}
+                onClick={() => void submitDialog()}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={dialog?.kind === "deviceLimit"}
+        onClose={() => setDialog(null)}
+        title="Device allowance"
+        description={
+          dialog?.kind === "deviceLimit"
+            ? `How many machines "${dialog.user.username}" may sign in from`
+            : undefined
+        }
+        size="sm"
+      >
+        {dialog?.kind === "deviceLimit" && (
+          <div className="space-y-3">
+            <input
+              autoFocus
+              type="number"
+              min={1}
+              max={100}
+              className={inputClass}
+              value={dialog.value}
+              onChange={(e) => setDialog({ ...dialog, value: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !dialogBusy) void submitDialog();
+              }}
+            />
+            <p className="text-[11px] text-gray-500">
+              A whole number between 1 and 100. Setting this also switches the client off unlimited
+              devices.
+            </p>
+            <DialogFooter>
+              <Button size="sm" variant="secondary" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={dialogBusy}
+                onClick={() => void submitDialog()}
+              >
+                Set allowance
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={dialog?.kind === "delete"}
+        onClose={() => setDialog(null)}
+        title="Delete this client?"
+        size="sm"
+      >
+        {dialog?.kind === "delete" && (
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 rounded-lg border border-accent-red/20 bg-accent-red/5 p-3">
+              <AlertTriangle size={16} className="text-accent-red shrink-0 mt-0.5" />
+              <p className="text-xs text-accent-red/90 leading-relaxed">
+                <span className="font-semibold text-white">{dialog.user.username}</span> will be
+                removed and their access revoked immediately. This cannot be undone.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button size="sm" variant="secondary" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                icon={<Trash2 size={13} />}
+                disabled={dialogBusy}
+                onClick={() => void submitDialog()}
+              >
+                Delete client
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }
