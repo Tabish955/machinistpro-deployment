@@ -24,7 +24,6 @@ import { collectSignals } from "@/lib/fingerprint";
 import { useDeviceTrial } from "@/hooks/use-device-trial";
 import { whatsappLink, SUPPORT_WHATSAPP_NUMBER } from "@/lib/support";
 
-
 interface LoginResponse {
   success: boolean;
   sessionToken?: string;
@@ -57,7 +56,6 @@ export default function LoginPage() {
     start: handleStartTrial,
   } = useDeviceTrial();
 
-
   // Redirect if already authenticated
   useEffect(() => {
     if (status === "authenticated" && user) {
@@ -65,40 +63,32 @@ export default function LoginPage() {
     }
   }, [status, user, router]);
 
-  // Check for existing session on mount only
+  // Check for an existing session on mount.
+  //
+  // This used to read mp_user out of localStorage and call setUser from it with
+  // no server call — which meant anyone could forge those two keys, visit
+  // /login, and land on the dashboard with whatever subscription string they
+  // typed. The keys are not proof of anything; only the server is.
+  //
+  // So the token is never trusted here. If one is present we hand off to
+  // /dashboard, whose ProtectedRoute posts the token to /api/auth/session and
+  // takes the answer from the server. An invalid token is rejected there and
+  // the user is sent back to a clean login form — no forged session can pass.
   useEffect(() => {
     if (status === "authenticated" && user) {
       setCheckingSession(false);
       return;
     }
 
-    // Restore session from local storage only — no server call
     const token = localStorage.getItem("mp_session");
-    const storedUser = localStorage.getItem("mp_user");
-
-    if (!token || !storedUser) {
+    if (!token) {
       setCheckingSession(false);
       return;
     }
 
-    try {
-      const userData = JSON.parse(storedUser) as {
-        username: string;
-        subscription: string;
-        expiry: string;
-      };
-      setUser({
-        username: userData.username || "User",
-        subscription: userData.subscription || "Standard",
-        expiry: userData.expiry || "",
-        sessionToken: token,
-      });
-      router.replace("/dashboard");
-    } catch {
-      localStorage.removeItem("mp_session");
-      localStorage.removeItem("mp_user");
-      setCheckingSession(false);
-    }
+    // A token exists but is unverified. Let the dashboard's server-backed guard
+    // decide, rather than believing localStorage.
+    router.replace("/dashboard");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -512,7 +502,6 @@ export default function LoginPage() {
               MachinistPro v1.0.0-rc1 · Precision Engineering Tools
             </p>
           </div>
-
         </div>
       </div>
     </div>
