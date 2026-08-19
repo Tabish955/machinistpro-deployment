@@ -1,4 +1,5 @@
 import { useEffect, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface DialogProps {
@@ -38,8 +39,19 @@ export function Dialog({ open, onClose, children, title, description, size = "md
   }, [open, handleEscape]);
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
-  return (
+  // Rendered through a portal to <body>, deliberately.
+  //
+  // Several pages animate their root with `animate-fade-in`, whose keyframes
+  // end on `transform: translateY(0)` with `forwards`. A non-none transform
+  // makes that element the containing block for any `position: fixed` child —
+  // so a dialog rendered inside such a page is trapped in that (tall, narrow)
+  // container instead of the viewport: the backdrop dims only the content
+  // column and the centred box lands far below the fold, off-screen. The
+  // admin panel's delete dialog did exactly that. Portalling to body puts the
+  // dialog above every transformed ancestor, where `fixed` means the viewport.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -71,7 +83,8 @@ export function Dialog({ open, onClose, children, title, description, size = "md
         {/* Content */}
         <div className="p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
