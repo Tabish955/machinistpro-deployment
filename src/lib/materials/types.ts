@@ -42,6 +42,12 @@ export interface DimensionField {
   label: string;
   placeholder: string;
   unit: "length"; // always a length dimension
+  /**
+   * Thickness fields are the ones stock is sold by gauge in — sheet, wall,
+   * web and flange. Gauge is offered only on these: a "16 gauge" length or
+   * diameter is not a thing anyone orders.
+   */
+  kind?: "thickness";
 }
 
 export type ShapeGroup = "solid" | "hollow" | "structural" | "sheet";
@@ -60,6 +66,13 @@ export interface ShapeDef {
 
 export type DimUnit = "mm" | "cm" | "m" | "in" | "ft";
 export type WeightUnit = "g" | "kg" | "ton" | "lb" | "oz";
+
+/**
+ * What a single dimension box can be measured in. Gauge is not a scale factor
+ * like the rest — it is a table lookup that depends on the material — so it is
+ * kept out of DIM_TO_METRE and resolved separately.
+ */
+export type DimUnitChoice = DimUnit | "ga";
 
 export const DIM_TO_METRE: Record<DimUnit, number> = {
   mm: 0.001,

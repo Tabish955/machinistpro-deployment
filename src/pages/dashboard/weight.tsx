@@ -13,9 +13,17 @@ import {
   type Material,
   type ShapeDef,
   type DimUnit,
+  type DimUnitChoice,
   type WeightUnit,
   type CostInputs,
   type MaterialCategory,
+  type GaugeStandard,
+  type DimensionField,
+  gaugeToMm,
+  suggestGaugeStandard,
+  gaugeRange,
+  dimToMetres,
+  GAUGE_STANDARD_LABELS,
   loadCustomMaterials,
   saveCustomMaterials,
   createCustomMaterial,
@@ -43,6 +51,21 @@ const DIM_UNITS: { value: DimUnit; label: string }[] = [
   { value: "in", label: "inch" },
   { value: "ft", label: "foot" },
 ];
+
+/** What a single box offers. Gauge is added only for thickness fields. */
+const FIELD_UNIT_OPTIONS: { value: DimUnitChoice; label: string }[] = [
+  { value: "mm", label: "mm" },
+  { value: "cm", label: "cm" },
+  { value: "m", label: "m" },
+  { value: "in", label: "in" },
+  { value: "ft", label: "ft" },
+];
+
+const GAUGE_OPTION: { value: DimUnitChoice; label: string } = { value: "ga", label: "ga" };
+
+function unitOptionsFor(field: DimensionField): { value: DimUnitChoice; label: string }[] {
+  return field.kind === "thickness" ? [...FIELD_UNIT_OPTIONS, GAUGE_OPTION] : FIELD_UNIT_OPTIONS;
+}
 
 const WEIGHT_UNITS: { value: WeightUnit; label: string }[] = [
   { value: "kg", label: "kg" },
@@ -145,6 +168,78 @@ function NumInput({
   );
 }
 
+/**
+ * A dimension box with its own unit attached.
+ *
+ * Stock is not measured in one unit throughout — a 30 mm bar is sold in 4 foot
+ * lengths, sheet is a gauge number on a metric width — so each measurement
+ * carries the unit it was quoted in and the conversion happens here rather than
+ * on the back of an envelope.
+ */
+function DimInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  unit,
+  options,
+  onUnitChange,
+  hint,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  unit: DimUnitChoice;
+  options: { value: DimUnitChoice; label: string }[];
+  onUnitChange: (u: DimUnitChoice) => void;
+  hint?: string;
+  error?: string;
+}) {
+  return (
+    <div>
+      <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5 block">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (/^[0-9]*\.?[0-9]*$/.test(v) || v === "") onChange(v);
+          }}
+          placeholder={placeholder}
+          className={`w-full pl-3 pr-16 py-2.5 rounded-xl bg-dark-900 border text-sm font-mono text-white placeholder:text-gray-700 focus:outline-none transition-colors ${
+            error ? "border-accent-red/60" : "border-dark-600 focus:border-accent-cyan/50"
+          }`}
+        />
+        {/* The unit sits inside the box it belongs to, so there is never a
+            question of which measurement a unit applies to. */}
+        <select
+          value={unit}
+          onChange={(e) => onUnitChange(e.target.value as DimUnitChoice)}
+          aria-label={`Unit for ${label}`}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 pl-1.5 pr-1 rounded-lg bg-dark-700 border border-dark-600 text-[11px] font-semibold text-accent-cyan hover:bg-dark-600 focus:outline-none focus:border-accent-cyan/50 cursor-pointer"
+        >
+          {options.map((o) => (
+            <option key={o.value} value={o.value} className="bg-dark-800 text-white">
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {error ? (
+        <p className="text-[10px] text-accent-red mt-1">{error}</p>
+      ) : hint ? (
+        <p className="text-[10px] text-gray-600 mt-1 font-mono">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Page
 // ═══════════════════════════════════════════════════════════════════════════
@@ -212,8 +307,16 @@ export default function WeightPage() {
   const shape = useMemo(() => SHAPES.find((s) => s.id === shapeId)!, [shapeId]);
 
   // ── Units ──
+  // dimUnit is the "set all" default; fieldUnits holds the boxes the user has
+  // since pointed somewhere else. Keeping the two apart is what lets a 4 ft
+  // length sit next to a 30 mm diameter without either fighting the other.
   const [dimUnit, setDimUnit] = useState<DimUnit>("mm");
+  const [fieldUnits, setFieldUnits] = useState<Record<string, DimUnitChoice>>({});
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
+
+  // Gauge means a different thickness in each material, so the table follows
+  // the chosen material until the user says otherwise.
+  const [gaugeStdOverride, setGaugeStdOverride] = useState<GaugeStandard | null>(null);
 
   // ── Dimension values (strings for input) ──
   const [dims, setDims] = useState<Record<string, string>>({});
@@ -233,6 +336,32 @@ export default function WeightPage() {
   // ── Copy state ──
   const { copied, failed, copy } = useCopy();
 
+  // ── Units in force ──
+  const gaugeStd: GaugeStandard = gaugeStdOverride ?? suggestGaugeStandard(material);
+
+  // A field uses its own unit if it has one, otherwise the "set all" default.
+  // Gauge is only meaningful on a thickness, so a stale gauge left over from a
+  // previous shape falls back rather than being applied to a length.
+  const dimUnitMap = useMemo(() => {
+    const unitFor = (field: DimensionField): DimUnitChoice => {
+      const chosen = fieldUnits[field.id];
+      if (!chosen) return dimUnit;
+      if (chosen === "ga" && field.kind !== "thickness") return dimUnit;
+      return chosen;
+    };
+    const m: Record<string, DimUnitChoice> = {};
+    for (const field of shape.fields) m[field.id] = unitFor(field);
+    return m;
+  }, [shape.fields, fieldUnits, dimUnit]);
+
+  const anyGauge = shape.fields.some((f) => dimUnitMap[f.id] === "ga");
+
+  /** Set every box at once — the common case of working in a single unit. */
+  const setAllUnits = (u: DimUnit) => {
+    setDimUnit(u);
+    setFieldUnits({});
+  };
+
   // ── Parsed dimensions ──
   const parsedDims = useMemo(() => {
     const d: Record<string, number> = {};
@@ -248,7 +377,7 @@ export default function WeightPage() {
   const { result, calcError } = useMemo(() => {
     try {
       return {
-        result: calculateWeight(shape, material, parsedDims, dimUnit, weightUnit),
+        result: calculateWeight(shape, material, parsedDims, dimUnitMap, weightUnit, gaugeStd),
         calcError: "",
       };
     } catch (cause) {
@@ -257,7 +386,7 @@ export default function WeightPage() {
         calcError: cause instanceof Error ? cause.message : "These dimensions do not work.",
       };
     }
-  }, [shape, material, parsedDims, dimUnit, weightUnit]);
+  }, [shape, material, parsedDims, dimUnitMap, weightUnit, gaugeStd]);
 
   // ── Cost calculation ──
   const costResult = useMemo(() => {
@@ -519,22 +648,95 @@ export default function WeightPage() {
 
           {/* Dimensions */}
           <Card variant="solid" padding="md" className="border-dark-600">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
               <SectionHeader title="Dimensions" className="!mb-0" />
-              <PillSelect options={DIM_UNITS} value={dimUnit} onChange={setDimUnit} />
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider text-gray-600 font-semibold">
+                  Set all to
+                </span>
+                <PillSelect options={DIM_UNITS} value={dimUnit} onChange={setAllUnits} />
+              </div>
             </div>
+            <p className="text-[10px] text-gray-600 mb-4">
+              Every box has its own unit — a 4 ft length can sit next to a 30 mm diameter, no
+              converting first.
+            </p>
             <ShapeDiagram shapeId={shape.id} />
+
+            {/* Gauge is a different thickness in every material, so which table
+                is in use has to be visible whenever a box is set to it. */}
+            {anyGauge && (
+              <div className="mb-3 p-3 rounded-xl bg-dark-900/60 border border-dark-600 animate-fade-in">
+                <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5 block">
+                  Gauge standard
+                </label>
+                <select
+                  value={gaugeStd}
+                  onChange={(e) => setGaugeStdOverride(e.target.value as GaugeStandard)}
+                  className="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-xs text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer"
+                >
+                  {(Object.keys(GAUGE_STANDARD_LABELS) as GaugeStandard[]).map((g) => (
+                    <option key={g} value={g}>
+                      {GAUGE_STANDARD_LABELS[g]}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-600 mt-1.5">
+                  {gaugeStdOverride === null ? (
+                    <>Chosen to match {material.name}. Change it if your stock differs.</>
+                  ) : (
+                    <>
+                      Set by hand.{" "}
+                      <button
+                        onClick={() => setGaugeStdOverride(null)}
+                        className="text-accent-cyan hover:underline cursor-pointer"
+                      >
+                        Match the material instead
+                      </button>
+                    </>
+                  )}{" "}
+                  Same number, different thickness in each — 16 ga is{" "}
+                  {gaugeToMm(16, gaugeStd)?.toFixed(3)} mm here.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {shape.fields.map((field) => (
-                <NumInput
-                  key={field.id}
-                  label={field.label}
-                  value={dims[field.id] ?? ""}
-                  onChange={(v) => setDimValue(field.id, v)}
-                  placeholder={field.placeholder}
-                  suffix={dimUnit}
-                />
-              ))}
+              {shape.fields.map((field) => {
+                const unit = dimUnitMap[field.id];
+                const raw = parseFloat(dims[field.id] ?? "");
+                const metres = dimToMetres(raw, unit, gaugeStd);
+                const { min, max } = gaugeRange(gaugeStd);
+
+                // Show the converted figure so the number being used is never a
+                // matter of trust, and name the problem when gauge misses.
+                let hint: string | undefined;
+                let error: string | undefined;
+                if (isFinite(raw) && raw > 0) {
+                  if (metres !== null && unit !== "mm") {
+                    hint = `= ${fmt(metres * 1000)} mm`;
+                  } else if (metres === null && unit === "ga") {
+                    error = Number.isInteger(raw)
+                      ? `No ${raw} ga in this standard (${min}–${max})`
+                      : "Gauge is a whole number";
+                  }
+                }
+
+                return (
+                  <DimInput
+                    key={field.id}
+                    label={field.label}
+                    value={dims[field.id] ?? ""}
+                    onChange={(v) => setDimValue(field.id, v)}
+                    placeholder={unit === "ga" ? "e.g. 16" : field.placeholder}
+                    unit={unit}
+                    options={unitOptionsFor(field)}
+                    onUnitChange={(u) => setFieldUnits((prev) => ({ ...prev, [field.id]: u }))}
+                    hint={hint}
+                    error={error}
+                  />
+                );
+              })}
               <NumInput label="Quantity" value={quantity} onChange={setQuantity} suffix="pcs" />
             </div>
           </Card>

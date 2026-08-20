@@ -10,6 +10,19 @@ function f(
   return { id, label, placeholder, unit: "length" as const };
 }
 
+/**
+ * A thickness field. Same as f(), but flagged so the page can offer gauge
+ * alongside mm and inch — sheet, wall, web and flange are the measurements
+ * stock actually gets ordered by gauge number.
+ */
+function thick(
+  id: string,
+  label: string,
+  placeholder = "",
+): { id: string; label: string; placeholder: string; unit: "length"; kind: "thickness" } {
+  return { id, label, placeholder, unit: "length" as const, kind: "thickness" as const };
+}
+
 export const SHAPES: ShapeDef[] = [
   // ══════════════════════════ SOLID ══════════════════════════════════════════
   {
@@ -46,7 +59,7 @@ export const SHAPES: ShapeDef[] = [
     group: "solid",
     fields: [
       f("w", "Width", "e.g. 100"),
-      f("t", "Thickness", "e.g. 10"),
+      thick("t", "Thickness", "e.g. 10"),
       f("l", "Length", "e.g. 1000"),
     ],
     volume: ({ w, t, l }) => w * t * l,
@@ -59,7 +72,7 @@ export const SHAPES: ShapeDef[] = [
     fields: [
       f("w", "Width", "e.g. 1200"),
       f("h", "Height", "e.g. 2400"),
-      f("t", "Thickness", "e.g. 6"),
+      thick("t", "Thickness", "e.g. 6"),
     ],
     volume: ({ w, h, t }) => w * h * t,
     formula: "V = W × H × T",
@@ -112,7 +125,7 @@ export const SHAPES: ShapeDef[] = [
     group: "hollow",
     fields: [
       f("od", "Outside Diameter", "e.g. 50"),
-      f("wt", "Wall Thickness", "e.g. 3"),
+      thick("wt", "Wall Thickness", "e.g. 3"),
       f("l", "Length", "e.g. 1000"),
     ],
     // A wall thicker than half the OD bores past the centreline: id goes
@@ -136,7 +149,7 @@ export const SHAPES: ShapeDef[] = [
     group: "hollow",
     fields: [
       f("a", "Outer Side", "e.g. 50"),
-      f("t", "Wall Thickness", "e.g. 3"),
+      thick("t", "Wall Thickness", "e.g. 3"),
       f("l", "Length", "e.g. 1000"),
     ],
     volume: ({ a, t, l }) => {
@@ -155,7 +168,7 @@ export const SHAPES: ShapeDef[] = [
     fields: [
       f("w", "Outer Width", "e.g. 80"),
       f("h", "Outer Height", "e.g. 40"),
-      f("t", "Wall Thickness", "e.g. 3"),
+      thick("t", "Wall Thickness", "e.g. 3"),
       f("l", "Length", "e.g. 1000"),
     ],
     volume: ({ w, h, t, l }) => {
@@ -178,7 +191,7 @@ export const SHAPES: ShapeDef[] = [
     fields: [
       f("a", "Leg A", "e.g. 50"),
       f("b", "Leg B", "e.g. 50"),
-      f("t", "Thickness", "e.g. 5"),
+      thick("t", "Thickness", "e.g. 5"),
       f("l", "Length", "e.g. 1000"),
     ],
     volume: ({ a, b, t, l }) => (a * t + (b - t) * t) * l,
@@ -191,8 +204,8 @@ export const SHAPES: ShapeDef[] = [
     fields: [
       f("h", "Height", "e.g. 100"),
       f("w", "Flange Width", "e.g. 50"),
-      f("tw", "Web Thick", "e.g. 5"),
-      f("tf", "Flange Thick", "e.g. 7"),
+      thick("tw", "Web Thick", "e.g. 5"),
+      thick("tf", "Flange Thick", "e.g. 7"),
       f("l", "Length", "e.g. 1000"),
     ],
     volume: ({ h, w, tw, tf, l }) => ((h - 2 * tf) * tw + 2 * w * tf) * l,
@@ -205,8 +218,8 @@ export const SHAPES: ShapeDef[] = [
     fields: [
       f("h", "Height", "e.g. 200"),
       f("w", "Flange Width", "e.g. 100"),
-      f("tw", "Web Thick", "e.g. 6"),
-      f("tf", "Flange Thick", "e.g. 10"),
+      thick("tw", "Web Thick", "e.g. 6"),
+      thick("tf", "Flange Thick", "e.g. 10"),
       f("l", "Length", "e.g. 1000"),
     ],
     volume: ({ h, w, tw, tf, l }) => ((h - 2 * tf) * tw + 2 * w * tf) * l,
@@ -219,8 +232,8 @@ export const SHAPES: ShapeDef[] = [
     fields: [
       f("w", "Flange Width", "e.g. 100"),
       f("h", "Total Height", "e.g. 80"),
-      f("tf", "Flange Thick", "e.g. 8"),
-      f("tw", "Web Thick", "e.g. 6"),
+      thick("tf", "Flange Thick", "e.g. 8"),
+      thick("tw", "Web Thick", "e.g. 6"),
       f("l", "Length", "e.g. 1000"),
     ],
     volume: ({ w, h, tf, tw, l }) => (w * tf + (h - tf) * tw) * l,
@@ -235,7 +248,7 @@ export const SHAPES: ShapeDef[] = [
     fields: [
       f("w", "Width", "e.g. 1200"),
       f("l", "Length", "e.g. 2400"),
-      f("t", "Thickness", "e.g. 2"),
+      thick("t", "Thickness", "e.g. 2"),
     ],
     volume: ({ w, l, t }) => w * l * t,
     formula: "V = W × L × T",
