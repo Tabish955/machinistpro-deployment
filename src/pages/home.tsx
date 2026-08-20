@@ -21,7 +21,6 @@ import {
   Clock,
 } from "lucide-react";
 
-
 const features = [
   {
     icon: Calculator,
@@ -135,7 +134,6 @@ export default function LandingPage() {
         </div>
       </nav>
 
-
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-20 lg:pt-28 lg:pb-32 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/20 bg-accent-cyan/5 px-4 py-1.5 mb-6">
@@ -206,22 +204,18 @@ export default function LandingPage() {
                 keep going.
               </p>
             )}
-            {trial.state === "blocked" && (
-              <p className="text-xs text-accent-red">{trial.reason}</p>
-            )}
+            {trial.state === "blocked" && <p className="text-xs text-accent-red">{trial.reason}</p>}
             <a
               href={whatsappLink()}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-xs font-semibold text-accent-green hover:underline"
             >
-              <MessageCircle size={14} /> Buy a subscription on WhatsApp ·{" "}
-              {SUPPORT_WHATSAPP_NUMBER}
+              <MessageCircle size={14} /> Buy a subscription on WhatsApp · {SUPPORT_WHATSAPP_NUMBER}
             </a>
           </div>
         )}
       </section>
-
 
       {/* Stats */}
       <section className="max-w-4xl mx-auto px-6 pb-16">
@@ -317,7 +311,6 @@ export default function LandingPage() {
               )}
             </div>
           </div>
-
         </div>
       </section>
 
@@ -343,7 +336,6 @@ export default function LandingPage() {
         <p className="text-[11px] text-gray-700 text-center">
           © {new Date().getFullYear()} MachinistPro · Precision Engineering Tools · v1.0.0-rc1
         </p>
-
       </footer>
     </div>
   );

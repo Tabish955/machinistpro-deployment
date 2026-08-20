@@ -17,7 +17,6 @@ export function needsRehash(stored: string): boolean {
   return parts[0] !== "pbkdf2" || Number(parts[1]) !== ITERATIONS;
 }
 
-
 function toHex(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   let out = "";
@@ -52,7 +51,6 @@ async function derive(password: string, salt: Uint8Array, iterations: number): P
   );
   return toHex(bits);
 }
-
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
