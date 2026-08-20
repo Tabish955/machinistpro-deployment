@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --color-dark-990: #020204;
   --color-dark-950: #050508;
   --color-dark-900: #0a0a10;
   --color-dark-800: #10101a;
@@ -574,6 +575,7 @@ a svg {
    tokens (surfaces + neutral text scale) so every existing utility class keeps
    working without touching component markup. */
 html.light {
+  --color-dark-990: #eef1f7;
   --color-dark-950: #f6f7fb;
   --color-dark-900: #ffffff;
   --color-dark-800: #f2f4f9;
