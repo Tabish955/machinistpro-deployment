@@ -4,12 +4,13 @@ import type {
   DimUnit,
   DimUnitChoice,
   WeightUnit,
+  VolumeUnit,
   CostInputs,
   CostResult,
   CalcResult,
   DimensionField,
 } from "./types";
-import { DIM_TO_METRE, KG_FACTOR } from "./types";
+import { DIM_TO_METRE, KG_FACTOR, M3_FACTOR } from "./types";
 import { gaugeToMetres, gaugeRange, type GaugeStandard } from "./gauge";
 
 /**
@@ -148,4 +149,25 @@ export function fmt(n: number, decimals = 4): string {
 export function fmtCurrency(n: number): string {
   if (!isFinite(n)) return "—";
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * A volume unit that keeps the figure readable.
+ *
+ * The span here is enormous — a grub screw and a header tank are both "volume"
+ * — so no single unit serves. Rather than make the reader count digits, the
+ * unit is chosen to put the number in a range you can say out loud, the way you
+ * would quote it: cubic millimetres for an insert, litres for a tank.
+ */
+export function autoVolumeUnit(volume_m3: number): VolumeUnit {
+  const v = Math.abs(volume_m3);
+  if (v >= 1) return "m3";
+  if (v >= 1e-3) return "l";
+  if (v >= 1e-6) return "cm3";
+  return "mm3";
+}
+
+/** A volume in cubic metres, read in the chosen unit. */
+export function toVolumeUnit(volume_m3: number, unit: VolumeUnit): number {
+  return volume_m3 * M3_FACTOR[unit];
 }
