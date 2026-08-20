@@ -14,8 +14,7 @@ export default function PrivacyPage() {
       <h2 className="text-lg font-semibold text-white pt-2">1. Information We Collect</h2>
       <p>
         <strong className="text-gray-300">Authentication Data:</strong> When you log in, your
-        username is checked against our own secure account database. We do not
-        store passwords.
+        username is checked against our own secure account database. We do not store passwords.
       </p>
       <p>
         <strong className="text-gray-300">Local Data:</strong> All calculations, projects, history,
@@ -45,8 +44,8 @@ export default function PrivacyPage() {
       <h2 className="text-lg font-semibold text-white pt-2">4. Third-Party Services</h2>
       <ul className="list-disc list-inside space-y-1">
         <li>
-          <strong className="text-gray-300">MachinistPro accounts:</strong> Licence and session
-          data is stored in our own encrypted backend and never shared with third parties.
+          <strong className="text-gray-300">MachinistPro accounts:</strong> Licence and session data
+          is stored in our own encrypted backend and never shared with third parties.
         </li>
         <li>
           <strong className="text-gray-300">Google Analytics:</strong> Used for anonymous usage
