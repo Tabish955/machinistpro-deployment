@@ -30,7 +30,7 @@ const length: CategoryDef = {
   name: "Length",
   icon: "Ruler",
   baseUnit: "m",
-  group: "basic",
+  group: "common",
   units: [
     u("m", "Meter", "m", 1, ["metre", "meters", "metres"]),
     u("km", "Kilometer", "km", 1e3, ["kilometre", "kilometres"]),
@@ -53,7 +53,7 @@ const area: CategoryDef = {
   name: "Area",
   icon: "Square",
   baseUnit: "m2",
-  group: "basic",
+  group: "common",
   units: [
     u("m2", "Square Meter", "m²", 1, ["sq m", "sqm"]),
     u("km2", "Square Kilometer", "km²", 1e6, ["sq km"]),
@@ -73,7 +73,7 @@ const volume: CategoryDef = {
   name: "Volume",
   icon: "Box",
   baseUnit: "m3",
-  group: "basic",
+  group: "common",
   units: [
     u("m3", "Cubic Meter", "m³", 1, ["cbm"]),
     u("l", "Liter", "L", 1e-3, ["litre", "liters", "litres"]),
@@ -99,7 +99,7 @@ const mass: CategoryDef = {
   name: "Mass",
   icon: "Weight",
   baseUnit: "kg",
-  group: "basic",
+  group: "common",
   units: [
     u("kg", "Kilogram", "kg", 1, ["kilograms", "kilo"]),
     u("g", "Gram", "g", 1e-3, ["grams"]),
@@ -122,7 +122,7 @@ const time: CategoryDef = {
   name: "Time",
   icon: "Clock",
   baseUnit: "s",
-  group: "basic",
+  group: "common",
   units: [
     u("s", "Second", "s", 1, ["sec", "seconds"]),
     u("ms", "Millisecond", "ms", 1e-3, []),
@@ -141,7 +141,7 @@ const temperature: CategoryDef = {
   name: "Temperature",
   icon: "Thermometer",
   baseUnit: "K",
-  group: "basic",
+  group: "common",
   units: [
     { id: "K", name: "Kelvin", symbol: "K", aliases: ["kelvin"], toBase: 1, fromBase: 1 },
     {
@@ -176,7 +176,7 @@ const speed: CategoryDef = {
   name: "Speed",
   icon: "Gauge",
   baseUnit: "mps",
-  group: "basic",
+  group: "common",
   units: [
     u("mps", "Meter/Second", "m/s", 1, []),
     u("kmh", "Kilometer/Hour", "km/h", 1 / 3.6, ["kph"]),
@@ -188,17 +188,25 @@ const speed: CategoryDef = {
   ],
 };
 
+/**
+ * Pressure and stress are the same dimension and were two categories carrying
+ * the same units twice over — Pa, kPa, MPa, GPa, psi and ksi in both — with no
+ * way to tell which one to pick. Merged, with the units that only the stress
+ * list had (N/mm², kgf/cm²) folded in.
+ */
 const pressure: CategoryDef = {
   id: "pressure",
-  name: "Pressure",
+  name: "Pressure / Stress",
   icon: "ArrowDownUp",
   baseUnit: "Pa",
-  group: "basic",
+  group: "mechanical",
   units: [
     u("Pa", "Pascal", "Pa", 1, ["pascals"]),
     u("kPa", "Kilopascal", "kPa", 1e3, []),
-    u("MPa", "Megapascal", "MPa", 1e6, []),
+    u("MPa", "Megapascal", "MPa", 1e6, ["megapascals"]),
+    u("Nmm2", "N/mm²", "N/mm²", 1e6, ["newtons per square millimetre"]),
     u("GPa", "Gigapascal", "GPa", 1e9, []),
+    u("kgfcm2", "kgf/cm²", "kgf/cm²", 98066.5, ["kilogram force per square centimetre"]),
     u("bar", "Bar", "bar", 1e5, ["bars"]),
     u("mbar", "Millibar", "mbar", 100, []),
     u("atm", "Atmosphere", "atm", 101325, []),
@@ -216,7 +224,7 @@ const force: CategoryDef = {
   name: "Force",
   icon: "ArrowRight",
   baseUnit: "N",
-  group: "basic",
+  group: "mechanical",
   units: [
     u("N", "Newton", "N", 1, ["newtons"]),
     u("kN", "Kilonewton", "kN", 1e3, []),
@@ -234,7 +242,7 @@ const torque: CategoryDef = {
   name: "Torque",
   icon: "RotateCcw",
   baseUnit: "Nm",
-  group: "basic",
+  group: "mechanical",
   units: [
     u("Nm", "Newton Meter", "N·m", 1, ["newton meter"]),
     u("kNm", "Kilonewton Meter", "kN·m", 1e3, []),
@@ -251,7 +259,7 @@ const energy: CategoryDef = {
   name: "Energy",
   icon: "Zap",
   baseUnit: "J",
-  group: "basic",
+  group: "mechanical",
   units: [
     u("J", "Joule", "J", 1, ["joules"]),
     u("kJ", "Kilojoule", "kJ", 1e3, []),
@@ -272,7 +280,7 @@ const power: CategoryDef = {
   name: "Power",
   icon: "Activity",
   baseUnit: "W",
-  group: "basic",
+  group: "mechanical",
   units: [
     u("W", "Watt", "W", 1, ["watts"]),
     u("kW", "Kilowatt", "kW", 1e3, []),
@@ -290,7 +298,7 @@ const density: CategoryDef = {
   name: "Density",
   icon: "Layers",
   baseUnit: "kgm3",
-  group: "basic",
+  group: "mechanical",
   units: [
     u("kgm3", "kg/m³", "kg/m³", 1, []),
     u("gcm3", "g/cm³", "g/cm³", 1000, []),
@@ -308,7 +316,7 @@ const frequency: CategoryDef = {
   name: "Frequency",
   icon: "Radio",
   baseUnit: "Hz",
-  group: "basic",
+  group: "electrical",
   units: [
     u("Hz", "Hertz", "Hz", 1, ["hertz"]),
     u("kHz", "Kilohertz", "kHz", 1e3, []),
@@ -324,7 +332,7 @@ const angle: CategoryDef = {
   name: "Angle",
   icon: "Triangle",
   baseUnit: "deg",
-  group: "basic",
+  group: "common",
   units: [
     u("deg", "Degree", "°", 1, ["degrees"]),
     u("rad", "Radian", "rad", 180 / Math.PI, ["radians"]),
@@ -340,7 +348,7 @@ const acceleration: CategoryDef = {
   name: "Acceleration",
   icon: "TrendingUp",
   baseUnit: "mps2",
-  group: "basic",
+  group: "mechanical",
   units: [
     u("mps2", "m/s²", "m/s²", 1, []),
     u("g0", "Standard Gravity", "g", 9.80665, ["g-force"]),
@@ -358,7 +366,7 @@ const flowRate: CategoryDef = {
   name: "Flow Rate",
   icon: "Droplets",
   baseUnit: "m3s",
-  group: "engineering",
+  group: "fluid",
   units: [
     u("m3s", "m³/s", "m³/s", 1, []),
     u("m3h", "m³/h", "m³/h", 1 / 3600, []),
@@ -376,7 +384,7 @@ const dynVisc: CategoryDef = {
   name: "Dynamic Viscosity",
   icon: "Droplet",
   baseUnit: "Pas",
-  group: "engineering",
+  group: "fluid",
   units: [
     u("Pas", "Pascal-Second", "Pa·s", 1, []),
     u("mPas", "Millipascal-Sec", "mPa·s", 1e-3, []),
@@ -391,7 +399,7 @@ const kinVisc: CategoryDef = {
   name: "Kinematic Viscosity",
   icon: "Waves",
   baseUnit: "m2s",
-  group: "engineering",
+  group: "fluid",
   units: [
     u("m2s", "m²/s", "m²/s", 1, []),
     u("St", "Stokes", "St", 1e-4, []),
@@ -405,29 +413,11 @@ const thermCond: CategoryDef = {
   name: "Thermal Conductivity",
   icon: "Flame",
   baseUnit: "WmK",
-  group: "engineering",
+  group: "fluid",
   units: [
     u("WmK", "W/(m·K)", "W/(m·K)", 1, []),
     u("BTUhftF", "BTU/(h·ft·°F)", "BTU/(h·ft·°F)", 1.730735, []),
     u("calmscmC", "cal/(s·cm·°C)", "cal/(s·cm·°C)", 418.68, []),
-  ],
-};
-
-const stress: CategoryDef = {
-  id: "stress",
-  name: "Stress / Pressure",
-  icon: "Maximize2",
-  baseUnit: "Pa_s",
-  group: "engineering",
-  units: [
-    u("Pa_s", "Pascal", "Pa", 1, []),
-    u("kPa_s", "Kilopascal", "kPa", 1e3, []),
-    u("MPa_s", "Megapascal", "MPa", 1e6, []),
-    u("GPa_s", "Gigapascal", "GPa", 1e9, []),
-    u("psi_s", "PSI", "psi", 6894.757, []),
-    u("ksi_s", "KSI", "ksi", 6894757, []),
-    u("kgfcm2", "kgf/cm²", "kgf/cm²", 98066.5, []),
-    u("Nmm2", "N/mm²", "N/mm²", 1e6, []),
   ],
 };
 
@@ -436,7 +426,7 @@ const momentInertia: CategoryDef = {
   name: "Moment of Inertia",
   icon: "Circle",
   baseUnit: "m4",
-  group: "engineering",
+  group: "mechanical",
   units: [
     u("m4", "m⁴", "m⁴", 1, []),
     u("cm4", "cm⁴", "cm⁴", 1e-8, []),
@@ -451,7 +441,7 @@ const fuelConsumption: CategoryDef = {
   name: "Fuel Consumption",
   icon: "Fuel",
   baseUnit: "lp100km",
-  group: "engineering",
+  group: "other",
   units: [
     u("lp100km", "L/100km", "L/100km", 1, []),
     {
@@ -470,7 +460,18 @@ const fuelConsumption: CategoryDef = {
       toBase: (v: number) => (v === 0 ? Infinity : 282.4809363 / v),
       fromBase: (v: number) => (v === 0 ? Infinity : 282.4809363 / v),
     },
-    u("kml", "km/L", "km/L", 100, []),
+    {
+      // Fuel economy is a rate per distance one way round and a distance per
+      // volume the other, so km/L is the reciprocal of L/100km — not a multiple
+      // of it. As a plain factor this read 10 km/L as 1000 L/100km, and as
+      // 0.235 mpg instead of 23.5. The MPG entries above already had it right.
+      id: "kml",
+      name: "km/L",
+      symbol: "km/L",
+      aliases: ["kilometres per litre", "kilometers per liter"],
+      toBase: (v: number) => (v === 0 ? Infinity : 100 / v),
+      fromBase: (v: number) => (v === 0 ? Infinity : 100 / v),
+    },
   ],
 };
 
@@ -638,7 +639,6 @@ export const ALL_CATEGORIES: CategoryDef[] = [
   dynVisc,
   kinVisc,
   thermCond,
-  stress,
   momentInertia,
   fuelConsumption,
   // Electrical
@@ -656,11 +656,25 @@ export const ALL_CATEGORIES: CategoryDef[] = [
 export const CATEGORY_MAP = new Map(ALL_CATEGORIES.map((c) => [c.id, c]));
 
 export const GROUP_LABELS: Record<string, string> = {
-  basic: "Basic",
-  engineering: "Engineering",
+  common: "Everyday",
+  mechanical: "Mechanical",
+  fluid: "Fluid & Thermal",
   electrical: "Electrical",
   computing: "Computing",
-  fluid: "Fluid Mechanics",
-  chemistry: "Chemistry",
-  construction: "Construction",
+  other: "Other",
 };
+
+/**
+ * The order the groups are shown in, commonest first.
+ *
+ * Without this the order fell out of however the categories happened to be
+ * declared in this file, so adding one could silently reshuffle the page.
+ */
+export const GROUP_ORDER: string[] = [
+  "common",
+  "mechanical",
+  "fluid",
+  "electrical",
+  "computing",
+  "other",
+];
