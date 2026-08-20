@@ -49,10 +49,19 @@ export function totalTilt({ pitch, roll }: Tilt): number {
   return Number(Math.hypot(pitch, roll).toFixed(4));
 }
 
-/** Direction the surface falls away, degrees clockwise from "away from you". */
+/**
+ * Direction the surface falls away, degrees clockwise from "away from you".
+ *
+ * Pitch is positive nose up, which raises the far edge and drops the near one,
+ * so a positive pitch falls back towards the user — 180°, not 0°. Taking pitch
+ * at face value pointed this arrow at the high side on the front-to-back axis
+ * while the bubble, correctly, went the other way. The left-right axis was
+ * never affected, which is why it read plausibly until you stood at the end of
+ * the machine and the two disagreed.
+ */
 export function slopeDirection({ pitch, roll }: Tilt): number {
   if (pitch === 0 && roll === 0) return 0;
-  const deg = (Math.atan2(roll, pitch) * 180) / Math.PI;
+  const deg = (Math.atan2(roll, -pitch) * 180) / Math.PI;
   return Number(((deg % 360) + 360).toFixed(2)) % 360;
 }
 
@@ -165,6 +174,99 @@ export function edgeOrientation(g: Gravity): EdgeOrientation {
   return Math.abs(g.y) >= Math.abs(g.x) ? "portrait" : "landscape";
 }
 
+/* ── Screen frame ─────────────────────────────────────────────────────────── */
+
+/**
+ * The sensor reports gravity in the phone's own axes, which stay fixed to the
+ * case. The user is looking at the *screen*, and the browser turns that a
+ * quarter at a time as the phone is rotated. Left uncorrected, the two disagree
+ * by exactly the amount the screen has turned: stand a phone on its left edge
+ * with rotation unlocked and "right side low" comes out pointing at the top of
+ * the screen.
+ *
+ * Rotating gravity into screen axes first means everything downstream — the
+ * beam, the bubble, the words "left" and "right" — describes what the user can
+ * actually see, whether the screen followed the phone round or was locked.
+ */
+export function toViewFrame(g: Gravity, screenAngle: number): Gravity {
+  const rad = (screenAngle * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    x: g.x * cos + g.y * sin,
+    y: -g.x * sin + g.y * cos,
+    z: g.z,
+  };
+}
+
+/** The quarter-turn the browser has applied to the page, 0/90/180/270. */
+export function currentScreenAngle(): number {
+  if (typeof window === "undefined") return 0;
+  const orientation = window.screen?.orientation;
+  if (orientation && typeof orientation.angle === "number") return orientation.angle;
+  const legacy = (window as unknown as { orientation?: number }).orientation;
+  return typeof legacy === "number" ? ((legacy % 360) + 360) % 360 : 0;
+}
+
+/* ── Which edge is resting on the work ────────────────────────────────────── */
+
+export type RestingEdge = "bottom" | "top" | "left" | "right";
+
+export const RESTING_EDGE_LABELS: Record<RestingEdge, string> = {
+  bottom: "bottom edge",
+  top: "top edge",
+  left: "left edge",
+  right: "right edge",
+};
+
+/**
+ * Which edge of the screen is sitting on the work, gravity being the thing that
+ * points at it. Four positions, not two: knowing it is "landscape" does not say
+ * whether the beam should be drawn up the left of the screen or the right.
+ */
+export function restingEdge(g: Gravity): RestingEdge {
+  if (Math.abs(g.y) >= Math.abs(g.x)) return g.y <= 0 ? "bottom" : "top";
+  return g.x <= 0 ? "left" : "right";
+}
+
+/**
+ * Angle of the resting edge in screen space, degrees clockwise — the number the
+ * drawing needs.
+ *
+ * `edgeAngle` deliberately folds this to the deviation from the nearest quarter
+ * turn, because that is the reading: zero whenever an edge is horizontal. But
+ * folding also throws away *which* edge that is, so a beam drawn from it lies
+ * flat across the screen in all four positions and landscape ends up looking
+ * exactly like portrait. This keeps the quarter turn, so the beam is drawn
+ * along the edge that is really on the work.
+ */
+export function edgeBeamAngle(g: Gravity): number {
+  return Number(((Math.atan2(g.x, -g.y) * 180) / Math.PI).toFixed(4));
+}
+
+/**
+ * Which side of the screen the low end of the resting edge is on, or null when
+ * it is level.
+ *
+ * "Right side low" only means anything while the phone is stood on its bottom
+ * edge. Turn it onto its side and the same tilt drops the top of the screen
+ * instead, so the word has to be worked out from where gravity actually points
+ * rather than assumed.
+ */
+export function lowSide(g: Gravity, tolerance = LEVEL_TOLERANCE_DEG): RestingEdge | null {
+  if (Math.abs(edgeAngle(g)) <= tolerance) return null;
+  const beam = (edgeBeamAngle(g) * Math.PI) / 180;
+  // Screen axes, y downward, so gravity is (g.x, -g.y).
+  let dx = Math.cos(beam);
+  let dy = Math.sin(beam);
+  if (dx * g.x + dy * -g.y < 0) {
+    dx = -dx;
+    dy = -dy;
+  }
+  if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? "right" : "left";
+  return dy > 0 ? "bottom" : "top";
+}
+
 /**
  * Angle of the resting edge away from level, degrees — in any of the four
  * upright positions.
@@ -219,4 +321,41 @@ export function gravityToTilt(g: Gravity): Tilt {
 export function ballOffset(tilt: Tilt, range = 5): { x: number; y: number } {
   const clamp = (v: number) => Math.max(-1, Math.min(1, v / range));
   return { x: clamp(tilt.roll), y: clamp(tilt.pitch) };
+}
+
+/**
+ * Where the bubble sits in the vial, as a fraction of the radius.
+ *
+ * The opposite of the ball: air is lighter than the fluid around it, so a real
+ * spirit level's bubble climbs to the *high* side. Anyone who has used a level
+ * reads it that way without thinking — bubble towards the end that needs
+ * bringing down — so the on-screen vial has to move the same way round or it
+ * quietly says the reverse of what the tool in their other hand says.
+ */
+export function bubbleOffset(tilt: Tilt, range = 5): { x: number; y: number } {
+  const ball = ballOffset(tilt, range);
+  return { x: -ball.x, y: -ball.y };
+}
+
+/**
+ * Where the bubble sits along the vial of a phone stood on edge, -1..1 along
+ * the body as drawn, positive towards its right-hand end.
+ *
+ * The direction cannot be taken from the sign of `edgeAngle`. The vial is drawn
+ * along whichever edge is resting, so between standing the phone on its foot
+ * and standing it on its side the body swings through a quarter turn — and the
+ * end that a given sign puts low swings with it. Reading it off the sign alone
+ * is right on two edges and backwards on the other two. So ask gravity which
+ * end of the body as drawn is low, and send the bubble the other way.
+ */
+export function edgeBubble(g: Gravity, range = 5): number {
+  const quarter = Math.round(edgeBeamAngle(g) / 90) * 90;
+  const rad = (quarter * Math.PI) / 180;
+  // Screen direction of the body's right-hand end; a quarter turn, so exact.
+  const dx = Math.round(Math.cos(rad));
+  const dy = Math.round(Math.sin(rad));
+  // Screen axes put y downward, so gravity is (g.x, -g.y).
+  const rightEndIsLow = dx * g.x + dy * -g.y > 0;
+  const travel = Math.min(1, Math.abs(edgeAngle(g)) / range);
+  return rightEndIsLow ? -travel : travel;
 }

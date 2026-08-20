@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   applyCalibration,
   averageTilt,
-  ballOffset,
   formatSlope,
   isLevel,
   normaliseAngle,
@@ -11,32 +10,71 @@ import {
   totalTilt,
   detectMode,
   edgeAngle,
-  edgeOrientation,
+  edgeBeamAngle,
+  restingEdge,
+  lowSide,
+  edgeBubble,
+  toViewFrame,
+  currentScreenAngle,
   plumbAngle,
   gravityToTilt,
   NO_CALIBRATION,
   SLOPE_UNITS,
+  LEVEL_TOLERANCE_DEG,
   type LevelCalibration,
   type SlopeUnit,
   type Tilt,
   type Gravity,
   type LevelMode,
-  type EdgeOrientation,
+  type RestingEdge,
 } from "@/lib/level/level";
+import { BullseyeVial, EdgeVial } from "@/components/level/vials";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Compass, Crosshair, Pause, Play, RotateCcw } from "lucide-react";
+import { Compass, Crosshair, Pause, Play, RotateCcw, Vibrate, VibrateOff } from "lucide-react";
 
 type Status = "idle" | "running" | "denied" | "unsupported";
 
 const CAL_KEY = "machinist-pro-level-calibration";
 
+/**
+ * The three ways a phone can be put against work, and what each one measures.
+ * Showing all three, with the live one lit, is the quickest way to answer "is
+ * this thing even working in landscape?" — it is, and the app says so.
+ */
+type Position = "flat" | "onEnd" | "onSide";
+
+const POSITIONS: { id: Position; label: string; hint: string }[] = [
+  { id: "flat", label: "Flat", hint: "laid on the surface — both axes" },
+  { id: "onEnd", label: "On end", hint: "stood on its top or bottom edge" },
+  { id: "onSide", label: "On side", hint: "stood on its left or right edge" },
+];
+
+function positionOf(mode: LevelMode, edge: RestingEdge): Position {
+  if (mode === "surface") return "flat";
+  return edge === "bottom" || edge === "top" ? "onEnd" : "onSide";
+}
+
+const EDGE_PHRASE: Record<RestingEdge, string> = {
+  bottom: "resting on its bottom edge",
+  top: "resting on its top edge",
+  left: "resting on its left edge",
+  right: "resting on its right edge",
+};
+
+const LOW_PHRASE: Record<RestingEdge, string> = {
+  bottom: "bottom end low",
+  top: "top end low",
+  left: "left side low",
+  right: "right side low",
+};
+
 export default function LevelPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [raw, setRaw] = useState<Tilt>({ pitch: 0, roll: 0 });
   const [held, setHeld] = useState<Tilt | null>(null);
-  const [heldEdge, setHeldEdge] = useState<number | null>(null);
+  const [heldEdge, setHeldEdge] = useState<Gravity | null>(null);
   const [unit, setUnit] = useState<SlopeUnit>("deg");
   const [calibration, setCalibration] = useState<LevelCalibration>(() => {
     try {
@@ -47,11 +85,16 @@ export default function LevelPage() {
     }
   });
   const history = useRef<Tilt[]>([]);
-  const [gravity, setGravity] = useState<Gravity | null>(null);
+  // Gravity is the better source — it has no gimbal trouble near vertical and
+  // can be turned into screen axes — but it needs the motion permission, so the
+  // orientation reading stays as a fallback until the first sample arrives.
+  const hasMotion = useRef(false);
   const [mode, setMode] = useState<LevelMode>("surface");
-  const [edge, setEdge] = useState(0);
-  const [plumb, setPlumb] = useState(0);
-  const [heldOn, setHeldOn] = useState<EdgeOrientation>("portrait");
+  // The whole gravity vector is kept rather than the handful of numbers derived
+  // from it, so holding a reading freezes the position too and every figure on
+  // screen keeps agreeing with every other.
+  const [gview, setGview] = useState<Gravity | null>(null);
+  const [buzz, setBuzz] = useState(true);
 
   const start = async () => {
     if (typeof DeviceOrientationEvent === "undefined") {
@@ -92,6 +135,7 @@ export default function LevelPage() {
   useEffect(() => {
     if (status !== "running") return;
     const onOrient = (e: DeviceOrientationEvent) => {
+      if (hasMotion.current) return;
       if (e.beta === null || e.gamma === null) return;
       history.current = smooth(history.current, {
         pitch: normaliseAngle(e.beta),
@@ -102,12 +146,17 @@ export default function LevelPage() {
     const onMotion = (e: DeviceMotionEvent) => {
       const a = e.accelerationIncludingGravity;
       if (!a || a.x === null || a.y === null || a.z === null) return;
-      const g = { x: a.x, y: a.y, z: a.z };
-      setGravity(g);
-      setMode((current) => detectMode(g, current));
-      setEdge(edgeAngle(g));
-      setPlumb(plumbAngle(g));
-      setHeldOn(edgeOrientation(g));
+      hasMotion.current = true;
+      const device: Gravity = { x: a.x, y: a.y, z: a.z };
+      // Everything the user is shown is worked out in the frame they are looking
+      // at, so a screen that has turned under them does not flip left and right.
+      const view = toViewFrame(device, currentScreenAngle());
+
+      history.current = smooth(history.current, gravityToTilt(view));
+      setRaw(averageTilt(history.current));
+
+      setMode((current) => detectMode(view, current));
+      setGview(view);
     };
     window.addEventListener("deviceorientation", onOrient, true);
     window.addEventListener("devicemotion", onMotion, true);
@@ -120,8 +169,33 @@ export default function LevelPage() {
   const live = applyCalibration(raw, calibration);
   const tilt = held ?? live;
   const total = totalTilt(tilt);
-  const level = isLevel(tilt);
+  const surfaceLevel = isLevel(tilt);
   const direction = slopeDirection(tilt);
+
+  // Everything about the edge view comes off one gravity vector, live or held.
+  const gShown = heldEdge ?? gview;
+  const edgeShown = gShown ? edgeAngle(gShown) : 0;
+  const beam = gShown ? edgeBeamAngle(gShown) : 0;
+  const plumb = gShown ? plumbAngle(gShown) : 0;
+  const restsOn: RestingEdge = gShown ? restingEdge(gShown) : "bottom";
+  const low = gShown ? lowSide(gShown) : null;
+  const bubble = gShown ? edgeBubble(gShown) : 0;
+  const edgeLevel = Math.abs(edgeShown) <= LEVEL_TOLERANCE_DEG;
+
+  const onEdge = mode === "edge";
+  const level = onEdge ? edgeLevel : surfaceLevel;
+  const position = positionOf(mode, restsOn);
+  const frozen = onEdge ? heldEdge !== null : held !== null;
+
+  // A short buzz the moment it comes level, so the surface can be watched
+  // instead of the screen while the last shim goes in.
+  const wasLevel = useRef(false);
+  useEffect(() => {
+    if (level && !wasLevel.current && buzz && !frozen) {
+      navigator.vibrate?.(35);
+    }
+    wasLevel.current = level;
+  }, [level, buzz, frozen]);
 
   const calibrate = () => {
     setCalibration(raw);
@@ -139,14 +213,6 @@ export default function LevelPage() {
       /* nothing to clear */
     }
   };
-
-  const edgeShown = heldEdge ?? edge;
-  const edgeLevel = Math.abs(edgeShown) <= 0.15;
-
-  // Rolls downhill, both axes the same way round. Pinned at the rim so it stays in view.
-  const ball = ballOffset(tilt);
-  const bubbleX = ball.x * 42;
-  const bubbleY = ball.y * 42;
 
   return (
     <div className="space-y-5 animate-fade-in max-w-3xl mx-auto">
@@ -169,8 +235,11 @@ export default function LevelPage() {
             </p>
           ) : (
             <>
-              <p className="text-sm text-gray-400 mb-4">
-                Lay the phone on the surface you want to check.
+              <p className="text-sm text-gray-400 mb-1">
+                Lay the phone on the surface, or stand it on any edge.
+              </p>
+              <p className="text-xs text-gray-600 mb-4">
+                It reads flat, on end, and on its side — and switches by itself.
               </p>
               <button
                 onClick={start}
@@ -186,41 +255,81 @@ export default function LevelPage() {
         </Card>
       ) : (
         <>
-          <Card variant="solid" padding="md" className="border-dark-600">
-            {mode === "surface" ? (
-              <>
-                <div className="flex flex-col items-center py-2">
+          {/* Which of the three positions is live */}
+          <Card variant="solid" padding="sm" className="border-dark-600">
+            <div className="grid grid-cols-3 gap-1.5">
+              {POSITIONS.map((p) => {
+                const active = position === p.id;
+                return (
                   <div
-                    className={`relative h-56 w-56 rounded-full border-2 transition-colors ${
-                      level
-                        ? "border-accent-green/70 bg-accent-green/[0.06]"
-                        : "border-dark-600 bg-dark-900/60"
+                    key={p.id}
+                    className={`rounded-xl border px-2 py-2 text-center transition-colors ${
+                      active
+                        ? "border-accent-cyan/40 bg-accent-cyan/10"
+                        : "border-dark-700 bg-dark-900/40"
                     }`}
                   >
-                    <div className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dark-500" />
-                    <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-dark-600" />
-                    <div className="absolute top-1/2 left-0 w-full h-px -translate-y-1/2 bg-dark-600" />
-                    <div
-                      className={`absolute left-1/2 top-1/2 h-12 w-12 rounded-full transition-transform ${
-                        level ? "bg-accent-green/70" : "bg-accent-cyan/70"
-                      }`}
-                      style={{
-                        transform: `translate(calc(-50% + ${bubbleX}%), calc(-50% + ${bubbleY}%))`,
-                      }}
-                    />
+                    <p
+                      className={`text-[11px] font-bold ${active ? "text-accent-cyan" : "text-gray-600"}`}
+                    >
+                      {p.label}
+                    </p>
+                    <p
+                      className={`mt-0.5 text-[9px] leading-tight ${active ? "text-gray-400" : "text-gray-700"}`}
+                    >
+                      {p.hint}
+                    </p>
                   </div>
-                  <p
-                    className={`mt-5 font-mono text-4xl ${level ? "text-accent-green" : "text-white"}`}
-                  >
-                    {formatSlope(total, unit)}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {level ? "Level" : `falls towards ${direction.toFixed(0)}°`}
-                    {held && " · held"}
-                  </p>
-                </div>
+                );
+              })}
+            </div>
+          </Card>
 
-                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-dark-700 pt-4">
+          <Card variant="solid" padding="md" className="border-dark-600">
+            <div className="flex flex-col items-center py-2">
+              {onEdge ? (
+                <EdgeVial beamAngle={beam} bubble={bubble} level={edgeLevel} />
+              ) : (
+                <BullseyeVial tilt={tilt} level={surfaceLevel} />
+              )}
+
+              <p
+                className={`mt-5 font-mono text-5xl tabular-nums ${
+                  level ? "text-accent-green" : "text-white"
+                }`}
+              >
+                {formatSlope(onEdge ? Math.abs(edgeShown) : total, unit)}
+              </p>
+
+              <p className="mt-1.5 text-xs text-gray-500 text-center">
+                {onEdge ? (
+                  <>
+                    {edgeLevel ? "Level" : low ? LOW_PHRASE[low] : "off level"}
+                    {" · "}
+                    {EDGE_PHRASE[restsOn]}
+                  </>
+                ) : (
+                  <>{surfaceLevel ? "Level" : `falls towards ${direction.toFixed(0)}°`}</>
+                )}
+                {frozen && " · held"}
+              </p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-dark-700 pt-4">
+              {onEdge ? (
+                <>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Off level</p>
+                    <p className="font-mono text-lg text-white">{formatSlope(edgeShown, unit)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Off plumb</p>
+                    <p className="font-mono text-lg text-white">{formatSlope(plumb, unit)}</p>
+                    <p className="text-[9px] text-gray-600">how far the face leans from upright</p>
+                  </div>
+                </>
+              ) : (
+                <>
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-gray-500">
                       Front · back
@@ -233,72 +342,12 @@ export default function LevelPage() {
                     </p>
                     <p className="font-mono text-lg text-white">{formatSlope(tilt.roll, unit)}</p>
                   </div>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Stood on an edge, only the angle in the screen plane means anything,
-                    so a seesaw beam replaces the bubble. */}
-                <div className="flex flex-col items-center py-4">
-                  <svg
-                    viewBox="0 0 240 150"
-                    className="w-full max-w-sm"
-                    role="img"
-                    aria-label="Edge level beam"
-                  >
-                    <line
-                      x1="14"
-                      y1="118"
-                      x2="226"
-                      y2="118"
-                      stroke="#8b93a7"
-                      strokeWidth="1"
-                      strokeDasharray="6 4"
-                    />
-                    <g transform={`rotate(${Math.max(-35, Math.min(35, edgeShown))} 120 92)`}>
-                      <rect
-                        x="26"
-                        y="84"
-                        width="188"
-                        height="16"
-                        rx="8"
-                        fill={edgeLevel ? "rgba(34,197,94,0.22)" : "rgba(0,212,255,0.18)"}
-                        stroke={edgeLevel ? "#22c55e" : "#00d4ff"}
-                        strokeWidth="2"
-                      />
-                      <circle cx="120" cy="92" r="5" fill={edgeLevel ? "#22c55e" : "#00d4ff"} />
-                    </g>
-                    <polygon points="120,92 134,124 106,124" fill="#8b93a7" opacity="0.5" />
-                  </svg>
-                  <p
-                    className={`mt-4 font-mono text-4xl ${edgeLevel ? "text-accent-green" : "text-white"}`}
-                  >
-                    {formatSlope(Math.abs(edgeShown), unit)}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {edgeLevel ? "Level" : `${edgeShown > 0 ? "right" : "left"} side low`}
-                    {" · on its "}
-                    {heldOn === "portrait" ? "short edge" : "long edge"}
-                    {heldEdge !== null && " · held"}
-                  </p>
-                </div>
+                </>
+              )}
+            </div>
 
-                <div className="mt-2 grid grid-cols-2 gap-3 border-t border-dark-700 pt-4">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Off level</p>
-                    <p className="font-mono text-lg text-white">{formatSlope(edgeShown, unit)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Off plumb</p>
-                    <p className="font-mono text-lg text-white">{formatSlope(plumb, unit)}</p>
-                  </div>
-                </div>
-              </>
-            )}
             <p className="mt-3 text-center text-[10px] text-gray-600">
-              {mode === "surface"
-                ? "Lying flat — both axes. Stand it on an edge to switch."
-                : "Standing on an edge — one axis, portrait or landscape. Lay it flat to switch back."}
+              The bubble climbs to the high side, the same as the level in your toolbox.
             </p>
           </Card>
 
@@ -322,17 +371,13 @@ export default function LevelPage() {
             <div className="flex flex-wrap gap-2 pt-1">
               <button
                 onClick={() => {
-                  if (mode === "edge") setHeldEdge(heldEdge === null ? edge : null);
+                  if (onEdge) setHeldEdge(heldEdge === null ? gview : null);
                   else setHeld(held ? null : live);
                 }}
                 className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:text-white"
               >
-                {(mode === "edge" ? heldEdge !== null : held !== null) ? (
-                  <Play size={13} />
-                ) : (
-                  <Pause size={13} />
-                )}
-                {(mode === "edge" ? heldEdge !== null : held !== null) ? "Resume" : "Hold reading"}
+                {frozen ? <Play size={13} /> : <Pause size={13} />}
+                {frozen ? "Resume" : "Hold reading"}
               </button>
               <button
                 onClick={calibrate}
@@ -345,6 +390,18 @@ export default function LevelPage() {
                 className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-400 hover:text-white"
               >
                 <RotateCcw size={13} /> Clear zero
+              </button>
+              <button
+                onClick={() => setBuzz(!buzz)}
+                aria-pressed={buzz}
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                  buzz
+                    ? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+                    : "border-white/[0.08] bg-white/[0.04] text-gray-400 hover:text-white"
+                }`}
+              >
+                {buzz ? <Vibrate size={13} /> : <VibrateOff size={13} />}
+                Buzz on level
               </button>
             </div>
             <p className="text-[10px] text-gray-600 leading-relaxed">

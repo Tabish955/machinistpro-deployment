@@ -14,6 +14,7 @@ import {
   gravityToTilt,
   edgeOrientation,
   ballOffset,
+  type Tilt,
 } from "./level";
 
 describe("level", () => {
@@ -51,9 +52,30 @@ describe("level", () => {
 
   it("reports which way the surface falls", () => {
     expect(slopeDirection({ pitch: 0, roll: 0 })).toBe(0);
-    expect(slopeDirection({ pitch: 1, roll: 0 })).toBeCloseTo(0, 1);
+    // Nose up raises the far edge, so the fall is back towards the user.
+    expect(slopeDirection({ pitch: 1, roll: 0 })).toBeCloseTo(180, 1);
+    expect(slopeDirection({ pitch: -1, roll: 0 })).toBeCloseTo(0, 1);
     expect(slopeDirection({ pitch: 0, roll: 1 })).toBeCloseTo(90, 1);
-    expect(slopeDirection({ pitch: -1, roll: 0 })).toBeCloseTo(180, 1);
+    expect(slopeDirection({ pitch: 0, roll: -1 })).toBeCloseTo(270, 1);
+  });
+
+  it("points the same way the bubble says the ground is", () => {
+    // The arrow and the vial must never contradict each other. The low side on
+    // screen is where the ball rolls: x from roll, y from pitch, y downward.
+    const cases: Tilt[] = [
+      { pitch: 2, roll: 0 },
+      { pitch: -2, roll: 0 },
+      { pitch: 0, roll: 2 },
+      { pitch: 0, roll: -2 },
+      { pitch: 1.5, roll: 1.5 },
+      { pitch: -1.5, roll: 2.5 },
+    ];
+    for (const tilt of cases) {
+      const ball = ballOffset(tilt);
+      // Screen bearing of the low side, clockwise from the top of the screen.
+      const bearing = ((((Math.atan2(ball.x, -ball.y) * 180) / Math.PI) % 360) + 360) % 360;
+      expect(slopeDirection(tilt)).toBeCloseTo(bearing, 1);
+    }
   });
 
   it("expresses a slope the way the trade does", () => {
