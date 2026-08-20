@@ -622,3 +622,129 @@ html.light .cursor-dot,
 html.light .cursor-ring {
   mix-blend-mode: normal;
 }
+
+/* ─── Print ───────────────────────────────────────────────────────────────────
+   The app is dark, and a browser does not print background colours by default.
+   Sent to a printer as it stands, a dark page becomes white paper carrying
+   white text — the blank sheet people describe — with the sidebar, header and
+   bottom bar shovelled in beside it.
+
+   So printing is treated as its own medium rather than a screenshot: everything
+   is hidden, the report alone is made visible and lifted to the top of the page,
+   and its colours are forced back to ink on paper. `visibility` is what does the
+   hiding, because unlike `display:none` it leaves the report's ancestors in
+   place — the element stays where the layout put it instead of collapsing. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    height: auto !important;
+    overflow: visible !important;
+    cursor: auto !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  /* An ancestor still carrying a transform becomes the containing block for the
+     absolutely-positioned sheet below, which would start it partway down the
+     page instead of at the corner. The fade-in wrappers finish on
+     translateY(0) — not "none" — so they have to be cleared explicitly, along
+     with animations that would otherwise be captured mid-flight. */
+  body *,
+  body *::before,
+  body *::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .print-document,
+  .print-document * {
+    visibility: visible;
+  }
+
+  .print-document {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+
+  /* Whatever the screen theme was, the sheet is ink on paper. Card surfaces,
+     glass borders and the muted greys all have to be neutralised or they print
+     as grey slabs and unreadably pale text. */
+  .print-document *,
+  .print-document *::before,
+  .print-document *::after {
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    color: #000 !important;
+    border-color: #9aa0aa !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Anything that only made sense on screen. */
+  .print-hide,
+  .cursor-dot,
+  .cursor-ring {
+    display: none !important;
+  }
+
+  .print-document .rule {
+    border-color: #333 !important;
+  }
+
+  /* Keep a table's header on every page it spills onto, and never break a row
+     or a calculation block across the fold. */
+  .print-document thead {
+    display: table-header-group;
+  }
+  .print-document tr,
+  .print-document .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .print-document .page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-document table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .print-document th,
+  .print-document td {
+    border: 1px solid #9aa0aa !important;
+    padding: 4px 6px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .print-document th {
+    font-weight: 700;
+    /* The one place a fill earns its ink: it separates heading from data. */
+    background: #eceff3 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-document a[href]::after {
+    content: "";
+  }
+}

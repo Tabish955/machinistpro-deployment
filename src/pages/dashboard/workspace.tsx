@@ -1,6 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { TEMPLATES, type Project, type ProjectVar, type SavedCalc } from "@/lib/workspace";
+import { projectToCSV, parseProjectJSON, fileStem } from "@/lib/workspace/report";
+import { ProjectReport, type ReportSections } from "@/components/workspace/project-report";
+import { AddFromHistory } from "@/components/workspace/add-from-history";
+import { toast } from "@/store/toast-store";
 import { relativeTime } from "@/lib/core/history";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -23,7 +27,19 @@ import {
   Printer,
   ArrowLeft,
   MoreHorizontal,
+  Upload,
+  Sheet,
 } from "lucide-react";
+
+/** Hand a generated file to the browser as a download. */
+function download(filename: string, body: string, mime: string) {
+  const url = URL.createObjectURL(new Blob([body], { type: mime }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /* ═══ Helpers ════════════════════════════════════════════════════════════════ */
 
@@ -57,10 +73,30 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
   const [newVarVal, setNewVarVal] = useState("");
   const [newVarUnit, setNewVarUnit] = useState("");
   const [notes, setNotes] = useState(project.notes);
+  const [company, setCompany] = useState(project.company ?? "");
+  const [revision, setRevision] = useState(project.revision ?? "A");
+  const [preparedBy, setPreparedBy] = useState(project.preparedBy ?? "");
+  const [checkedBy, setCheckedBy] = useState(project.checkedBy ?? "");
+  const [showAddCalc, setShowAddCalc] = useState(false);
+  const [sections, setSections] = useState<ReportSections>({
+    variables: true,
+    calculations: true,
+    notes: true,
+    signature: true,
+  });
   const [notesDirty, setNotesDirty] = useState(false);
 
   const saveInfo = () => {
-    updateProject(project.id, { name, client, jobNumber: jobNum, description: desc });
+    updateProject(project.id, {
+      name,
+      client,
+      jobNumber: jobNum,
+      description: desc,
+      company,
+      revision,
+      preparedBy,
+      checkedBy,
+    });
     setEditing(false);
   };
 
@@ -78,17 +114,30 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
   };
 
   const handleExport = () => {
-    const data = JSON.stringify(project, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${project.name.replace(/\s+/g, "_")}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    download(
+      `${fileStem(project.name)}.json`,
+      JSON.stringify(project, null, 2),
+      "application/json",
+    );
   };
 
+  const handleCSV = () => {
+    download(`${fileStem(project.name)}.csv`, projectToCSV(project), "text/csv;charset=utf-8");
+  };
+
+  /**
+   * Printing has to show the Report first. The print stylesheet lifts whichever
+   * element carries `print-document` onto the paper, and that element only
+   * exists while the Report tab is open — printing from the Notes tab used to
+   * put a textarea on the page.
+   */
   const handlePrint = () => {
+    if (tab !== "report") {
+      setTab("report");
+      // Let the report mount before the print dialog freezes the page.
+      requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+      return;
+    }
     window.print();
   };
 
@@ -174,6 +223,50 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase text-gray-500 font-semibold block mb-1">
+                    Company / Shop
+                  </label>
+                  <input
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder="Appears on the sheet"
+                    className="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white placeholder:text-gray-700 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-gray-500 font-semibold block mb-1">
+                    Revision
+                  </label>
+                  <input
+                    value={revision}
+                    onChange={(e) => setRevision(e.target.value)}
+                    placeholder="A"
+                    className="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white placeholder:text-gray-700 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-gray-500 font-semibold block mb-1">
+                    Prepared by
+                  </label>
+                  <input
+                    value={preparedBy}
+                    onChange={(e) => setPreparedBy(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-gray-500 font-semibold block mb-1">
+                    Checked by
+                  </label>
+                  <input
+                    value={checkedBy}
+                    onChange={(e) => setCheckedBy(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:outline-none"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="text-[10px] uppercase text-gray-500 font-semibold block mb-1">
                   Description
@@ -245,12 +338,27 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
       {/* Calculations */}
       {tab === "calcs" && (
         <div className="space-y-2">
+          <button
+            onClick={() => setShowAddCalc((v) => !v)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 py-2.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20 cursor-pointer"
+          >
+            <Plus size={14} /> Add calculation from history
+          </button>
+
+          {showAddCalc && (
+            <AddFromHistory
+              project={project}
+              onAdd={(calc) => addCalcToProject(project.id, calc)}
+              onClose={() => setShowAddCalc(false)}
+            />
+          )}
+
           {project.calculations.length === 0 ? (
             <Card variant="solid" padding="md" className="border-dark-600 text-center py-8">
               <Calculator size={28} className="text-dark-500 mx-auto mb-2" />
               <p className="text-sm text-gray-500">No calculations saved</p>
               <p className="text-[10px] text-gray-700 mt-1">
-                Use any calculator and save results to this project
+                Work anything out in a calculator, then add it here from history
               </p>
             </Card>
           ) : (
@@ -370,100 +478,61 @@ function ProjectDetail({ project, onBack }: { project: Project; onBack: () => vo
 
       {/* Report */}
       {tab === "report" && (
-        <div className="space-y-4 print:space-y-2" id="project-report">
-          <Card
-            variant="solid"
-            padding="lg"
-            className="border-dark-600 print:border print:border-gray-300"
-          >
-            <div className="text-center mb-6 print:mb-4">
-              <h1 className="text-2xl font-bold text-white print:text-black">Engineering Report</h1>
-              <p className="text-sm text-gray-500 print:text-gray-600 mt-1">{project.name}</p>
+        <div className="space-y-3">
+          {/* Controls. print-hide keeps them off the paper. */}
+          <Card variant="solid" padding="md" className="border-dark-600 print-hide">
+            <SectionHeader title="Sheet contents" />
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  ["variables", "Parameters"],
+                  ["calculations", "Calculations"],
+                  ["notes", "Notes"],
+                  ["signature", "Sign-off"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setSections((s0) => ({ ...s0, [key]: !s0[key] }))}
+                  aria-pressed={sections[key]}
+                  className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+                    sections[key]
+                      ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
+                      : "bg-dark-700/50 text-gray-500 border border-dark-600 hover:text-white"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm print:text-black">
-              <div>
-                <span className="text-gray-500 print:text-gray-600 text-xs block">Project</span>
-                <span className="text-white print:text-black font-medium">{project.name}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 print:text-gray-600 text-xs block">Client</span>
-                <span className="text-white print:text-black font-medium">
-                  {project.client || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-500 print:text-gray-600 text-xs block">Job Number</span>
-                <span className="text-white print:text-black font-medium">
-                  {project.jobNumber || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-500 print:text-gray-600 text-xs block">Date</span>
-                <span className="text-white print:text-black font-medium">
-                  {fmtDate(project.updatedAt)}
-                </span>
-              </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 rounded-xl bg-accent-cyan/10 px-4 py-2.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20 cursor-pointer"
+              >
+                <Printer size={14} /> Print / Save as PDF
+              </button>
+              <button
+                onClick={handleCSV}
+                className="flex items-center gap-2 rounded-xl bg-dark-700 px-4 py-2.5 text-xs font-semibold text-gray-400 hover:text-white cursor-pointer"
+              >
+                <Sheet size={14} /> Export CSV
+              </button>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 rounded-xl bg-dark-700 px-4 py-2.5 text-xs font-semibold text-gray-400 hover:text-white cursor-pointer"
+              >
+                <Download size={14} /> Export JSON
+              </button>
             </div>
-            {project.description && (
-              <p className="text-sm text-gray-400 print:text-gray-700 mt-4 border-t border-dark-700 print:border-gray-300 pt-3">
-                {project.description}
-              </p>
-            )}
+            <p className="mt-2 text-[10px] text-gray-600">
+              In the print dialog choose &ldquo;Save as PDF&rdquo; as the destination to get a file
+              you can send.
+            </p>
           </Card>
 
-          {project.variables.length > 0 && (
-            <Card variant="solid" padding="md" className="border-dark-600">
-              <SectionHeader title="Project Variables" />
-              {project.variables.map((v) => (
-                <div
-                  key={v.id}
-                  className="flex justify-between py-1.5 border-b border-dark-700/50 last:border-0 text-sm"
-                >
-                  <span className="text-gray-500 print:text-gray-600">{v.name}</span>
-                  <span className="text-white print:text-black font-mono">
-                    {v.value} {v.unit}
-                  </span>
-                </div>
-              ))}
-            </Card>
-          )}
-
-          {project.calculations.length > 0 && (
-            <Card variant="solid" padding="md" className="border-dark-600">
-              <SectionHeader title="Calculations" />
-              {project.calculations.map((c) => (
-                <div key={c.id} className="py-2 border-b border-dark-700/50 last:border-0">
-                  <p className="text-sm font-medium text-white print:text-black">{c.title}</p>
-                  <p className="text-[10px] text-gray-600">{c.moduleLabel}</p>
-                  <div className="flex flex-wrap gap-3 mt-1">
-                    {Object.entries(c.outputs).map(([k, v]) => (
-                      <span key={k} className="text-xs font-mono text-gray-400 print:text-gray-700">
-                        {k} = {v}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </Card>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              onClick={handleExport}
-              className="flex-1 py-2.5 rounded-xl bg-dark-700 text-sm text-gray-400 hover:text-white cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Download size={14} /> Export JSON
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex-1 py-2.5 rounded-xl bg-accent-cyan/10 text-sm text-accent-cyan cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Printer size={14} /> Print Report
-            </button>
-          </div>
-          <p className="text-center text-[10px] text-gray-700">
-            Generated by MachinistPro · {fmtDate(Date.now())}
-          </p>
+          <ProjectReport project={project} sections={sections} />
         </div>
       )}
     </div>
@@ -482,8 +551,25 @@ export default function WorkspacePage() {
     duplicateProject,
     getActiveProjects,
     getPinnedProjects,
+    importProject,
   } = useWorkspaceStore();
   const [query, setQuery] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  /**
+   * Read an exported project back in. Export on its own is a backup that can
+   * never be restored, and it is also how a job gets passed between two people.
+   */
+  const handleImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    const result = parseProjectJSON(await file.text());
+    if (!result.ok || !result.project) {
+      toast.error("Could not import that file", result.error);
+      return;
+    }
+    importProject(result.project);
+    toast.success("Project imported", result.project.name);
+  };
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [templateId, setTemplateId] = useState<string>("");
@@ -534,12 +620,30 @@ export default function WorkspacePage() {
         iconColor="cyan"
         status="available"
         actions={
-          <button
-            onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-cyan/20 text-accent-cyan text-xs font-semibold cursor-pointer hover:bg-accent-cyan/30 transition-all"
-          >
-            <Plus size={14} /> New Project
-          </button>
+          <div className="flex gap-2">
+            <input
+              ref={fileInput}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                void handleImportFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => fileInput.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-700 text-gray-400 text-xs font-semibold cursor-pointer hover:text-white transition-all"
+            >
+              <Upload size={14} /> Import
+            </button>
+            <button
+              onClick={() => setShowNew(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-cyan/20 text-accent-cyan text-xs font-semibold cursor-pointer hover:bg-accent-cyan/30 transition-all"
+            >
+              <Plus size={14} /> New Project
+            </button>
+          </div>
         }
       />
 
