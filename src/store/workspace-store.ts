@@ -26,6 +26,9 @@ interface WorkspaceStore {
   // Notes
   updateNotes: (projectId: string, notes: string) => void;
 
+  // Import
+  importProject: (project: Project) => string;
+
   // Query helpers
   getProject: (id: string) => Project | undefined;
   getActiveProjects: () => Project[];
@@ -165,6 +168,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         });
       },
 
+      importProject: (project) => {
+        set({ projects: [project, ...get().projects] });
+        return project.id;
+      },
+
       getProject: (id) => get().projects.find((p) => p.id === id),
       getActiveProjects: () => get().projects.filter((p) => !p.isArchived),
       getArchivedProjects: () => get().projects.filter((p) => p.isArchived),
@@ -172,6 +180,26 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "machinist-pro-workspace",
+      version: 1,
+      // Projects saved before the title block existed have no company, revision
+      // or sign-off names. The report reads those fields straight out, so they
+      // are filled in on load rather than left undefined to surface as "undefined"
+      // on a printed sheet.
+      migrate: (persisted, version) => {
+        const state = persisted as { projects?: Project[] } | undefined;
+        if (!state?.projects) return { projects: [] } as unknown as WorkspaceStore;
+        if (version >= 1) return state as unknown as WorkspaceStore;
+        return {
+          ...state,
+          projects: state.projects.map((p) => ({
+            ...p,
+            company: p.company ?? "",
+            revision: p.revision ?? "A",
+            preparedBy: p.preparedBy ?? "",
+            checkedBy: p.checkedBy ?? "",
+          })),
+        } as unknown as WorkspaceStore;
+      },
     },
   ),
 );

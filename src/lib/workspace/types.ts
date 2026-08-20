@@ -4,6 +4,12 @@ export interface Project {
   client: string;
   jobNumber: string;
   description: string;
+  /** Title-block fields. An engineering sheet is not worth much without a
+   *  revision and a name against it, so they travel with the project. */
+  company: string;
+  revision: string;
+  preparedBy: string;
+  checkedBy: string;
   tags: string[];
   createdAt: number;
   updatedAt: number;
@@ -112,6 +118,10 @@ export function createProject(name: string, template?: ProjectTemplate): Project
     client: "",
     jobNumber: "",
     description: template?.description || "",
+    company: "",
+    revision: "A",
+    preparedBy: "",
+    checkedBy: "",
     tags: template?.tags || [],
     createdAt: now,
     updatedAt: now,
