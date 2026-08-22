@@ -13,8 +13,8 @@ export interface CategoryDef {
   icon: string; // lucide icon name
   baseUnit: string; // id of the base unit
   units: UnitDef[];
-  group:
-    "basic" | "engineering" | "electrical" | "computing" | "fluid" | "chemistry" | "construction";
+  /** Which heading the category is filed under on the picker. */
+  group: "common" | "mechanical" | "fluid" | "electrical" | "computing" | "other";
 }
 
 export interface ConversionResult {

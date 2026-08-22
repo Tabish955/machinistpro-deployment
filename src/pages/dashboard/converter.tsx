@@ -3,6 +3,8 @@ import {
   ALL_CATEGORIES,
   CATEGORY_MAP,
   GROUP_LABELS,
+  GROUP_ORDER,
+  searchUnits,
   convert,
   formatValue,
   type CategoryDef,
@@ -34,6 +36,19 @@ function CategoryGrid({ onSelect }: { onSelect: (cat: CategoryDef) => void }) {
   const [filterText, setFilterText] = useState("");
   const { favoriteCategories, toggleFavoriteCategory } = useConverterStore();
 
+  /**
+   * Units matching what was typed, best first.
+   *
+   * `searchUnits` was written, scored and exported, and then nothing ever called
+   * it — the page filtered categories inline instead. So typing "psi" told you
+   * Pressure contained something, but not what, and you still had to go and find
+   * it. Now the unit itself is offered and picking one opens its category.
+   */
+  const unitHits = useMemo(
+    () => (filterText.trim().length >= 2 ? searchUnits(filterText, 8) : []),
+    [filterText],
+  );
+
   const groups = useMemo(() => {
     const q = filterText.toLowerCase();
     const filtered = q
@@ -54,10 +69,10 @@ function CategoryGrid({ onSelect }: { onSelect: (cat: CategoryDef) => void }) {
     const favs = filtered.filter((c) => favoriteCategories.includes(c.id));
     if (favs.length > 0) map.set("favorites", favs);
 
-    for (const c of filtered) {
-      const arr = map.get(c.group) ?? [];
-      arr.push(c);
-      map.set(c.group, arr);
+    // Fixed order, so adding a category cannot silently reshuffle the page.
+    for (const group of GROUP_ORDER) {
+      const inGroup = filtered.filter((c) => c.group === group);
+      if (inGroup.length > 0) map.set(group, inGroup);
     }
     return map;
   }, [filterText, favoriteCategories]);
@@ -83,40 +98,74 @@ function CategoryGrid({ onSelect }: { onSelect: (cat: CategoryDef) => void }) {
         )}
       </div>
 
+      {/* Matching units — the answer to "which category is psi in?" */}
+      {unitHits.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2 px-1">
+            Matching units
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {unitHits.map(({ category, unit }) => (
+              <button
+                key={`${category.id}-${unit.id}`}
+                onClick={() => onSelect(category)}
+                className="flex items-center justify-between gap-2 rounded-xl border border-dark-700 bg-dark-800/60 p-3 text-left transition-all hover:border-accent-cyan/40 hover:bg-dark-800 cursor-pointer"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm text-white">
+                    {unit.name} <span className="text-gray-500">({unit.symbol})</span>
+                  </span>
+                  <span className="block text-[10px] text-gray-600">in {category.name}</span>
+                </span>
+                <ChevronDown size={14} className="-rotate-90 shrink-0 text-gray-600" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {Array.from(groups.entries()).map(([group, cats]) => (
         <div key={group}>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2 px-1">
             {group === "favorites" ? "★ Favorites" : (GROUP_LABELS[group] ?? group)}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {cats.map((cat) => (
-              <button
-                key={`${cat.id}-${group}`}
-                onClick={() => onSelect(cat)}
-                className="group relative text-left p-3 rounded-xl border bg-dark-800/60 border-dark-700 text-gray-300 hover:border-dark-500 hover:bg-dark-800 transition-all cursor-pointer"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold truncate">{cat.name}</span>
+            {cats.map((cat) => {
+              const isFav = favoriteCategories.includes(cat.id);
+              return (
+                // The star used to be a button inside the card's button. Nesting
+                // one inside the other is invalid HTML, and React said so on
+                // every render — so they are siblings now, the star laid over
+                // the corner, and the card keeps the whole area clickable.
+                <div
+                  key={`${cat.id}-${group}`}
+                  className="group relative rounded-xl border bg-dark-800/60 border-dark-700 hover:border-dark-500 hover:bg-dark-800 transition-all"
+                >
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavoriteCategory(cat.id);
-                    }}
-                    className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    onClick={() => onSelect(cat)}
+                    className="w-full text-left p-3 pr-8 text-gray-300 cursor-pointer"
+                  >
+                    <span className="block text-sm font-semibold truncate mb-1">{cat.name}</span>
+                    <span className="block text-[10px] text-gray-600">
+                      {cat.units.length} units
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => toggleFavoriteCategory(cat.id)}
+                    aria-label={isFav ? `Unpin ${cat.name}` : `Pin ${cat.name}`}
+                    aria-pressed={isFav}
+                    className={`absolute top-2 right-2 p-1 rounded-md transition-opacity cursor-pointer ${
+                      isFav ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    }`}
                   >
                     <Star
                       size={12}
-                      className={
-                        favoriteCategories.includes(cat.id)
-                          ? "text-accent-amber fill-accent-amber"
-                          : "text-gray-600"
-                      }
+                      className={isFav ? "text-accent-amber fill-accent-amber" : "text-gray-600"}
                     />
                   </button>
                 </div>
-                <span className="text-[10px] text-gray-600">{cat.units.length} units</span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

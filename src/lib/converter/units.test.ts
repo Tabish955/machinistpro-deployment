@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_CATEGORIES, CATEGORY_MAP } from "./units";
+import { ALL_CATEGORIES, CATEGORY_MAP, GROUP_ORDER, GROUP_LABELS } from "./units";
 import type { UnitDef } from "./types";
 
 const unit = (catId: string, unitId: string): UnitDef => {
@@ -95,6 +95,58 @@ describe("converter factors", () => {
     for (const c of ALL_CATEGORIES) {
       const ids = c.units.map((u) => u.id);
       expect(new Set(ids).size, `${c.id} has duplicate unit ids`).toBe(ids.length);
+    }
+  });
+
+  it("treats fuel economy as a reciprocal, not a factor", () => {
+    // km/L is distance per volume; L/100km is volume per distance. One is the
+    // reciprocal of the other, and as a plain multiplier this read 10 km/L as
+    // 1000 L/100km — a hundred times out, and the wrong relationship entirely.
+    expect(conv("fuelconsumption", "kml", "lp100km", 10)).toBeCloseTo(10, 6);
+    expect(conv("fuelconsumption", "lp100km", "kml", 8)).toBeCloseTo(12.5, 6);
+    // Halving the economy doubles the consumption; a factor would keep them in step.
+    expect(conv("fuelconsumption", "kml", "lp100km", 5)).toBeCloseTo(20, 6);
+    expect(conv("fuelconsumption", "kml", "mpgUS", 10)).toBeCloseTo(23.5215, 3);
+    expect(conv("fuelconsumption", "mpgUS", "kml", 30)).toBeCloseTo(12.7543, 3);
+  });
+
+  it("keeps pressure and stress as one set of units", () => {
+    // They are the same dimension, and were two categories carrying the same
+    // units twice with no way to tell which to pick.
+    const ids = ALL_CATEGORIES.map((cat) => cat.id);
+    expect(ids).toContain("pressure");
+    expect(ids).not.toContain("stress");
+    // The units only the stress list had came across.
+    expect(conv("pressure", "Nmm2", "MPa", 1)).toBeCloseTo(1, 9);
+    expect(conv("pressure", "kgfcm2", "Pa", 1)).toBeCloseTo(98066.5, 6);
+    expect(conv("pressure", "ksi", "MPa", 1)).toBeCloseTo(6.894757, 6);
+  });
+});
+
+describe("how the categories are filed", () => {
+  it("files every category under a group the picker knows", () => {
+    for (const cat of ALL_CATEGORIES) {
+      expect(GROUP_ORDER).toContain(cat.group);
+      expect(GROUP_LABELS[cat.group]).toBeTruthy();
+    }
+  });
+
+  it("labels every group it offers to order", () => {
+    for (const g of GROUP_ORDER) expect(GROUP_LABELS[g]).toBeTruthy();
+  });
+
+  it("leaves no group empty", () => {
+    // Fluid, Chemistry and Construction were declared and labelled but held
+    // nothing, so the picker offered headings that could never appear.
+    for (const g of GROUP_ORDER) {
+      expect(ALL_CATEGORIES.filter((cat) => cat.group === g).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("does not pile everything into one heading", () => {
+    // Sixteen of the categories used to sit under a single "Basic" list.
+    for (const g of GROUP_ORDER) {
+      expect(ALL_CATEGORIES.filter((cat) => cat.group === g).length).toBeLessThanOrEqual(10);
     }
   });
 });
