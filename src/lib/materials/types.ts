@@ -90,6 +90,42 @@ export const KG_FACTOR: Record<WeightUnit, number> = {
   oz: 35.2739619,
 };
 
+// ── Volume unit ─────────────────────────────────────────────────────────────
+
+export type VolumeUnit = "mm3" | "cm3" | "m3" | "l" | "ml" | "in3" | "ft3" | "galUS" | "galImp";
+
+/**
+ * Multiply a volume in cubic metres by this to read it in the chosen unit.
+ *
+ * The weight could always be read in whichever unit suited the job while the
+ * volume was stuck in cubic millimetres — the one unit nobody quotes a tank or
+ * a coolant charge in. A litre of anything is 1,000,000 mm³, so the figure ran
+ * off into digits exactly when it mattered most.
+ */
+export const M3_FACTOR: Record<VolumeUnit, number> = {
+  mm3: 1e9,
+  cm3: 1e6,
+  m3: 1,
+  l: 1000,
+  ml: 1e6,
+  in3: 61023.7441,
+  ft3: 35.3146667,
+  galUS: 264.172052,
+  galImp: 219.969157,
+};
+
+export const VOLUME_UNIT_LABELS: Record<VolumeUnit, string> = {
+  mm3: "mm³",
+  cm3: "cm³",
+  m3: "m³",
+  l: "L",
+  ml: "mL",
+  in3: "in³",
+  ft3: "ft³",
+  galUS: "gal (US)",
+  galImp: "gal (imp)",
+};
+
 // ── Cost types ──────────────────────────────────────────────────────────────
 
 export interface CostInputs {

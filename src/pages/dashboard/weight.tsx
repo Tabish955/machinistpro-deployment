@@ -15,6 +15,10 @@ import {
   type DimUnit,
   type DimUnitChoice,
   type WeightUnit,
+  type VolumeUnit,
+  VOLUME_UNIT_LABELS,
+  autoVolumeUnit,
+  toVolumeUnit,
   type CostInputs,
   type MaterialCategory,
   type GaugeStandard,
@@ -313,6 +317,9 @@ export default function WeightPage() {
   const [dimUnit, setDimUnit] = useState<DimUnit>("mm");
   const [fieldUnits, setFieldUnits] = useState<Record<string, DimUnitChoice>>({});
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
+  // "auto" leaves the unit to the size of the thing, which is what stops a tank
+  // being quoted in millions of cubic millimetres. Picking one pins it.
+  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit | "auto">("auto");
 
   // Gauge means a different thickness in each material, so the table follows
   // the chosen material until the user says otherwise.
@@ -409,7 +416,9 @@ export default function WeightPage() {
   const qty = Math.max(1, parseInt(quantity) || 1);
   const totalDisplayWeight = result ? result.displayWeight * qty : 0;
   const totalWeightKg = result ? result.weight_kg * qty : 0;
-  const totalVolumeMm3 = result ? result.volume_m3 * 1e9 * qty : 0;
+  const shownVolumeM3 = result ? result.volume_m3 * (qty > 1 ? qty : 1) : 0;
+  const shownVolumeUnit: VolumeUnit =
+    volumeUnit === "auto" ? autoVolumeUnit(shownVolumeM3) : volumeUnit;
 
   // ── Grouped materials ──
   const materialGroups = useMemo(() => {
@@ -816,11 +825,33 @@ export default function WeightPage() {
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between py-1.5 border-b border-dark-700">
-                      <span className="text-gray-500">{qty > 1 ? "Volume (total)" : "Volume"}</span>
-                      <span className="text-gray-300 font-mono">
-                        {fmt(qty > 1 ? totalVolumeMm3 : result.volume_m3 * 1e9)} mm³
-                      </span>
+                    <div className="py-1.5 border-b border-dark-700">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">
+                          {qty > 1 ? "Volume (total)" : "Volume"}
+                        </span>
+                        <span className="text-gray-300 font-mono">
+                          {fmt(toVolumeUnit(shownVolumeM3, shownVolumeUnit))}{" "}
+                          <span className="text-gray-500">
+                            {VOLUME_UNIT_LABELS[shownVolumeUnit]}
+                          </span>
+                        </span>
+                      </div>
+                      <select
+                        value={volumeUnit}
+                        onChange={(e) => setVolumeUnit(e.target.value as VolumeUnit | "auto")}
+                        aria-label="Volume unit"
+                        className="mt-1.5 w-full rounded-lg border border-dark-700 bg-dark-900 px-2 py-1 text-[11px] text-gray-400 focus:border-accent-purple/50 focus:outline-none cursor-pointer"
+                      >
+                        <option value="auto">
+                          Auto — fits the size ({VOLUME_UNIT_LABELS[shownVolumeUnit]})
+                        </option>
+                        {(Object.keys(VOLUME_UNIT_LABELS) as VolumeUnit[]).map((u) => (
+                          <option key={u} value={u}>
+                            {VOLUME_UNIT_LABELS[u]}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-dark-700">
                       <span className="text-gray-500">
