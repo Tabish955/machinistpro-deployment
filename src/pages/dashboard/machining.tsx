@@ -1,4 +1,5 @@
 import { useState, useMemo, createContext, useContext } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
   MATERIALS,
   MATERIAL_MAP,
@@ -623,12 +624,12 @@ function CopyBtn({ text }: { text: string }) {
 
 // 1) RPM + Surface Speed combined
 function RPMCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
-  const [matId, setMatId] = useState("mild_steel");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.rpm.units", "metric");
+  const [matId, setMatId] = usePersistentState("machining.rpm.matId", "mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
-  const [op, setOp] = useState<Operation>("mill");
-  const [dia, setDia] = useState("");
-  const [csOverride, setCsOverride] = useState("");
+  const [op, setOp] = usePersistentState<Operation>("machining.rpm.op", "mill");
+  const [dia, setDia] = usePersistentState("machining.rpm.dia", "");
+  const [csOverride, setCsOverride] = usePersistentState("machining.rpm.csOverride", "");
 
   const isM = units === "metric";
   const {
@@ -707,13 +708,13 @@ function RPMCalc() {
 
 // 2) Feed Rate
 function FeedCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
-  const [op, setOp] = useState<Operation>("mill");
-  const [rpm, setRpm] = useState("");
-  const [teeth, setTeeth] = useState("4");
-  const [drillDia, setDrillDia] = useState("");
-  const [chipLoad, setChipLoad] = useState("");
-  const [matId, setMatId] = useState("mild_steel");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.feed.units", "metric");
+  const [op, setOp] = usePersistentState<Operation>("machining.feed.op", "mill");
+  const [rpm, setRpm] = usePersistentState("machining.feed.rpm", "");
+  const [teeth, setTeeth] = usePersistentState("machining.feed.teeth", "4");
+  const [drillDia, setDrillDia] = usePersistentState("machining.feed.drillDia", "");
+  const [chipLoad, setChipLoad] = usePersistentState("machining.feed.chipLoad", "");
+  const [matId, setMatId] = usePersistentState("machining.feed.matId", "mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
   const isM = units === "metric";
 
@@ -842,18 +843,18 @@ function FeedCalc() {
 
 // 3) Milling Calculator (combined)
 function MillingCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
-  const [matId, setMatId] = useState("mild_steel");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.mill.units", "metric");
+  const [matId, setMatId] = usePersistentState("machining.mill.matId", "mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
   const isM = units === "metric";
 
-  const [dia, setDia] = useState("");
-  const [teeth, setTeeth] = useState("4");
-  const [length, setLength] = useState("");
-  const [doc, setDoc] = useState("");
-  const [woc, setWoc] = useState("");
-  const [csOverride, setCsOverride] = useState("");
-  const [clOverride, setClOverride] = useState("");
+  const [dia, setDia] = usePersistentState("machining.mill.dia", "");
+  const [teeth, setTeeth] = usePersistentState("machining.mill.teeth", "4");
+  const [length, setLength] = usePersistentState("machining.mill.length", "");
+  const [doc, setDoc] = usePersistentState("machining.mill.doc", "");
+  const [woc, setWoc] = usePersistentState("machining.mill.woc", "");
+  const [csOverride, setCsOverride] = usePersistentState("machining.mill.csOverride", "");
+  const [clOverride, setClOverride] = usePersistentState("machining.mill.clOverride", "");
 
   const {
     band,
@@ -982,18 +983,18 @@ function MillingCalc() {
 
 // 4) Turning / Lathe
 function TurningCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
-  const [matId, setMatId] = useState("mild_steel");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.turn.units", "metric");
+  const [matId, setMatId] = usePersistentState("machining.turn.matId", "mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
   const isM = units === "metric";
 
-  const [dia, setDia] = useState("");
-  const [length, setLength] = useState("");
-  const [csOverride, setCsOverride] = useState("");
-  const [feedOverride, setFeedOverride] = useState("");
-  const [noseRadius, setNoseRadius] = useState("0.8");
-  const [depthOfCut, setDepthOfCut] = useState("");
-  const [finalDia, setFinalDia] = useState("");
+  const [dia, setDia] = usePersistentState("machining.turn.dia", "");
+  const [length, setLength] = usePersistentState("machining.turn.length", "");
+  const [csOverride, setCsOverride] = usePersistentState("machining.turn.csOverride", "");
+  const [feedOverride, setFeedOverride] = usePersistentState("machining.turn.feedOverride", "");
+  const [noseRadius, setNoseRadius] = usePersistentState("machining.turn.noseRadius", "0.8");
+  const [depthOfCut, setDepthOfCut] = usePersistentState("machining.turn.depthOfCut", "");
+  const [finalDia, setFinalDia] = usePersistentState("machining.turn.finalDia", "");
 
   const {
     band,
@@ -1164,16 +1165,16 @@ function TurningCalc() {
 
 // 5) Drilling
 function DrillCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
-  const [matId, setMatId] = useState("mild_steel");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.drill.units", "metric");
+  const [matId, setMatId] = usePersistentState("machining.drill.matId", "mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
   const isM = units === "metric";
 
-  const [dia, setDia] = useState("");
-  const [depth, setDepth] = useState("");
-  const [pointAngle, setPointAngle] = useState("118");
-  const [feedOverride, setFeedOverride] = useState("");
-  const [throughHole, setThroughHole] = useState(true);
+  const [dia, setDia] = usePersistentState("machining.drill.dia", "");
+  const [depth, setDepth] = usePersistentState("machining.drill.depth", "");
+  const [pointAngle, setPointAngle] = usePersistentState("machining.drill.pointAngle", "118");
+  const [feedOverride, setFeedOverride] = usePersistentState("machining.drill.feedOverride", "");
+  const [throughHole, setThroughHole] = usePersistentState("machining.drill.throughHole", true);
 
   const d = parseFloat(dia) || 0;
   const dep = parseFloat(depth) || 0;
@@ -1310,19 +1311,22 @@ function DrillCalc() {
 
 // 6) Thread / Tap Drill
 function ThreadCalc() {
-  const [side, setSide] = useState<ThreadSide>("external");
-  const [units, setUnits] = useState<UnitSystem>("metric");
+  const [side, setSide] = usePersistentState<ThreadSide>("machining.thread.side", "external");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.thread.units", "metric");
   const isM = units === "metric";
   const { inchStyle, setInchStyle } = useTooling();
-  const [std, setStd] = useState<string>("metric");
-  const [idx, setIdx] = useState(5); // default M6
+  const [std, setStd] = usePersistentState<string>("machining.thread.std", "metric");
+  const [idx, setIdx] = usePersistentState("machining.thread.idx", 5); // default M6
 
   // Non-standard threads. A repair thread, a worn lead screw, an old imperial
   // form that is in no table — the geometry is the same 60° form, so all that
   // is really needed is the major diameter and the pitch.
-  const [customMajor, setCustomMajor] = useState("");
-  const [customPitch, setCustomPitch] = useState("");
-  const [pitchMode, setPitchMode] = useState<PitchMode>("pitch");
+  const [customMajor, setCustomMajor] = usePersistentState("machining.thread.customMajor", "");
+  const [customPitch, setCustomPitch] = usePersistentState("machining.thread.customPitch", "");
+  const [pitchMode, setPitchMode] = usePersistentState<PitchMode>(
+    "machining.thread.pitchMode",
+    "pitch",
+  );
 
   const isCustom = std === "custom";
   const table = THREAD_TABLES[std];
@@ -1638,11 +1642,11 @@ function ThreadCalc() {
 
 // 7) Machining Time
 function TimeCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.time.units", "metric");
   const isM = units === "metric";
-  const [length, setLength] = useState("");
-  const [feedRate, setFeedRate] = useState("");
-  const [passes, setPasses] = useState("1");
+  const [length, setLength] = usePersistentState("machining.time.length", "");
+  const [feedRate, setFeedRate] = usePersistentState("machining.time.feedRate", "");
+  const [passes, setPasses] = usePersistentState("machining.time.passes", "1");
 
   const len = parseFloat(length) || 0;
   const fr = parseFloat(feedRate) || 0;
@@ -1680,14 +1684,14 @@ function TimeCalc() {
 
 // 8) Bolt circle / hole pattern
 function BoltCircleCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.bolt.units", "metric");
   const { inchStyle, setInchStyle } = useTooling();
   const isM = units === "metric";
-  const [count, setCount] = useState("6");
-  const [pcd, setPcd] = useState("100");
-  const [start, setStart] = useState("0");
-  const [centreX, setCentreX] = useState("0");
-  const [centreY, setCentreY] = useState("0");
+  const [count, setCount] = usePersistentState("machining.bolt.count", "6");
+  const [pcd, setPcd] = usePersistentState("machining.bolt.pcd", "100");
+  const [start, setStart] = usePersistentState("machining.bolt.start", "0");
+  const [centreX, setCentreX] = usePersistentState("machining.bolt.centreX", "0");
+  const [centreY, setCentreY] = usePersistentState("machining.bolt.centreY", "0");
 
   const holes = useMemo(() => {
     try {
@@ -1764,11 +1768,11 @@ function BoltCircleCalc() {
 
 // 9) Taper
 function TaperCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.taper.units", "metric");
   const isM = units === "metric";
-  const [large, setLarge] = useState("");
-  const [small, setSmall] = useState("");
-  const [length, setLength] = useState("");
+  const [large, setLarge] = usePersistentState("machining.taper.large", "");
+  const [small, setSmall] = usePersistentState("machining.taper.small", "");
+  const [length, setLength] = usePersistentState("machining.taper.length", "");
 
   const toMm = (v: string) => (isM ? parseFloat(v) || 0 : inToMm(parseFloat(v) || 0));
   const result = useMemo(() => {
@@ -1856,22 +1860,22 @@ function TaperCalc() {
  * operation in it.
  */
 function TapCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
-  const [matId, setMatId] = useState("mild_steel");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.tap.units", "metric");
+  const [matId, setMatId] = usePersistentState("machining.tap.matId", "mild_steel");
   const mat = MATERIAL_MAP.get(matId)!;
   const isM = units === "metric";
 
-  const [std, setStd] = useState<string>("metric");
-  const [idx, setIdx] = useState(5);
+  const [std, setStd] = usePersistentState<string>("machining.tap.std", "metric");
+  const [idx, setIdx] = usePersistentState("machining.tap.idx", 5);
   const table = THREAD_TABLES[std];
   const thread: ThreadEntry | undefined = table.entries[idx];
 
-  const [engagement, setEngagement] = useState("75");
-  const [style, setStyle] = useState<TapStyle>("plug");
-  const [threadDepth, setThreadDepth] = useState("");
-  const [drilledDepth, setDrilledDepth] = useState("");
-  const [speedOverride, setSpeedOverride] = useState("");
-  const [reverseFactor, setReverseFactor] = useState("2");
+  const [engagement, setEngagement] = usePersistentState("machining.tap.engagement", "75");
+  const [style, setStyle] = usePersistentState<TapStyle>("machining.tap.style", "plug");
+  const [threadDepth, setThreadDepth] = usePersistentState("machining.tap.threadDepth", "");
+  const [drilledDepth, setDrilledDepth] = usePersistentState("machining.tap.drilledDepth", "");
+  const [speedOverride, setSpeedOverride] = usePersistentState("machining.tap.speedOverride", "");
+  const [reverseFactor, setReverseFactor] = usePersistentState("machining.tap.reverseFactor", "2");
 
   const { band: drillBand } = useCuttingSpeed(mat, "drill", "metric");
   const { spindleMax, inchStyle, setInchStyle } = useTooling();
@@ -2099,9 +2103,9 @@ function CodeSegment({ text, label, tone }: { text: string; label: string; tone:
 }
 
 function InsertCalc() {
-  const [units, setUnits] = useState<UnitSystem>("metric");
+  const [units, setUnits] = usePersistentState<UnitSystem>("machining.insert.units", "metric");
   const isM = units === "metric";
-  const [code, setCode] = useState("CNMG120408");
+  const [code, setCode] = usePersistentState("machining.insert.code", "CNMG120408");
 
   const { inchStyle, setInchStyle } = useTooling();
 
@@ -2452,13 +2456,13 @@ const TABS = [
    ═══════════════════════════════════════════════════════════════════════════ */
 
 export default function MachiningPage() {
-  const [activeTab, setActiveTab] = useState("rpm");
-  const [tool, setTool] = useState<ToolMaterial>("hss");
-  const [spindleMax, setSpindleMax] = useState("");
+  const [activeTab, setActiveTab] = usePersistentState("machining.activeTab", "rpm");
+  const [tool, setTool] = usePersistentState<ToolMaterial>("machining.tool", "hss");
+  const [spindleMax, setSpindleMax] = usePersistentState("machining.spindleMax", "");
   const [overrides, setOverrides] = useState<Map<string, SpeedOverride>>(() =>
     loadSpeedOverrides(),
   );
-  const [inchStyle, setInchStyle] = useState<InchStyle>("decimal");
+  const [inchStyle, setInchStyle] = usePersistentState<InchStyle>("machining.inchStyle", "decimal");
   const ActiveComp = TABS.find((t) => t.id === activeTab)!.comp;
   const tooling = useMemo(
     () => ({
@@ -2471,7 +2475,9 @@ export default function MachiningPage() {
       inchStyle,
       setInchStyle,
     }),
-    [tool, spindleMax, overrides, inchStyle],
+    // The setters are listed even though a state setter's identity never
+    // changes, because the linter cannot see that through usePersistentState.
+    [tool, setTool, spindleMax, setSpindleMax, overrides, inchStyle, setInchStyle],
   );
 
   // Only the tabs that read a cutting speed care what the tool is made of.
