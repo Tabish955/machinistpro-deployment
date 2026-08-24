@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  calcPitchDiameter,
+  calcThreadDepthInternal,
   calcRPM,
   calcSurfaceSpeed,
   calcFeedRate,
@@ -143,5 +145,59 @@ describe("machining engine", () => {
     // A parallel bar has no taper at all.
     expect(calcTaper(20, 20, 50).includedAngle_deg).toBe(0);
     expect(() => calcTaper(20, 10, 0)).toThrow("greater than zero");
+  });
+});
+
+/*
+ * Thread diameters, against the published ISO 965 values.
+ *
+ * These are the numbers a machinist gauges a thread on, so they are checked
+ * against the standard's own table rather than against the formula that
+ * produced them. Every figure below is the tabulated value for that thread.
+ */
+describe("thread diameters match ISO 965", () => {
+  const cases = [
+    // label, major, pitch, pitch dia d2/D2, screw minor d3, nut minor D1
+    ["M6 x 1", 6, 1.0, 5.35, 4.773, 4.917],
+    ["M10 x 1.5", 10, 1.5, 9.026, 8.16, 8.376],
+    ["M20 x 2.5", 20, 2.5, 18.376, 16.933, 17.294],
+    ["M8 x 1.25", 8, 1.25, 7.188, 6.466, 6.647],
+  ] as const;
+
+  /*
+   * Agreement is asserted to within a micron of the tabulated figure rather
+   * than to an exact decimal place. The app carries the standard's constants
+   * in their rounded form (1.0825 rather than 1.0825318), which puts it half a
+   * micron off the table on an M6 — a distance no machine tool can hold and no
+   * gauge can see, but enough to trip a bare decimal-place comparison.
+   */
+  const AGREES_WITHIN_MM = 0.001;
+
+  for (const [label, major, pitch, d2, d3, d1] of cases) {
+    it(label, () => {
+      expect(Math.abs(calcPitchDiameter(major, pitch) - d2)).toBeLessThan(AGREES_WITHIN_MM);
+      expect(Math.abs(calcMinorDiaExternal(major, pitch) - d3)).toBeLessThan(AGREES_WITHIN_MM);
+      expect(Math.abs(calcMinorDiaInternal(major, pitch) - d1)).toBeLessThan(AGREES_WITHIN_MM);
+    });
+  }
+
+  it("keeps the internal and external infeeds distinct", () => {
+    // The infeed is half the difference between the crest and its own root,
+    // and the screw's root is deeper than the nut's. Cutting one to the
+    // other's depth is the mistake this split is meant to stop.
+    for (const pitch of [0.5, 1, 1.5, 2, 2.5, 3]) {
+      const major = 20;
+      expect(calcThreadDepthExternal(pitch)).toBeCloseTo(
+        (major - calcMinorDiaExternal(major, pitch)) / 2,
+        3,
+      );
+      expect(calcThreadDepthInternal(pitch)).toBeCloseTo(
+        (major - calcMinorDiaInternal(major, pitch)) / 2,
+        3,
+      );
+      expect(calcThreadDepthExternal(pitch)).toBeGreaterThan(calcThreadDepthInternal(pitch));
+    }
+    // On an M20 x 2.5 the two differ by 0.18 mm of radius.
+    expect(calcThreadDepthExternal(2.5) - calcThreadDepthInternal(2.5)).toBeCloseTo(0.18, 2);
   });
 });

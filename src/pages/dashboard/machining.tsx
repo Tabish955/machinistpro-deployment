@@ -18,6 +18,8 @@ import {
   calcMinorDiaInternal,
   calcMinorDiaExternal,
   calcThreadDepthExternal,
+  calcThreadDepthInternal,
+  calcPitchDiameter,
   calcDrillFeedPerRev,
   calcDrillPointDepth,
   calcCuttingPower,
@@ -59,6 +61,7 @@ import {
   type ThreadEntry,
   type ToolMaterial,
   type Operation,
+  decodeInsert,
 } from "@/lib/machining";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -1224,20 +1227,67 @@ function DrillCalc() {
 
 // 6) Thread / Tap Drill
 function ThreadCalc() {
+  const [side, setSide] = useState<ThreadSide>("external");
+  const [units, setUnits] = useState<UnitSystem>("metric");
+  const isM = units === "metric";
   const [std, setStd] = useState<string>("metric");
   const [idx, setIdx] = useState(5); // default M6
 
   const table = THREAD_TABLES[std];
   const thread: ThreadEntry | undefined = table.entries[idx];
+  const external = side === "external";
 
-  const minorScrew = thread ? calcMinorDiaExternal(thread.major, thread.pitch) : 0;
-  const minorNut = thread ? calcMinorDiaInternal(thread.major, thread.pitch) : 0;
-  const threadDepth = thread ? calcThreadDepthExternal(thread.pitch) : 0;
+  const major = thread?.major ?? 0;
+  const pitch = thread?.pitch ?? 0;
+
+  // Shared by both: the pitch diameter is the same figure for a screw and a nut.
+  const pitchDia = thread ? calcPitchDiameter(major, pitch) : 0;
+  // Not shared: the screw runs down to d3, the nut only to D1, and the infeed
+  // that follows from each is different.
+  const minor = thread
+    ? external
+      ? calcMinorDiaExternal(major, pitch)
+      : calcMinorDiaInternal(major, pitch)
+    : 0;
+  const depth = thread
+    ? external
+      ? calcThreadDepthExternal(pitch)
+      : calcThreadDepthInternal(pitch)
+    : 0;
+
+  const dim = (mm: number, dec = 3) => (isM ? fmt(mm, dec) : fmt(mmToIn(mm), dec + 1));
+  const unit = isM ? "mm" : "in";
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
-        <SectionHeader title="Thread Standard" />
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Thread" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
+
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+            Which thread are you cutting
+          </label>
+          <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600">
+            {(
+              [
+                ["external", "External — on a shaft"],
+                ["internal", "Internal — in a hole"],
+              ] as [ThreadSide, string][]
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setSide(id)}
+                className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${side === id ? "bg-accent-cyan/20 text-accent-cyan" : "text-gray-500 hover:text-white"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex gap-1.5 flex-wrap">
           {Object.entries(THREAD_TABLES).map(([k, v]) => (
             <button
@@ -1268,33 +1318,94 @@ function ThreadCalc() {
             ))}
           </select>
         </div>
+
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          {external
+            ? "A screw thread. Every figure below belongs to the male thread — the blank you turn, the diameter you gauge on, and the infeed that cuts it. The nut's figures are not the same and are not shown here."
+            : "A nut thread. Every figure below belongs to the female thread — the bore before threading and the infeed out to the crest. The screw's figures are not the same and are not shown here."}
+        </p>
       </Card>
-      {thread && (
+
+      {thread ? (
         <Card variant="solid" padding="md" className="border-dark-600">
-          <SectionHeader title="Thread Data" />
-          <ResultRow label="Major Diameter" value={fmt(thread.major, 3)} unit="mm" accent />
-          <ResultRow label="Minor Ø — screw (d3)" value={fmt(minorScrew, 3)} unit="mm" />
-          <ResultRow label="Minor Ø — nut / bore (D1)" value={fmt(minorNut, 3)} unit="mm" />
-          <ResultRow label="Thread Depth (infeed)" value={fmt(threadDepth, 3)} unit="mm" />
-          <ResultRow label="Pitch" value={fmt(thread.pitch, 3)} unit="mm" />
+          <SectionHeader
+            title={external ? "External Thread — on a shaft" : "Internal Thread — in a hole"}
+          />
+
+          {external ? (
+            <>
+              <ResultRow
+                label="Turn the blank to (major Ø, d)"
+                value={dim(major)}
+                unit={unit}
+                accent
+              />
+              <ResultRow label="Pitch Ø — d2 (gauge on this)" value={dim(pitchDia)} unit={unit} />
+              <ResultRow label="Minor Ø — d3 (root)" value={dim(minor)} unit={unit} />
+              <ResultRow label="Total infeed — h3" value={dim(depth)} unit={unit} accent />
+            </>
+          ) : (
+            <>
+              <ResultRow
+                label="Bore before threading (minor Ø, D1)"
+                value={dim(minor)}
+                unit={unit}
+                accent
+              />
+              <ResultRow label="Pitch Ø — D2 (gauge on this)" value={dim(pitchDia)} unit={unit} />
+              <ResultRow label="Major Ø — D (crest)" value={dim(major)} unit={unit} />
+              <ResultRow label="Total infeed — H1" value={dim(depth)} unit={unit} accent />
+              <ResultRow
+                label="Tap drill (chart)"
+                value={isM ? fmt(thread.tapDrill, 2) : fmt(mmToIn(thread.tapDrill), 4)}
+                unit={unit}
+              />
+            </>
+          )}
+
+          <ResultRow label="Pitch" value={dim(pitch)} unit={unit} />
           {thread.tpi !== undefined && (
             <ResultRow label="TPI" value={fmt(thread.tpi, 0)} unit="TPI" />
           )}
-          <ResultRow label="Tap Drill Size" value={fmt(thread.tapDrill, 2)} unit="mm" accent />
-          <ResultRow
-            label="Tap Drill (imperial)"
-            value={fmt(mmToIn(thread.tapDrill), 4)}
-            unit="in"
+
+          <CopyBtn
+            text={
+              external
+                ? `${thread.label} external: turn to ${fmt(major, 3)} mm, pitch Ø ${fmt(pitchDia, 3)} mm, infeed ${fmt(depth, 3)} mm`
+                : `${thread.label} internal: bore ${fmt(minor, 3)} mm, pitch Ø ${fmt(pitchDia, 3)} mm, infeed ${fmt(depth, 3)} mm`
+            }
           />
-          <CopyBtn text={`${thread.label}: Tap drill = ${fmt(thread.tapDrill, 2)} mm`} />
+
           <FormulaBox
-            formula="Tap Drill ≈ Major Dia − Pitch"
+            formula={
+              external
+                ? "d3 = d − 1.2269 × P · d2 = d − 0.6495 × P · h3 = 0.6134 × P"
+                : "D1 = d − 1.0825 × P · D2 = d − 0.6495 × P · H1 = 0.5413 × P"
+            }
             steps={[
-              `Major = ${fmt(thread.major, 3)} mm`,
-              `Pitch = ${fmt(thread.pitch, 3)} mm`,
-              `Tap = ${fmt(thread.tapDrill, 2)} mm`,
+              `d = ${fmt(major, 3)} mm`,
+              `P = ${fmt(pitch, 3)} mm`,
+              external
+                ? `d3 = ${fmt(minor, 3)} mm, infeed ${fmt(depth, 3)} mm`
+                : `D1 = ${fmt(minor, 3)} mm, infeed ${fmt(depth, 3)} mm`,
             ]}
           />
+
+          <p className="text-[11px] text-gray-400 leading-relaxed mt-3">
+            {external
+              ? "The screw's root is d3 — deeper than the nut's D1, by 0.0722 × pitch. Cutting an external thread only to the nut's depth leaves it a loose fit."
+              : "The nut's root is D1 — shallower than the screw's d3. Cutting an internal thread to the screw's depth takes it past the standard form and thins the flank."}
+          </p>
+          {!external && (
+            <p className="text-[11px] text-accent-cyan/80 leading-relaxed mt-2">
+              Tapping this thread instead of single-point boring it? The Tapping tab works out the
+              drill for a chosen engagement, the feed, and whether a blind hole is deep enough.
+            </p>
+          )}
+        </Card>
+      ) : (
+        <Card variant="solid" padding="md" className="border-dark-600">
+          <p className="text-sm text-gray-500 py-6 text-center">Pick a thread</p>
         </Card>
       )}
     </div>
@@ -1738,6 +1849,346 @@ function TapCalc() {
   );
 }
 
+// 11) Insert identification — ISO 1832
+/*
+ * The one tab that answers a question rather than working out a number: what
+ * is this insert? Everything shown is read out of the code or follows from its
+ * geometry. Nothing here is a cutting speed, because the code does not carry
+ * one — the grade does, and the grade is in the maker's suffix.
+ */
+
+/** Which side of the thread the machinist is cutting. The two share almost no numbers. */
+type ThreadSide = "external" | "internal";
+
+const INSERT_EXAMPLES = ["CNMG120408", "DCMT11T304", "WNMG080408", "APKT1604PDER", "RCMT1204MO"];
+
+function CodeSegment({ text, label, tone }: { text: string; label: string; tone: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className={`font-mono text-base font-bold px-1.5 py-0.5 rounded ${tone}`}>{text}</span>
+      <span className="text-[9px] uppercase tracking-wider text-gray-600 mt-1">{label}</span>
+    </div>
+  );
+}
+
+function InsertCalc() {
+  const [units, setUnits] = useState<UnitSystem>("metric");
+  const isM = units === "metric";
+  const [code, setCode] = useState("CNMG120408");
+
+  const result = useMemo(() => decodeInsert(code), [code]);
+  const dim = (mm: number | null, dec = 2) =>
+    mm === null ? "—" : isM ? fmt(mm, dec) : fmt(mmToIn(mm), dec + 2);
+  const unit = isM ? "mm" : "in";
+  // A dash standing in for a missing dimension must not carry a unit after it:
+  // "—mm" reads as a measurement that failed rather than one the code never had.
+  const unitFor = (mm: number | null) => (mm === null ? undefined : unit);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
+        <div className="flex justify-between items-center">
+          <SectionHeader title="Insert Code" className="!mb-0" />
+          <UnitToggle value={units} onChange={setUnits} />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+            ISO 1832 designation
+          </label>
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="CNMG120408"
+            spellCheck={false}
+            autoCapitalize="characters"
+            className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-base font-mono tracking-wide text-white uppercase focus:border-accent-cyan/50 focus:outline-none"
+          />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {INSERT_EXAMPLES.map((ex) => (
+            <button
+              key={ex}
+              onClick={() => setCode(ex)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all cursor-pointer ${code.toUpperCase() === ex ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30" : "bg-dark-700/50 text-gray-500 border border-dark-600 hover:text-white"}`}
+            >
+              {ex}
+            </button>
+          ))}
+        </div>
+
+        {!result.ok ? (
+          <div className="py-4">
+            <p className="text-sm text-accent-amber">{result.error}</p>
+            <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
+              An ISO 1832 code is four letters — shape, clearance, tolerance, type — then the size,
+              thickness and corner radius. Turning and milling inserts both use it.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2 flex-wrap pt-1 pb-2">
+              <CodeSegment
+                text={result.insert.shape.code}
+                label="Shape"
+                tone="bg-accent-cyan/15 text-accent-cyan"
+              />
+              <CodeSegment
+                text={result.insert.clearance.code}
+                label="Clear."
+                tone="bg-accent-cyan/15 text-accent-cyan"
+              />
+              <CodeSegment
+                text={result.insert.tolerance.code}
+                label="Tol."
+                tone="bg-accent-cyan/15 text-accent-cyan"
+              />
+              <CodeSegment
+                text={result.insert.type.code}
+                label="Type"
+                tone="bg-accent-cyan/15 text-accent-cyan"
+              />
+              <CodeSegment
+                text={result.insert.sizeCode}
+                label="Size"
+                tone="bg-dark-700 text-gray-300"
+              />
+              <CodeSegment
+                text={result.insert.thicknessCode}
+                label="Thick."
+                tone="bg-dark-700 text-gray-300"
+              />
+              {result.insert.cornerRadiusCode && (
+                <CodeSegment
+                  text={result.insert.cornerRadiusCode}
+                  label="Radius"
+                  tone="bg-dark-700 text-gray-300"
+                />
+              )}
+              {result.insert.edgeConditionCode && (
+                <CodeSegment
+                  text={result.insert.edgeConditionCode}
+                  label="Edge"
+                  tone="bg-dark-700 text-gray-300"
+                />
+              )}
+              {result.insert.handCode && (
+                <CodeSegment
+                  text={result.insert.handCode}
+                  label="Hand"
+                  tone="bg-dark-700 text-gray-300"
+                />
+              )}
+              {result.insert.manufacturerSuffix && (
+                <CodeSegment
+                  text={result.insert.manufacturerSuffix}
+                  label="Maker's"
+                  tone="bg-accent-amber/15 text-accent-amber"
+                />
+              )}
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <div>
+                <p className="text-xs text-accent-cyan font-semibold">
+                  {result.insert.shape.code} — {result.insert.shape.name}
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  {result.insert.shape.note}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-accent-cyan font-semibold">
+                  {result.insert.clearance.code} — {result.insert.clearance.label}
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  {result.insert.doubleSided
+                    ? "No relief ground into the flank, so it can be turned over and both faces used. Higher cutting force — it wants a rigid setup."
+                    : "Relieved on one face only, so one face cuts. Lower cutting force — suits light machines, thin walls and small diameters."}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-accent-cyan font-semibold">
+                  {result.insert.tolerance.code} — {result.insert.tolerance.grade} tolerance class
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  {result.insert.tolerance.note}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-accent-cyan font-semibold">
+                  {result.insert.type.code} — {result.insert.type.description}
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  {result.insert.type.clamping}.{" "}
+                  {result.insert.type.chipbreakerFaces === 2
+                    ? "Chipbreaker pressed into both faces."
+                    : result.insert.type.chipbreakerFaces === 1
+                      ? "Chipbreaker on one face only."
+                      : "Flat top — no pressed chipbreaker."}
+                </p>
+              </div>
+              {result.insert.edgeCondition && (
+                <div>
+                  <p className="text-xs text-accent-cyan font-semibold">
+                    {result.insert.edgeConditionCode} — cutting edge
+                  </p>
+                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                    {result.insert.edgeCondition}
+                  </p>
+                </div>
+              )}
+              {result.insert.hand && (
+                <div>
+                  <p className="text-xs text-accent-cyan font-semibold">
+                    {result.insert.handCode} — {result.insert.hand}
+                  </p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </Card>
+
+      {result.ok && (
+        <div className="space-y-4">
+          <Card variant="solid" padding="md" className="border-dark-600">
+            <SectionHeader title="Dimensions" />
+            {result.insert.shape.code === "R" ? (
+              <ResultRow
+                label="Diameter"
+                value={dim(result.insert.inscribedCircle)}
+                unit={unit}
+                accent
+              />
+            ) : (
+              <>
+                <ResultRow
+                  label="Inscribed Circle (IC)"
+                  value={dim(result.insert.inscribedCircle, 3)}
+                  unit={unitFor(result.insert.inscribedCircle)}
+                  accent
+                />
+                <ResultRow
+                  label={
+                    result.insert.edgeLengthApproximate
+                      ? "Cutting Edge Length (nominal)"
+                      : "Cutting Edge Length"
+                  }
+                  value={dim(result.insert.edgeLength, 1)}
+                  unit={unitFor(result.insert.edgeLength)}
+                />
+              </>
+            )}
+            <ResultRow
+              label={result.insert.thicknessApproximate ? "Thickness (nominal)" : "Thickness"}
+              value={dim(result.insert.thickness)}
+              unit={unitFor(result.insert.thickness)}
+            />
+            {/* A round insert has no corner, so "not in this code" would read
+                as something missing rather than something that cannot exist. */}
+            {result.insert.shape.code !== "R" && (
+              <ResultRow
+                label="Corner Radius"
+                value={
+                  result.insert.cornerRadius === null
+                    ? "not in this code"
+                    : dim(result.insert.cornerRadius, 2)
+                }
+                unit={unitFor(result.insert.cornerRadius)}
+                accent={result.insert.cornerRadius !== null}
+              />
+            )}
+            <ResultRow
+              label="Thickness Tolerance"
+              value={`± ${dim(result.insert.tolerance.thickness, 3)}`}
+              unit={unit}
+            />
+            <ResultRow
+              label="IC Tolerance"
+              value={
+                result.insert.tolerance.inscribedCircle === null
+                  ? "varies with size"
+                  : `± ${dim(result.insert.tolerance.inscribedCircle, 3)}`
+              }
+              unit={result.insert.tolerance.inscribedCircle === null ? undefined : unit}
+            />
+            <CopyBtn
+              text={`${result.insert.code}: ${result.insert.shape.name}, ${result.insert.clearance.label}, IC ${result.insert.inscribedCircle ?? "—"} mm, thickness ${result.insert.thickness ?? "—"} mm, corner radius ${result.insert.cornerRadius ?? "not in code"} mm`}
+            />
+          </Card>
+
+          <Card variant="solid" padding="md" className="border-dark-600">
+            <SectionHeader title="At the Machine" />
+            <ResultRow
+              label="Usable Cutting Edges"
+              value={
+                result.insert.cuttingEdges === null
+                  ? "continuous edge"
+                  : `${result.insert.cuttingEdges}`
+              }
+              accent
+            />
+            <ResultRow
+              label="Sides"
+              value={result.insert.doubleSided ? "Double sided" : "Single sided"}
+            />
+            <ResultRow
+              label="Max Depth of Cut"
+              value={dim(result.insert.maxDepthOfCut, 1)}
+              unit={unitFor(result.insert.maxDepthOfCut)}
+            />
+            <ResultRow
+              label="Max Feed per Rev"
+              value={
+                result.insert.maxFeedPerRev === null ? "—" : dim(result.insert.maxFeedPerRev, 2)
+              }
+              unit={result.insert.maxFeedPerRev === null ? undefined : `${unit}/rev`}
+            />
+            <ResultRow
+              label="Usually Used For"
+              value={
+                result.insert.typicalUse === "both"
+                  ? "Turning and milling"
+                  : result.insert.typicalUse === "turning"
+                    ? "Turning"
+                    : "Milling"
+              }
+            />
+            <p className="text-[11px] text-gray-400 leading-relaxed mt-3">
+              Both ceilings come from the geometry, not from a catalogue: about two thirds of the
+              cutting edge before the cut runs off the end of it, and about half the corner radius
+              before the corner carries the whole load and chips. A shop that knows its material
+              will go above or below them.
+            </p>
+            <FormulaBox
+              formula="ap(max) ≈ 2/3 × edge length · fn(max) ≈ r/2"
+              steps={[
+                `edge length = ${dim(result.insert.edgeLength, 1)} ${unit}`,
+                `corner radius = ${result.insert.cornerRadius === null ? "not in code" : `${dim(result.insert.cornerRadius, 2)} ${unit}`}`,
+              ]}
+            />
+          </Card>
+
+          <Card variant="solid" padding="md" className="border-dark-600">
+            <SectionHeader title="What the Code Does Not Say" />
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              ISO 1832 is geometry only. The carbide grade, the coating and the real shape of the
+              chipbreaker are not in it — they are in the maker&apos;s suffix, and that is what
+              decides the cutting speed. Two inserts reading {result.insert.code} from two makers
+              can want very different speeds in the same steel.
+            </p>
+            {result.warnings.map((w, i) => (
+              <p key={i} className="text-[11px] text-accent-amber/90 leading-relaxed mt-2">
+                {w}
+              </p>
+            ))}
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Tab definitions
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -1748,7 +2199,8 @@ const TABS = [
   { id: "milling", name: "Milling", comp: MillingCalc },
   { id: "turning", name: "Turning", comp: TurningCalc },
   { id: "drilling", name: "Drilling", comp: DrillCalc },
-  { id: "thread", name: "Threads", comp: ThreadCalc },
+  { id: "insert", name: "Insert ID", comp: InsertCalc },
+  { id: "thread", name: "Threading", comp: ThreadCalc },
   { id: "tap", name: "Tapping", comp: TapCalc },
   { id: "bolt", name: "Bolt Circle", comp: BoltCircleCalc },
   { id: "taper", name: "Taper", comp: TaperCalc },
