@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
   MATERIALS,
   SHAPES,
@@ -264,7 +265,10 @@ export default function WeightPage() {
   const allMaterials = useMemo<Material[]>(() => [...MATERIALS, ...customs], [customs]);
 
   // ── Material selection ──
-  const [materialId, setMaterialId] = useState("mild_steel");
+  const [materialId, setMaterialId] = usePersistentState(
+    "weight.WeightPage.materialId",
+    "mild_steel",
+  );
   // Falls back to the first built-in if the chosen material has been deleted,
   // so the page cannot end up with no material and a crash on every render.
   const material = useMemo(
@@ -307,35 +311,50 @@ export default function WeightPage() {
   };
 
   // ── Shape selection ──
-  const [shapeId, setShapeId] = useState<string>("round_bar");
+  const [shapeId, setShapeId] = usePersistentState<string>(
+    "weight.WeightPage.shapeId",
+    "round_bar",
+  );
   const shape = useMemo(() => SHAPES.find((s) => s.id === shapeId)!, [shapeId]);
 
   // ── Units ──
   // dimUnit is the "set all" default; fieldUnits holds the boxes the user has
   // since pointed somewhere else. Keeping the two apart is what lets a 4 ft
   // length sit next to a 30 mm diameter without either fighting the other.
-  const [dimUnit, setDimUnit] = useState<DimUnit>("mm");
-  const [fieldUnits, setFieldUnits] = useState<Record<string, DimUnitChoice>>({});
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
+  const [dimUnit, setDimUnit] = usePersistentState<DimUnit>("weight.WeightPage.dimUnit", "mm");
+  const [fieldUnits, setFieldUnits] = usePersistentState<Record<string, DimUnitChoice>>(
+    "weight.WeightPage.fieldUnits",
+    {},
+  );
+  const [weightUnit, setWeightUnit] = usePersistentState<WeightUnit>(
+    "weight.WeightPage.weightUnit",
+    "kg",
+  );
   // "auto" leaves the unit to the size of the thing, which is what stops a tank
   // being quoted in millions of cubic millimetres. Picking one pins it.
-  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit | "auto">("auto");
+  const [volumeUnit, setVolumeUnit] = usePersistentState<VolumeUnit | "auto">(
+    "weight.WeightPage.volumeUnit",
+    "auto",
+  );
 
   // Gauge means a different thickness in each material, so the table follows
   // the chosen material until the user says otherwise.
-  const [gaugeStdOverride, setGaugeStdOverride] = useState<GaugeStandard | null>(null);
+  const [gaugeStdOverride, setGaugeStdOverride] = usePersistentState<GaugeStandard | null>(
+    "weight.WeightPage.gaugeStdOverride",
+    null,
+  );
 
   // ── Dimension values (strings for input) ──
-  const [dims, setDims] = useState<Record<string, string>>({});
+  const [dims, setDims] = usePersistentState<Record<string, string>>("weight.WeightPage.dims", {});
   const setDimValue = (key: string, val: string) => setDims((prev) => ({ ...prev, [key]: val }));
 
   // ── Cost inputs ──
-  const [showCost, setShowCost] = useState(false);
-  const [pricePerKg, setPricePerKg] = useState("3.00");
-  const [quantity, setQuantity] = useState("1");
-  const [wastePct, setWastePct] = useState("5");
-  const [taxPct, setTaxPct] = useState("0");
-  const [discountPct, setDiscountPct] = useState("0");
+  const [showCost, setShowCost] = usePersistentState("weight.WeightPage.showCost", false);
+  const [pricePerKg, setPricePerKg] = usePersistentState("weight.WeightPage.pricePerKg", "3.00");
+  const [quantity, setQuantity] = usePersistentState("weight.WeightPage.quantity", "1");
+  const [wastePct, setWastePct] = usePersistentState("weight.WeightPage.wastePct", "5");
+  const [taxPct, setTaxPct] = usePersistentState("weight.WeightPage.taxPct", "0");
+  const [discountPct, setDiscountPct] = usePersistentState("weight.WeightPage.discountPct", "0");
 
   // ── Formula visibility ──
   const [showFormula, setShowFormula] = useState(false);

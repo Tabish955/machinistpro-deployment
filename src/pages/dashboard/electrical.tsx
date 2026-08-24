@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import * as E from "@/lib/electrical/formulas";
 import * as T from "@/lib/electrical/tables";
 import * as D from "@/lib/electrical/edm";
@@ -197,18 +198,24 @@ const PHASE_OPTS = [
 /* ═══ Motor & Drive ══════════════════════════════════════════════════════════ */
 
 function MotorCalc() {
-  const [ratingMode, setRatingMode] = useState<"kw" | "hp">("kw");
-  const [rating, setRating] = useState("7.5");
-  const [hpStd, setHpStd] = useState<E.HpStandard>("mechanical");
-  const [volts, setVolts] = useState("400");
-  const [phase, setPhase] = useState<E.Phase>("three");
-  const [pfVal, setPfVal] = useState("0.86");
-  const [eff, setEff] = useState("90");
-  const [rpm, setRpm] = useState("1450");
-  const [poles, setPoles] = useState(4);
-  const [freq, setFreq] = useState(50);
-  const [lrMultiple, setLrMultiple] = useState("6");
-  const [machineMax, setMachineMax] = useState("");
+  const [ratingMode, setRatingMode] = usePersistentState<"kw" | "hp">(
+    "electrical.MotorCalc.ratingMode",
+    "kw",
+  );
+  const [rating, setRating] = usePersistentState("electrical.MotorCalc.rating", "7.5");
+  const [hpStd, setHpStd] = usePersistentState<E.HpStandard>(
+    "electrical.MotorCalc.hpStd",
+    "mechanical",
+  );
+  const [volts, setVolts] = usePersistentState("electrical.MotorCalc.volts", "400");
+  const [phase, setPhase] = usePersistentState<E.Phase>("electrical.MotorCalc.phase", "three");
+  const [pfVal, setPfVal] = usePersistentState("electrical.MotorCalc.pfVal", "0.86");
+  const [eff, setEff] = usePersistentState("electrical.MotorCalc.eff", "90");
+  const [rpm, setRpm] = usePersistentState("electrical.MotorCalc.rpm", "1450");
+  const [poles, setPoles] = usePersistentState("electrical.MotorCalc.poles", 4);
+  const [freq, setFreq] = usePersistentState("electrical.MotorCalc.freq", 50);
+  const [lrMultiple, setLrMultiple] = usePersistentState("electrical.MotorCalc.lrMultiple", "6");
+  const [machineMax, setMachineMax] = usePersistentState("electrical.MotorCalc.machineMax", "");
 
   const shaftW = ratingMode === "kw" ? pf(rating) * 1000 : E.hpToWatts(pf(rating), hpStd);
   const efficiency = pf(eff) / 100;
@@ -379,12 +386,12 @@ function MotorCalc() {
 /* ═══ Power Factor ═══════════════════════════════════════════════════════════ */
 
 function PowerCalc() {
-  const [kw, setKw] = useState("100");
-  const [pfFrom, setPfFrom] = useState("0.75");
-  const [pfTo, setPfTo] = useState("0.95");
-  const [volts, setVolts] = useState("400");
-  const [freq, setFreq] = useState(50);
-  const [conn, setConn] = useState<E.CapConnection>("delta");
+  const [kw, setKw] = usePersistentState("electrical.PowerCalc.kw", "100");
+  const [pfFrom, setPfFrom] = usePersistentState("electrical.PowerCalc.pfFrom", "0.75");
+  const [pfTo, setPfTo] = usePersistentState("electrical.PowerCalc.pfTo", "0.95");
+  const [volts, setVolts] = usePersistentState("electrical.PowerCalc.volts", "400");
+  const [freq, setFreq] = usePersistentState("electrical.PowerCalc.freq", 50);
+  const [conn, setConn] = usePersistentState<E.CapConnection>("electrical.PowerCalc.conn", "delta");
 
   const P = pf(kw) * 1000;
   const ready = P > 0 && pf(pfFrom) > 0 && pf(pfFrom) <= 1 && pf(pfTo) > 0 && pf(pfTo) <= 1;
@@ -477,16 +484,22 @@ function PowerCalc() {
 /* ═══ Cable & Circuit ════════════════════════════════════════════════════════ */
 
 function CableCalc() {
-  const [standard, setStandard] = useState<T.Standard>("iec");
-  const [amps, setAmps] = useState("20");
-  const [len, setLen] = useState("40");
-  const [volts, setVolts] = useState("400");
-  const [phase, setPhase] = useState<E.Phase>("three");
-  const [limit, setLimit] = useState("4");
-  const [ambient, setAmbient] = useState("30");
-  const [grouping, setGrouping] = useState(1);
-  const [material, setMaterial] = useState<E.Conductor>("copper");
-  const [column, setColumn] = useState<60 | 75 | 90>(75);
+  const [standard, setStandard] = usePersistentState<T.Standard>(
+    "electrical.CableCalc.standard",
+    "iec",
+  );
+  const [amps, setAmps] = usePersistentState("electrical.CableCalc.amps", "20");
+  const [len, setLen] = usePersistentState("electrical.CableCalc.len", "40");
+  const [volts, setVolts] = usePersistentState("electrical.CableCalc.volts", "400");
+  const [phase, setPhase] = usePersistentState<E.Phase>("electrical.CableCalc.phase", "three");
+  const [limit, setLimit] = usePersistentState("electrical.CableCalc.limit", "4");
+  const [ambient, setAmbient] = usePersistentState("electrical.CableCalc.ambient", "30");
+  const [grouping, setGrouping] = usePersistentState("electrical.CableCalc.grouping", 1);
+  const [material, setMaterial] = usePersistentState<E.Conductor>(
+    "electrical.CableCalc.material",
+    "copper",
+  );
+  const [column, setColumn] = usePersistentState<60 | 75 | 90>("electrical.CableCalc.column", 75);
 
   const ready = pf(amps) > 0 && pf(len) > 0 && pf(volts) > 0 && pf(limit) > 0;
 
@@ -678,9 +691,9 @@ function CableCalc() {
 /* ═══ Theory ═════════════════════════════════════════════════════════════════ */
 
 function TheoryCalc() {
-  const [v, setV] = useState("");
-  const [i, setI] = useState("");
-  const [r, setR] = useState("");
+  const [v, setV] = usePersistentState("electrical.TheoryCalc.v", "");
+  const [i, setI] = usePersistentState("electrical.TheoryCalc.i", "");
+  const [r, setR] = usePersistentState("electrical.TheoryCalc.r", "");
 
   // Solve the triangle from whichever two are given.
   const nv = pf(v);
@@ -704,16 +717,16 @@ function TheoryCalc() {
   // like the calculator is broken rather than like they have a typo. Say so.
   const overridden = given === 3 && Math.abs(sr - nr) > Math.max(1e-9, nr * 1e-6);
 
-  const [rs, setRs] = useState("10, 22, 47");
+  const [rs, setRs] = usePersistentState("electrical.TheoryCalc.rs", "10, 22, 47");
   const list = rs
     .split(/[,\s]+/)
     .map((x) => parseFloat(x))
     .filter((x) => isFinite(x) && x >= 0);
 
-  const [freq, setFreq] = useState("50");
-  const [ind, setInd] = useState("100");
-  const [cap, setCap] = useState("100");
-  const [rr, setRr] = useState("10");
+  const [freq, setFreq] = usePersistentState("electrical.TheoryCalc.freq", "50");
+  const [ind, setInd] = usePersistentState("electrical.TheoryCalc.ind", "100");
+  const [cap, setCap] = usePersistentState("electrical.TheoryCalc.cap", "100");
+  const [rr, setRr] = usePersistentState("electrical.TheoryCalc.rr", "10");
   const L = pf(ind) / 1000; // mH → H
   const C = pf(cap) / 1e6; // µF → F
   const XL = pf(freq) > 0 && L > 0 ? E.inductiveReactance(pf(freq), L) : null;
@@ -821,19 +834,19 @@ function TheoryCalc() {
 /* ═══ EDM ════════════════════════════════════════════════════════════════════ */
 
 function EdmCalc() {
-  const [mode, setMode] = useState<"wire" | "sinker">("wire");
+  const [mode, setMode] = usePersistentState<"wire" | "sinker">("electrical.EdmCalc.mode", "wire");
 
   // Wire
-  const [wireDia, setWireDia] = useState("0.25");
-  const [gap, setGap] = useState("0.04");
-  const [reqRadius, setReqRadius] = useState("");
-  const [pathLen, setPathLen] = useState("300");
-  const [thick, setThick] = useState("40");
-  const [rate, setRate] = useState("150");
-  const [skims, setSkims] = useState("3");
-  const [skimFactor, setSkimFactor] = useState("0.4");
-  const [wireFeed, setWireFeed] = useState("10");
-  const [taperDeg, setTaperDeg] = useState("");
+  const [wireDia, setWireDia] = usePersistentState("electrical.EdmCalc.wireDia", "0.25");
+  const [gap, setGap] = usePersistentState("electrical.EdmCalc.gap", "0.04");
+  const [reqRadius, setReqRadius] = usePersistentState("electrical.EdmCalc.reqRadius", "");
+  const [pathLen, setPathLen] = usePersistentState("electrical.EdmCalc.pathLen", "300");
+  const [thick, setThick] = usePersistentState("electrical.EdmCalc.thick", "40");
+  const [rate, setRate] = usePersistentState("electrical.EdmCalc.rate", "150");
+  const [skims, setSkims] = usePersistentState("electrical.EdmCalc.skims", "3");
+  const [skimFactor, setSkimFactor] = usePersistentState("electrical.EdmCalc.skimFactor", "0.4");
+  const [wireFeed, setWireFeed] = usePersistentState("electrical.EdmCalc.wireFeed", "10");
+  const [taperDeg, setTaperDeg] = usePersistentState("electrical.EdmCalc.taperDeg", "");
 
   const offset = pf(wireDia) > 0 ? D.wireOffset(pf(wireDia), pf(gap)) : null;
   const kerf = pf(wireDia) > 0 ? D.kerfWidth(pf(wireDia), pf(gap)) : null;
@@ -853,16 +866,22 @@ function EdmCalc() {
   const tOff = pf(taperDeg) > 0 && pf(thick) > 0 ? D.taperOffset(pf(thick), pf(taperDeg)) : null;
 
   // Sinker
-  const [cavity, setCavity] = useState("20");
-  const [overcut, setOvercut] = useState("0.05");
-  const [finishOvercut, setFinishOvercut] = useState("0.03");
-  const [finishUndersize, setFinishUndersize] = useState("0.18");
-  const [cavityVol, setCavityVol] = useState("9000");
-  const [ampsEdm, setAmpsEdm] = useState("30");
-  const [mrrPerAmp, setMrrPerAmp] = useState("3");
-  const [wearPct, setWearPct] = useState("2");
-  const [elecVol, setElecVol] = useState("500");
-  const [vdi, setVdi] = useState("30");
+  const [cavity, setCavity] = usePersistentState("electrical.EdmCalc.cavity", "20");
+  const [overcut, setOvercut] = usePersistentState("electrical.EdmCalc.overcut", "0.05");
+  const [finishOvercut, setFinishOvercut] = usePersistentState(
+    "electrical.EdmCalc.finishOvercut",
+    "0.03",
+  );
+  const [finishUndersize, setFinishUndersize] = usePersistentState(
+    "electrical.EdmCalc.finishUndersize",
+    "0.18",
+  );
+  const [cavityVol, setCavityVol] = usePersistentState("electrical.EdmCalc.cavityVol", "9000");
+  const [ampsEdm, setAmpsEdm] = usePersistentState("electrical.EdmCalc.ampsEdm", "30");
+  const [mrrPerAmp, setMrrPerAmp] = usePersistentState("electrical.EdmCalc.mrrPerAmp", "3");
+  const [wearPct, setWearPct] = usePersistentState("electrical.EdmCalc.wearPct", "2");
+  const [elecVol, setElecVol] = usePersistentState("electrical.EdmCalc.elecVol", "500");
+  const [vdi, setVdi] = usePersistentState("electrical.EdmCalc.vdi", "30");
 
   const elecDim = pf(cavity) > 0 ? D.electrodeUndersize(pf(cavity), pf(overcut)) : null;
   // How much smaller the finish electrode is made is a decision the toolmaker
@@ -1109,7 +1128,7 @@ const TABS = [
 ];
 
 export default function ElectricalPage() {
-  const [tab, setTab] = useState("motor");
+  const [tab, setTab] = usePersistentState("electrical.ElectricalPage.tab", "motor");
   const ActiveComp = TABS.find((t) => t.id === tab)!.comp;
 
   return (

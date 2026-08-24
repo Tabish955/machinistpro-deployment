@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import * as E from "@/lib/engineering/formulas";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -117,8 +118,8 @@ function p(v: string) {
 /* ═══ Calculator components ══════════════════════════════════════════════════ */
 
 function StressCalc() {
-  const [F, setF] = useState("");
-  const [A, setA] = useState("");
+  const [F, setF] = usePersistentState("engineering.StressCalc.F", "");
+  const [A, setA] = usePersistentState("engineering.StressCalc.A", "");
   const sigma = p(A) > 0 ? E.normalStress(p(F), p(A) * 1e-6) : null; // A in mm² → m²
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -152,12 +153,15 @@ function StressCalc() {
 }
 
 function BeamCalc() {
-  const [type, setType] = useState<"ss_point" | "ss_udl" | "cant_point" | "cant_udl">("ss_point");
-  const [P, setP] = useState("");
-  const [w, setW] = useState("");
-  const [L, setL] = useState("");
-  const [EE, setEE] = useState("200");
-  const [I, setI] = useState("");
+  const [type, setType] = usePersistentState<"ss_point" | "ss_udl" | "cant_point" | "cant_udl">(
+    "engineering.BeamCalc.type",
+    "ss_point",
+  );
+  const [P, setP] = usePersistentState("engineering.BeamCalc.P", "");
+  const [w, setW] = usePersistentState("engineering.BeamCalc.w", "");
+  const [L, setL] = usePersistentState("engineering.BeamCalc.L", "");
+  const [EE, setEE] = usePersistentState("engineering.BeamCalc.EE", "200");
+  const [I, setI] = usePersistentState("engineering.BeamCalc.I", "");
 
   const Lm = p(L) / 1000;
   const Em = p(EE) * 1e9;
@@ -245,11 +249,14 @@ function BeamCalc() {
 }
 
 function MoiCalc() {
-  const [shape, setShape] = useState<"rect" | "circle" | "hollow" | "tri">("rect");
-  const [b, setB] = useState("");
-  const [h, setH] = useState("");
-  const [D, setD] = useState("");
-  const [d, setDi] = useState("");
+  const [shape, setShape] = usePersistentState<"rect" | "circle" | "hollow" | "tri">(
+    "engineering.MoiCalc.shape",
+    "rect",
+  );
+  const [b, setB] = usePersistentState("engineering.MoiCalc.b", "");
+  const [h, setH] = usePersistentState("engineering.MoiCalc.h", "");
+  const [D, setD] = usePersistentState("engineering.MoiCalc.D", "");
+  const [d, setDi] = usePersistentState("engineering.MoiCalc.d", "");
 
   let moi = 0;
   let S = 0;
@@ -328,8 +335,8 @@ function MoiCalc() {
 }
 
 function TorqueCalc() {
-  const [P, setP] = useState("");
-  const [n, setN] = useState("");
+  const [P, setP] = usePersistentState("engineering.TorqueCalc.P", "");
+  const [n, setN] = usePersistentState("engineering.TorqueCalc.n", "");
   const Pw = p(P) * 1000; // kW → W
   const T = Pw > 0 && p(n) > 0 ? E.torqueFromPower(Pw, p(n)) : null;
   return (
@@ -359,10 +366,10 @@ function TorqueCalc() {
 }
 
 function ShaftCalc() {
-  const [T, setT] = useState("");
-  const [d, setD] = useState("");
-  const [L, setL] = useState("");
-  const [G, setG] = useState("80");
+  const [T, setT] = usePersistentState("engineering.ShaftCalc.T", "");
+  const [d, setD] = usePersistentState("engineering.ShaftCalc.d", "");
+  const [L, setL] = usePersistentState("engineering.ShaftCalc.L", "");
+  const [G, setG] = usePersistentState("engineering.ShaftCalc.G", "80");
   const dm = p(d) / 1000;
   const Lm = p(L) / 1000;
   const Gpa = p(G) * 1e9;
@@ -398,11 +405,11 @@ function ShaftCalc() {
 }
 
 function SpringCalc() {
-  const [Gv, setGv] = useState("80");
-  const [dw, setDw] = useState("");
-  const [Dc, setDc] = useState("");
-  const [nc, setNc] = useState("");
-  const [F, setF] = useState("");
+  const [Gv, setGv] = usePersistentState("engineering.SpringCalc.Gv", "80");
+  const [dw, setDw] = usePersistentState("engineering.SpringCalc.dw", "");
+  const [Dc, setDc] = usePersistentState("engineering.SpringCalc.Dc", "");
+  const [nc, setNc] = usePersistentState("engineering.SpringCalc.nc", "");
+  const [F, setF] = usePersistentState("engineering.SpringCalc.F", "");
   const k =
     p(dw) > 0 && p(Dc) > 0 && p(nc) > 0
       ? E.springConstant(p(Gv) * 1000, p(dw), p(Dc), p(nc))
@@ -445,11 +452,11 @@ function SpringCalc() {
 }
 
 function FastenerCalc() {
-  const [d, setD] = useState("");
-  const [pitch, setPitch] = useState("");
-  const [Sp, setSp] = useState("830");
-  const [K, setK] = useState("0.2");
-  const [Fa, setFa] = useState("");
+  const [d, setD] = usePersistentState("engineering.FastenerCalc.d", "");
+  const [pitch, setPitch] = usePersistentState("engineering.FastenerCalc.pitch", "");
+  const [Sp, setSp] = usePersistentState("engineering.FastenerCalc.Sp", "830");
+  const [K, setK] = usePersistentState("engineering.FastenerCalc.K", "0.2");
+  const [Fa, setFa] = usePersistentState("engineering.FastenerCalc.Fa", "");
   const At = p(d) > 0 && p(pitch) > 0 ? E.boltTensileArea(p(d), p(pitch)) : null;
   const Fp = At !== null ? E.boltProofLoad(At, p(Sp)) : null;
   const Tt = Fp !== null && p(d) > 0 ? E.tighteningTorque(p(K), p(d), Fp) : null;
@@ -493,10 +500,10 @@ function FastenerCalc() {
 }
 
 function FluidCalc() {
-  const [Q, setQ] = useState("");
-  const [D, setD] = useState("");
-  const [rho, setRho] = useState("1000");
-  const [mu, setMu] = useState("0.001");
+  const [Q, setQ] = usePersistentState("engineering.FluidCalc.Q", "");
+  const [D, setD] = usePersistentState("engineering.FluidCalc.D", "");
+  const [rho, setRho] = usePersistentState("engineering.FluidCalc.rho", "1000");
+  const [mu, setMu] = usePersistentState("engineering.FluidCalc.mu", "0.001");
   const Dm = p(D) / 1000;
   const Qm3 = p(Q) / 1000; // L/s → m³/s
   const v = Dm > 0 && Qm3 > 0 ? E.pipeVelocity(Qm3, Dm) : null;
@@ -545,9 +552,9 @@ function FluidCalc() {
 }
 
 function ThermalCalc() {
-  const [m, setM] = useState("");
-  const [c, setC] = useState("4184");
-  const [dT, setDT] = useState("");
+  const [m, setM] = usePersistentState("engineering.ThermalCalc.m", "");
+  const [c, setC] = usePersistentState("engineering.ThermalCalc.c", "4184");
+  const [dT, setDT] = usePersistentState("engineering.ThermalCalc.dT", "");
   const Qj = p(m) > 0 && p(c) > 0 && p(dT) !== 0 ? E.heatEnergy(p(m), p(c), p(dT)) : null;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -584,20 +591,23 @@ function ThermalCalc() {
 }
 
 function MachineDesignCalc() {
-  const [mode, setMode] = useState<"fos" | "bearing" | "gear" | "belt">("fos");
+  const [mode, setMode] = usePersistentState<"fos" | "bearing" | "gear" | "belt">(
+    "engineering.MachineDesignCalc.mode",
+    "fos",
+  );
   // FoS
-  const [ult, setUlt] = useState("");
-  const [act, setAct] = useState("");
+  const [ult, setUlt] = usePersistentState("engineering.MachineDesignCalc.ult", "");
+  const [act, setAct] = usePersistentState("engineering.MachineDesignCalc.act", "");
   // Bearing
-  const [Cb, setCb] = useState("");
-  const [Pb, setPb] = useState("");
-  const [nb, setNb] = useState("");
+  const [Cb, setCb] = usePersistentState("engineering.MachineDesignCalc.Cb", "");
+  const [Pb, setPb] = usePersistentState("engineering.MachineDesignCalc.Pb", "");
+  const [nb, setNb] = usePersistentState("engineering.MachineDesignCalc.nb", "");
   // Gear
-  const [N1, setN1] = useState("");
-  const [N2, setN2] = useState("");
+  const [N1, setN1] = usePersistentState("engineering.MachineDesignCalc.N1", "");
+  const [N2, setN2] = usePersistentState("engineering.MachineDesignCalc.N2", "");
   // Belt
-  const [Db, setDb] = useState("");
-  const [nb2, setNb2] = useState("");
+  const [Db, setDb] = usePersistentState("engineering.MachineDesignCalc.Db", "");
+  const [nb2, setNb2] = usePersistentState("engineering.MachineDesignCalc.nb2", "");
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -703,7 +713,7 @@ const TABS = [
 /* ═══ PAGE ════════════════════════════════════════════════════════════════════ */
 
 export default function EngineeringPage() {
-  const [tab, setTab] = useState("stress");
+  const [tab, setTab] = usePersistentState("engineering.EngineeringPage.tab", "stress");
   const ActiveComp = TABS.find((t) => t.id === tab)!.comp;
 
   return (

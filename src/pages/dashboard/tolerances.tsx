@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
   calcFit,
   COMMON_FITS,
@@ -38,8 +39,11 @@ function CBtn({ text }: { text: string }) {
 /* ═══ ISO FITS ═══════════════════════════════════════════════════════════════ */
 
 function FitsTab() {
-  const [dia, setDia] = useState("25");
-  const [selectedFit, setSelectedFit] = useState("H7/g6");
+  const [dia, setDia] = usePersistentState("tolerances.FitsTab.dia", "25");
+  const [selectedFit, setSelectedFit] = usePersistentState(
+    "tolerances.FitsTab.selectedFit",
+    "H7/g6",
+  );
 
   const fitDef = COMMON_FITS.find((f) => f.label === selectedFit);
   const result = useMemo(() => {
@@ -183,8 +187,8 @@ function FitsTab() {
 /* ═══ GD&T ═══════════════════════════════════════════════════════════════════ */
 
 function GDTTab() {
-  const [query, setQuery] = useState("");
-  const [cat, setCat] = useState<string>("all");
+  const [query, setQuery] = usePersistentState("tolerances.GDTTab.query", "");
+  const [cat, setCat] = usePersistentState<string>("tolerances.GDTTab.cat", "all");
 
   const filtered = useMemo(() => {
     let pool = cat === "all" ? GDT_SYMBOLS : GDT_SYMBOLS.filter((s) => s.category === cat);
@@ -333,7 +337,7 @@ const TABS = [
 ];
 
 export default function TolerancesPage() {
-  const [tab, setTab] = useState("fits");
+  const [tab, setTab] = usePersistentState("tolerances.TolerancesPage.tab", "fits");
 
   return (
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">

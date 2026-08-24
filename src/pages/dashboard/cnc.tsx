@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
   calculateG71,
   generateG71Code,
@@ -613,22 +614,22 @@ function ProfileEditor({
 /* ═══ G71 · OD roughing ═════════════════════════════════════════════════════ */
 
 function G71Panel() {
-  const [stock, setStock] = useState("50");
-  const [finish, setFinish] = useState("40");
-  const [length, setLength] = useState("60");
-  const [doc, setDoc] = useState("2");
-  const [allowX, setAllowX] = useState("0.5");
-  const [allowZ, setAllowZ] = useState("0.1");
-  const [retract, setRetract] = useState("1");
-  const [feed, setFeed] = useState("0.25");
-  const [ns, setNs] = useState("100");
-  const [nf, setNf] = useState("110");
+  const [stock, setStock] = usePersistentState("cnc.G71Panel.stock", "50");
+  const [finish, setFinish] = usePersistentState("cnc.G71Panel.finish", "40");
+  const [length, setLength] = usePersistentState("cnc.G71Panel.length", "60");
+  const [doc, setDoc] = usePersistentState("cnc.G71Panel.doc", "2");
+  const [allowX, setAllowX] = usePersistentState("cnc.G71Panel.allowX", "0.5");
+  const [allowZ, setAllowZ] = usePersistentState("cnc.G71Panel.allowZ", "0.1");
+  const [retract, setRetract] = usePersistentState("cnc.G71Panel.retract", "1");
+  const [feed, setFeed] = usePersistentState("cnc.G71Panel.feed", "0.25");
+  const [ns, setNs] = usePersistentState("cnc.G71Panel.ns", "100");
+  const [nf, setNf] = usePersistentState("cnc.G71Panel.nf", "110");
   // The same cycle bores as well as turns, and everything about it is the other
   // way round: the stock is the hole that is already there, the passes open it
   // outwards, and the allowance is left on the inside.
-  const [internal, setInternal] = useState(false);
+  const [internal, setInternal] = usePersistentState("cnc.G71Panel.internal", false);
   // The part as it is dimensioned on the drawing: a diameter and a length per step.
-  const [rows, setRows] = useState<ProfileRow[]>([
+  const [rows, setRows] = usePersistentState<ProfileRow[]>("cnc.G71Panel.rows", [
     { ...emptyRow(), d: "20", l: "15" },
     { ...emptyRow(), d: "30", l: "20" },
     { ...emptyRow(), d: "40", l: "25" },
@@ -950,17 +951,17 @@ function G71Panel() {
 /* ═══ G72 · Facing roughing ═════════════════════════════════════════════════ */
 
 function G72Panel() {
-  const [stock, setStock] = useState("60");
-  const [finish, setFinish] = useState("20");
-  const [facing, setFacing] = useState("10");
-  const [doc, setDoc] = useState("2");
-  const [allowX, setAllowX] = useState("0.5");
-  const [allowZ, setAllowZ] = useState("0.1");
-  const [retract, setRetract] = useState("1");
-  const [feed, setFeed] = useState("0.2");
+  const [stock, setStock] = usePersistentState("cnc.G72Panel.stock", "60");
+  const [finish, setFinish] = usePersistentState("cnc.G72Panel.finish", "20");
+  const [facing, setFacing] = usePersistentState("cnc.G72Panel.facing", "10");
+  const [doc, setDoc] = usePersistentState("cnc.G72Panel.doc", "2");
+  const [allowX, setAllowX] = usePersistentState("cnc.G72Panel.allowX", "0.5");
+  const [allowZ, setAllowZ] = usePersistentState("cnc.G72Panel.allowZ", "0.1");
+  const [retract, setRetract] = usePersistentState("cnc.G72Panel.retract", "1");
+  const [feed, setFeed] = usePersistentState("cnc.G72Panel.feed", "0.2");
   // Empty means the plain inputs above describe the whole job, which is the
   // usual one: face straight in to a diameter.
-  const [faceRows, setFaceRows] = useState<FaceRow[]>([]);
+  const [faceRows, setFaceRows] = usePersistentState<FaceRow[]>("cnc.G72Panel.faceRows", []);
 
   const input = {
     stockDiameter: pf(stock),
@@ -1178,20 +1179,20 @@ function G73Panel() {
   // Defaults are a coherent job, not just plausible numbers: a 44 mm blank over
   // a 38 mm largest diameter is 3 mm oversize on the radius, which is what the
   // relief is set to. Anything else would greet the user with their own warning.
-  const [stock, setStock] = useState("44");
-  const [reliefX, setReliefX] = useState("3");
-  const [reliefZ, setReliefZ] = useState("1");
-  const [divisions, setDivisions] = useState("4");
-  const [allowX, setAllowX] = useState("0.5");
-  const [allowZ, setAllowZ] = useState("0.1");
-  const [feed, setFeed] = useState("0.2");
-  const [ns, setNs] = useState("100");
-  const [nf, setNf] = useState("110");
+  const [stock, setStock] = usePersistentState("cnc.G73Panel.stock", "44");
+  const [reliefX, setReliefX] = usePersistentState("cnc.G73Panel.reliefX", "3");
+  const [reliefZ, setReliefZ] = usePersistentState("cnc.G73Panel.reliefZ", "1");
+  const [divisions, setDivisions] = usePersistentState("cnc.G73Panel.divisions", "4");
+  const [allowX, setAllowX] = usePersistentState("cnc.G73Panel.allowX", "0.5");
+  const [allowZ, setAllowZ] = usePersistentState("cnc.G73Panel.allowZ", "0.1");
+  const [feed, setFeed] = usePersistentState("cnc.G73Panel.feed", "0.2");
+  const [ns, setNs] = usePersistentState("cnc.G73Panel.ns", "100");
+  const [nf, setNf] = usePersistentState("cnc.G73Panel.nf", "110");
 
   // The part itself, the same table G71 uses. Before this the cycle drew a
   // fixed illustration, so the one thing an operator wanted to check — their
   // own shape — was the one thing it could not show.
-  const [rows, setRows] = useState<ProfileRow[]>([
+  const [rows, setRows] = usePersistentState<ProfileRow[]>("cnc.G73Panel.rows", [
     { ...emptyRow(), d: "26", l: "18" },
     { ...emptyRow(), d: "38", l: "22" },
   ]);
@@ -1403,16 +1404,16 @@ function G73Panel() {
 /* ═══ G74 · Peck drilling ═══════════════════════════════════════════════════ */
 
 function G74Panel() {
-  const [depth, setDepth] = useState("30");
-  const [peck, setPeck] = useState("5");
-  const [drill, setDrill] = useState("10");
-  const [retract, setRetract] = useState("1");
-  const [feed, setFeed] = useState("0.15");
-  const [clearance, setClearance] = useState("2");
+  const [depth, setDepth] = usePersistentState("cnc.G74Panel.depth", "30");
+  const [peck, setPeck] = usePersistentState("cnc.G74Panel.peck", "5");
+  const [drill, setDrill] = usePersistentState("cnc.G74Panel.drill", "10");
+  const [retract, setRetract] = usePersistentState("cnc.G74Panel.retract", "1");
+  const [feed, setFeed] = usePersistentState("cnc.G74Panel.feed", "0.15");
+  const [clearance, setClearance] = usePersistentState("cnc.G74Panel.clearance", "2");
   // What is actually in the chuck. Without it the picture invented a bar three
   // times the drill, so a 10 mm hole through a 100 mm billet was drawn in a
   // 30 mm one — a part nobody was making.
-  const [bar, setBar] = useState("");
+  const [bar, setBar] = usePersistentState("cnc.G74Panel.bar", "");
 
   const input = {
     depth: pf(depth),
@@ -1520,14 +1521,14 @@ function G74Panel() {
 /* ═══ G75 · Grooving and parting ════════════════════════════════════════════ */
 
 function G75Panel() {
-  const [stock, setStock] = useState("50");
-  const [grooveDia, setGrooveDia] = useState("40");
-  const [width, setWidth] = useState("6");
-  const [toolWidth, setToolWidth] = useState("3");
-  const [xPeck, setXPeck] = useState("1");
-  const [retract, setRetract] = useState("0.5");
-  const [feed, setFeed] = useState("0.08");
-  const [zStart, setZStart] = useState("-20");
+  const [stock, setStock] = usePersistentState("cnc.G75Panel.stock", "50");
+  const [grooveDia, setGrooveDia] = usePersistentState("cnc.G75Panel.grooveDia", "40");
+  const [width, setWidth] = usePersistentState("cnc.G75Panel.width", "6");
+  const [toolWidth, setToolWidth] = usePersistentState("cnc.G75Panel.toolWidth", "3");
+  const [xPeck, setXPeck] = usePersistentState("cnc.G75Panel.xPeck", "1");
+  const [retract, setRetract] = usePersistentState("cnc.G75Panel.retract", "0.5");
+  const [feed, setFeed] = usePersistentState("cnc.G75Panel.feed", "0.08");
+  const [zStart, setZStart] = usePersistentState("cnc.G75Panel.zStart", "-20");
 
   const input = {
     stockDiameter: pf(stock),
@@ -1638,17 +1639,17 @@ function G75Panel() {
 /* ═══ G76 · Threading ═══════════════════════════════════════════════════════ */
 
 function G76Panel() {
-  const [major, setMajor] = useState("20");
-  const [pitch, setPitch] = useState("2.5");
-  const [zEnd, setZEnd] = useState("-30");
-  const [form, setForm] = useState<ThreadForm>("metric60");
-  const [firstPass, setFirstPass] = useState("0.3");
-  const [minDepth, setMinDepth] = useState("0.05");
-  const [allowance, setAllowance] = useState("0.05");
-  const [finishPasses, setFinishPasses] = useState("2");
-  const [chamfer, setChamfer] = useState("10");
-  const [taper, setTaper] = useState("0");
-  const [internal, setInternal] = useState(false);
+  const [major, setMajor] = usePersistentState("cnc.G76Panel.major", "20");
+  const [pitch, setPitch] = usePersistentState("cnc.G76Panel.pitch", "2.5");
+  const [zEnd, setZEnd] = usePersistentState("cnc.G76Panel.zEnd", "-30");
+  const [form, setForm] = usePersistentState<ThreadForm>("cnc.G76Panel.form", "metric60");
+  const [firstPass, setFirstPass] = usePersistentState("cnc.G76Panel.firstPass", "0.3");
+  const [minDepth, setMinDepth] = usePersistentState("cnc.G76Panel.minDepth", "0.05");
+  const [allowance, setAllowance] = usePersistentState("cnc.G76Panel.allowance", "0.05");
+  const [finishPasses, setFinishPasses] = usePersistentState("cnc.G76Panel.finishPasses", "2");
+  const [chamfer, setChamfer] = usePersistentState("cnc.G76Panel.chamfer", "10");
+  const [taper, setTaper] = usePersistentState("cnc.G76Panel.taper", "0");
+  const [internal, setInternal] = usePersistentState("cnc.G76Panel.internal", false);
   /**
    * The bar the thread is cut on, or bored into.
    *
@@ -1657,7 +1658,7 @@ function G76Panel() {
    * the bar has to be larger than it, not eight millimetres larger than the
    * thread it contains.
    */
-  const [threadBar, setThreadBar] = useState("");
+  const [threadBar, setThreadBar] = usePersistentState("cnc.G76Panel.threadBar", "");
 
   const input = {
     majorDiameter: pf(major),
@@ -1854,15 +1855,15 @@ function G76Panel() {
 /* ═══ G90 / G92 / G94 · Single-block cycles ═════════════════════════════════ */
 
 function SimplePanel() {
-  const [cycle, setCycle] = useState<SimpleCycle>("g90");
-  const [start, setStart] = useState("50");
-  const [finish, setFinish] = useState("40");
-  const [startZ, setStartZ] = useState("0");
-  const [zEnd, setZEnd] = useState("-40");
-  const [doc, setDoc] = useState("2");
-  const [feed, setFeed] = useState("0.2");
-  const [taper, setTaper] = useState("0");
-  const [pitch, setPitch] = useState("2.5");
+  const [cycle, setCycle] = usePersistentState<SimpleCycle>("cnc.SimplePanel.cycle", "g90");
+  const [start, setStart] = usePersistentState("cnc.SimplePanel.start", "50");
+  const [finish, setFinish] = usePersistentState("cnc.SimplePanel.finish", "40");
+  const [startZ, setStartZ] = usePersistentState("cnc.SimplePanel.startZ", "0");
+  const [zEnd, setZEnd] = usePersistentState("cnc.SimplePanel.zEnd", "-40");
+  const [doc, setDoc] = usePersistentState("cnc.SimplePanel.doc", "2");
+  const [feed, setFeed] = usePersistentState("cnc.SimplePanel.feed", "0.2");
+  const [taper, setTaper] = usePersistentState("cnc.SimplePanel.taper", "0");
+  const [pitch, setPitch] = usePersistentState("cnc.SimplePanel.pitch", "2.5");
   /**
    * The bar in the chuck, which is not the same thing as where the cut starts.
    *
@@ -1871,7 +1872,7 @@ function SimplePanel() {
    * starts at whatever diameter it starts at, and drawing the billet that size
    * showed a part narrower than the one being faced.
    */
-  const [bar, setBar] = useState("");
+  const [bar, setBar] = usePersistentState("cnc.SimplePanel.bar", "");
 
   const facing = cycle === "g94";
   const threading = cycle === "g92";
@@ -2036,7 +2037,7 @@ const TAB_KEY = "mp_cnc_tab";
 
 export default function CNCPage() {
   const [tab, setTab] = useState("g71");
-  const [program, setProgram] = useState(SAMPLE);
+  const [program, setProgram] = usePersistentState("cnc.CNCPage.program", SAMPLE);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Come back to the cycle that was last open. Somebody working through a job
@@ -2093,7 +2094,9 @@ export default function CNCPage() {
         /* not worth failing the plot over */
       }
     },
-    [],
+    // setProgram is stable; listed only because the linter cannot see that
+    // through usePersistentState.
+    [setProgram],
   );
 
   return (
