@@ -205,6 +205,16 @@ interface ToolingValue {
   /** Speeds this shop has proved, which beat the built-in table when present. */
   overrides: Map<string, SpeedOverride>;
   setOverrides: (m: Map<string, SpeedOverride>) => void;
+  /**
+   * How imperial lengths are written, decimal or fraction.
+   *
+   * Page level for the same reason the tool material is: it describes how the
+   * shop reads a number, not what one particular calculator is working out.
+   * Set it on any tab and every tab follows, so there is no way to leave one
+   * screen in fractions and read the next one wrong.
+   */
+  inchStyle: InchStyle;
+  setInchStyle: (v: InchStyle) => void;
 }
 
 const ToolingContext = createContext<ToolingValue | null>(null);
@@ -213,6 +223,31 @@ function useTooling(): ToolingValue {
   const ctx = useContext(ToolingContext);
   if (!ctx) throw new Error("useTooling must be used inside the machining page");
   return ctx;
+}
+
+/**
+ * The two ways a millimetre figure gets written on screen.
+ *
+ * `size` is for anything a machinist could measure, pick off a rack or reach
+ * for in a drill index — diameters, drills, travels, coordinates. In imperial
+ * those honour the fraction setting, because a shop working in inches names
+ * them as fractions.
+ *
+ * `rate` is for everything that is set rather than measured — feeds per rev,
+ * feed rates, pitches, infeeds, tolerances. Those stay decimal whatever the
+ * setting says. A feed of 3/64 in/rev is not how any machine is programmed,
+ * and a 0.13 mm tolerance has no 64th to land on at all: it snaps to zero and
+ * prints "± ~0", which reads as no tolerance rather than as five thou.
+ */
+function sizeText(mm: number, isM: boolean, inchStyle: InchStyle, dec = 3): string {
+  if (isM) return fmt(mm, dec);
+  const inches = mmToIn(mm);
+  return inchStyle === "fraction" ? formatInchFraction(inches) : fmt(inches, dec + 1);
+}
+
+/** The decimal-only counterpart, for anything set rather than measured. */
+function rateText(mm: number, isM: boolean, dec = 3): string {
+  return isM ? fmt(mm, dec) : fmt(mmToIn(mm), dec + 1);
 }
 
 /**
@@ -966,7 +1001,7 @@ function TurningCalc() {
     fromShop,
     notOperationSpecific,
   } = useCuttingSpeed(mat, "turn", units);
-  const { spindleMax } = useTooling();
+  const { spindleMax, inchStyle, setInchStyle } = useTooling();
   const maxRpm = parseFloat(spindleMax) || 0;
   const defaultFeed = isM ? mat.chipTurnMm : mat.chipTurn;
   const cs = parseFloat(csOverride) || defaultCs;
@@ -1014,6 +1049,7 @@ function TurningCalc() {
           <SectionHeader title="Inputs" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+        {!isM && <InchStyleToggle value={inchStyle} onChange={setInchStyle} />}
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="grid grid-cols-2 gap-3">
           <Num label="Workpiece Dia" value={dia} onChange={setDia} suffix={isM ? "mm" : "in"} />
@@ -1088,7 +1124,7 @@ function TurningCalc() {
           <>
             <ResultRow
               label="Stock off Radius"
-              value={isM ? fmt(radialStockMm, 2) : fmt(mmToIn(radialStockMm), 3)}
+              value={sizeText(radialStockMm, isM, inchStyle, 2)}
               unit={isM ? "mm" : "in"}
             />
             <ResultRow label="Passes" value={String(passes)} accent />
@@ -1151,7 +1187,7 @@ function DrillCalc() {
     fromShop,
     notOperationSpecific,
   } = useCuttingSpeed(mat, "drill", units);
-  const { spindleMax } = useTooling();
+  const { spindleMax, inchStyle, setInchStyle } = useTooling();
   const maxRpm = parseFloat(spindleMax) || 0;
   const drillCsMm = isM ? drillCs : sfmToSmm(drillCs);
   const { saveSpeed, clearSpeed } = useSpeedSaving(mat, "drill", drillCsMm);
@@ -1189,6 +1225,7 @@ function DrillCalc() {
           <SectionHeader title="Inputs" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+        {!isM && <InchStyleToggle value={inchStyle} onChange={setInchStyle} />}
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="grid grid-cols-2 gap-3">
           <Num
@@ -1255,13 +1292,13 @@ function DrillCalc() {
         <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
         <ResultRow
           label="Drill Point Depth"
-          value={pointDepthMm > 0 ? (isM ? fmt(pointDepthMm) : fmt(mmToIn(pointDepthMm), 3)) : "—"}
-          unit={isM ? "mm" : "in"}
+          value={pointDepthMm > 0 ? sizeText(pointDepthMm, isM, inchStyle, 2) : "—"}
+          unit={pointDepthMm > 0 ? (isM ? "mm" : "in") : undefined}
         />
         <ResultRow
           label="Total Travel"
-          value={travelMm > 0 ? (isM ? fmt(travelMm) : fmt(mmToIn(travelMm), 3)) : "—"}
-          unit={isM ? "mm" : "in"}
+          value={travelMm > 0 ? sizeText(travelMm, isM, inchStyle, 2) : "—"}
+          unit={travelMm > 0 ? (isM ? "mm" : "in") : undefined}
         />
         <ResultRow label="Drilling Time" value={time > 0 ? fmt(time) : "—"} unit="min" />
         <CopyBtn text={`Drill RPM: ${fmt(rpm, 0)}, Feed: ${fmt(feed)} mm/min`} />
@@ -1276,7 +1313,7 @@ function ThreadCalc() {
   const [side, setSide] = useState<ThreadSide>("external");
   const [units, setUnits] = useState<UnitSystem>("metric");
   const isM = units === "metric";
-  const [inchStyle, setInchStyle] = useState<InchStyle>("decimal");
+  const { inchStyle, setInchStyle } = useTooling();
   const [std, setStd] = useState<string>("metric");
   const [idx, setIdx] = useState(5); // default M6
 
@@ -1644,6 +1681,7 @@ function TimeCalc() {
 // 8) Bolt circle / hole pattern
 function BoltCircleCalc() {
   const [units, setUnits] = useState<UnitSystem>("metric");
+  const { inchStyle, setInchStyle } = useTooling();
   const isM = units === "metric";
   const [count, setCount] = useState("6");
   const [pcd, setPcd] = useState("100");
@@ -1663,7 +1701,7 @@ function BoltCircleCalc() {
     }
   }, [count, pcd, start, centreX, centreY, isM]);
 
-  const show = (value: number) => (isM ? fmt(value, 3) : fmt(mmToIn(value), 4));
+  const show = (value: number) => sizeText(value, isM, inchStyle, 3);
   const table = holes.list
     .map((h) => `${h.index}\t${fmt(h.angle, 3)}\t${show(h.x)}\t${show(h.y)}`)
     .join("\n");
@@ -1675,6 +1713,7 @@ function BoltCircleCalc() {
           <SectionHeader title="Inputs" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+        {!isM && <InchStyleToggle value={inchStyle} onChange={setInchStyle} />}
         <div className="grid grid-cols-2 gap-3">
           <Num label="Number of Holes" value={count} onChange={setCount} suffix="holes" />
           <Num label="Bolt Circle Dia" value={pcd} onChange={setPcd} suffix={isM ? "mm" : "in"} />
@@ -1835,7 +1874,7 @@ function TapCalc() {
   const [reverseFactor, setReverseFactor] = useState("2");
 
   const { band: drillBand } = useCuttingSpeed(mat, "drill", "metric");
-  const { spindleMax } = useTooling();
+  const { spindleMax, inchStyle, setInchStyle } = useTooling();
   const maxRpm = parseFloat(spindleMax) || 0;
 
   // Tapping runs far below drilling and the tap cannot be backed out of a bad
@@ -1872,6 +1911,7 @@ function TapCalc() {
           <SectionHeader title="Tap" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+        {!isM && <InchStyleToggle value={inchStyle} onChange={setInchStyle} />}
         <MaterialSelect value={matId} onChange={setMatId} />
         <div className="flex gap-1.5 flex-wrap">
           {Object.entries(THREAD_TABLES).map(([key, value]) => (
@@ -1966,22 +2006,22 @@ function TapCalc() {
             />
             <ResultRow label="Spindle Speed" value={fmt(rpm, 0)} unit="RPM" accent />
             <FeedRow feedMmMin={feed} rpm={rpm} metric={isM} accent />
-            <ResultRow label="Pitch" value={fmt(pitch, 3)} unit="mm" />
+            <ResultRow label="Pitch" value={rateText(pitch, isM)} unit={isM ? "mm" : "in"} />
             <ResultRow
               label={`Tap Drill at ${fmt(pct, 0)}%`}
-              value={isM ? fmt(drill, 2) : fmt(mmToIn(drill), 4)}
+              value={sizeText(drill, isM, inchStyle, 2)}
               unit={isM ? "mm" : "in"}
               accent
             />
             <ResultRow
               label="Chart Drill"
-              value={`${fmt(thread.tapDrill, 2)} mm at ${fmt(chartPct, 0)}%`}
+              value={`${sizeText(thread.tapDrill, isM, inchStyle, 2)} ${isM ? "mm" : "in"} at ${fmt(chartPct, 0)}%`}
             />
             {travel > 0 && (
               <>
                 <ResultRow
                   label="Tap Travel"
-                  value={isM ? fmt(travel, 2) : fmt(mmToIn(travel), 3)}
+                  value={sizeText(travel, isM, inchStyle, 2)}
                   unit={isM ? "mm" : "in"}
                 />
                 <ResultRow label="Turns to Depth" value={fmt(tapTurns(travel, pitch), 1)} />
@@ -2063,7 +2103,7 @@ function InsertCalc() {
   const isM = units === "metric";
   const [code, setCode] = useState("CNMG120408");
 
-  const [inchStyle, setInchStyle] = useState<InchStyle>("decimal");
+  const { inchStyle, setInchStyle } = useTooling();
 
   const result = useMemo(() => decodeInsert(code), [code]);
   const dim = (mm: number | null, dec = 2) => {
@@ -2418,10 +2458,20 @@ export default function MachiningPage() {
   const [overrides, setOverrides] = useState<Map<string, SpeedOverride>>(() =>
     loadSpeedOverrides(),
   );
+  const [inchStyle, setInchStyle] = useState<InchStyle>("decimal");
   const ActiveComp = TABS.find((t) => t.id === activeTab)!.comp;
   const tooling = useMemo(
-    () => ({ tool, setTool, spindleMax, setSpindleMax, overrides, setOverrides }),
-    [tool, spindleMax, overrides],
+    () => ({
+      tool,
+      setTool,
+      spindleMax,
+      setSpindleMax,
+      overrides,
+      setOverrides,
+      inchStyle,
+      setInchStyle,
+    }),
+    [tool, spindleMax, overrides, inchStyle],
   );
 
   // Only the tabs that read a cutting speed care what the tool is made of.
