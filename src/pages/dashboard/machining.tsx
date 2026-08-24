@@ -70,6 +70,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { Wrench, Copy, Check, X, ChevronRight, Info } from "lucide-react";
 import { useCopy } from "@/hooks/use-copy";
 import { formatMath } from "@/lib/core/math-symbols";
+import { formatInchFraction } from "@/lib/core/fraction";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Shared components
@@ -496,6 +497,51 @@ function UnitToggle({ value, onChange }: { value: UnitSystem; onChange: (v: Unit
           {u === "metric" ? "Metric" : "Imperial"}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * How an imperial result is written: 0.3125 or 5/16.
+ *
+ * A shop working in inches names its stock, its drills and its threads as
+ * fractions, so a decimal is a number they convert before it means anything.
+ * Both are offered because both are needed — the fraction to recognise the
+ * size, the decimal to work to.
+ */
+type InchStyle = "decimal" | "fraction";
+
+/** Whether a custom thread's pitch is being given directly or as threads per inch. */
+type PitchMode = "pitch" | "tpi";
+
+function InchStyleToggle({
+  value,
+  onChange,
+}: {
+  value: InchStyle;
+  onChange: (v: InchStyle) => void;
+}) {
+  return (
+    <div>
+      <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+        Show inches as
+      </label>
+      <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600 w-fit">
+        {(
+          [
+            ["decimal", "Decimal"],
+            ["fraction", "Fraction"],
+          ] as [InchStyle, string][]
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => onChange(id)}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${value === id ? "bg-accent-cyan/20 text-accent-cyan" : "text-gray-500 hover:text-white"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1230,33 +1276,91 @@ function ThreadCalc() {
   const [side, setSide] = useState<ThreadSide>("external");
   const [units, setUnits] = useState<UnitSystem>("metric");
   const isM = units === "metric";
+  const [inchStyle, setInchStyle] = useState<InchStyle>("decimal");
   const [std, setStd] = useState<string>("metric");
   const [idx, setIdx] = useState(5); // default M6
 
+  // Non-standard threads. A repair thread, a worn lead screw, an old imperial
+  // form that is in no table — the geometry is the same 60° form, so all that
+  // is really needed is the major diameter and the pitch.
+  const [customMajor, setCustomMajor] = useState("");
+  const [customPitch, setCustomPitch] = useState("");
+  const [pitchMode, setPitchMode] = useState<PitchMode>("pitch");
+
+  const isCustom = std === "custom";
   const table = THREAD_TABLES[std];
-  const thread: ThreadEntry | undefined = table.entries[idx];
+  const thread: ThreadEntry | undefined = isCustom ? undefined : table?.entries[idx];
   const external = side === "external";
 
-  const major = thread?.major ?? 0;
-  const pitch = thread?.pitch ?? 0;
+  const toMm = (v: string) => {
+    const n = parseFloat(v);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return isM ? n : inToMm(n);
+  };
+
+  const customMajorMm = toMm(customMajor);
+  const customPitchMm = (() => {
+    if (pitchMode === "pitch") return toMm(customPitch);
+    // Threads per inch is always per inch, whichever unit the boxes are in.
+    const tpi = parseFloat(customPitch);
+    return Number.isFinite(tpi) && tpi > 0 ? 25.4 / tpi : 0;
+  })();
+
+  const major = isCustom ? customMajorMm : (thread?.major ?? 0);
+  const pitch = isCustom ? customPitchMm : (thread?.pitch ?? 0);
+
+  /*
+   * A pitch too coarse for its diameter drives the root diameter to zero or
+   * below — there is no thread left, only a screw cut away to nothing. That is
+   * a plausible-looking set of numbers for an impossible thread, so it is
+   * refused rather than printed.
+   */
+  const rootDia = major > 0 && pitch > 0 ? calcMinorDiaExternal(major, pitch) : 0;
+  const usable = major > 0 && pitch > 0 && rootDia > 0;
 
   // Shared by both: the pitch diameter is the same figure for a screw and a nut.
-  const pitchDia = thread ? calcPitchDiameter(major, pitch) : 0;
+  const pitchDia = usable ? calcPitchDiameter(major, pitch) : 0;
   // Not shared: the screw runs down to d3, the nut only to D1, and the infeed
   // that follows from each is different.
-  const minor = thread
+  const minor = usable
     ? external
       ? calcMinorDiaExternal(major, pitch)
       : calcMinorDiaInternal(major, pitch)
     : 0;
-  const depth = thread
+  const depth = usable
     ? external
       ? calcThreadDepthExternal(pitch)
       : calcThreadDepthInternal(pitch)
     : 0;
+  // A custom thread has no chart to look a drill up in, so the drill is worked
+  // out from the engagement instead — the same 60° geometry the Tapping tab uses.
+  const tapDrill = isCustom
+    ? usable
+      ? tapDrillForEngagement(major, pitch, 75)
+      : 0
+    : (thread?.tapDrill ?? 0);
 
-  const dim = (mm: number, dec = 3) => (isM ? fmt(mm, dec) : fmt(mmToIn(mm), dec + 1));
+  /*
+   * Imperial results can be read as a decimal or as a fraction. A shop working
+   * in inches names stock and drills as fractions, so 0.3125 means less to them
+   * than 5/16 does. Snapped fractions are marked with a tilde by the formatter.
+   */
+  const dim = (mm: number, dec = 3) => {
+    if (isM) return fmt(mm, dec);
+    const inches = mmToIn(mm);
+    return inchStyle === "fraction" ? formatInchFraction(inches) : fmt(inches, dec + 1);
+  };
+  /*
+   * Always decimal, whatever the fraction setting says. A pitch and an infeed
+   * are dialled in, not measured off stock: nobody sets a cross-slide to 3/64.
+   * Rounding them onto a 64ths grid would throw away more than the figure is
+   * worth — an infeed is a thou-level number.
+   */
+  const dec = (mm: number, places = 3) => (isM ? fmt(mm, places) : fmt(mmToIn(mm), places + 1));
   const unit = isM ? "mm" : "in";
+  const threadName = isCustom
+    ? `Ø${fmt(major, 3)} × ${fmt(pitch, 3)} mm`
+    : (thread?.label ?? "thread");
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1265,6 +1369,8 @@ function ThreadCalc() {
           <SectionHeader title="Thread" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+
+        {!isM && <InchStyleToggle value={inchStyle} onChange={setInchStyle} />}
 
         <div>
           <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
@@ -1301,32 +1407,92 @@ function ThreadCalc() {
               {v.label}
             </button>
           ))}
-        </div>
-        <div>
-          <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
-            Thread Size
-          </label>
-          <select
-            value={idx}
-            onChange={(e) => setIdx(Number(e.target.value))}
-            className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer appearance-none"
+          <button
+            onClick={() => setStd("custom")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isCustom ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30" : "bg-dark-700/50 text-gray-500 border border-dark-600 hover:text-white"}`}
           >
-            {table.entries.map((t, i) => (
-              <option key={i} value={i}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            Custom
+          </button>
         </div>
+
+        {isCustom ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Num
+                label="Major Diameter"
+                value={customMajor}
+                onChange={setCustomMajor}
+                suffix={unit}
+                placeholder={isM ? "e.g. 10" : "e.g. 0.375"}
+              />
+              <Num
+                label={pitchMode === "pitch" ? "Pitch" : "Threads per Inch"}
+                value={customPitch}
+                onChange={setCustomPitch}
+                suffix={pitchMode === "pitch" ? unit : "TPI"}
+                placeholder={pitchMode === "pitch" ? (isM ? "e.g. 1.5" : "e.g. 0.05") : "e.g. 20"}
+              />
+            </div>
+            <div className="flex p-0.5 rounded-lg bg-dark-800 border border-dark-600 w-fit">
+              {(
+                [
+                  ["pitch", "Pitch"],
+                  ["tpi", "TPI"],
+                ] as [PitchMode, string][]
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setPitchMode(id);
+                    setCustomPitch("");
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${pitchMode === id ? "bg-accent-cyan/20 text-accent-cyan" : "text-gray-500 hover:text-white"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {pitchMode === "tpi" && customPitchMm > 0 && (
+              <p className="text-[11px] text-gray-500">
+                {fmt(parseFloat(customPitch), 0)} TPI is a pitch of {fmt(customPitchMm, 4)} mm (
+                {fmt(mmToIn(customPitchMm), 5)} in).
+              </p>
+            )}
+          </>
+        ) : (
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+              Thread Size
+            </label>
+            <select
+              value={idx}
+              onChange={(e) => setIdx(Number(e.target.value))}
+              className="w-full px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-sm text-white focus:border-accent-cyan/50 focus:outline-none cursor-pointer appearance-none"
+            >
+              {table.entries.map((t, i) => (
+                <option key={i} value={i}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <p className="text-[11px] text-gray-400 leading-relaxed">
           {external
             ? "A screw thread. Every figure below belongs to the male thread — the blank you turn, the diameter you gauge on, and the infeed that cuts it. The nut's figures are not the same and are not shown here."
             : "A nut thread. Every figure below belongs to the female thread — the bore before threading and the infeed out to the crest. The screw's figures are not the same and are not shown here."}
         </p>
+        {isCustom && (
+          <p className="text-[11px] text-gray-500 leading-relaxed">
+            Custom threads are worked out from the standard 60° form. That covers metric, UNC, UNF
+            and any non-standard thread cut with a 60° tool — but not Acme, trapezoidal, buttress or
+            Whitworth, which have their own flank angles.
+          </p>
+        )}
       </Card>
 
-      {thread ? (
+      {usable ? (
         <Card variant="solid" padding="md" className="border-dark-600">
           <SectionHeader
             title={external ? "External Thread — on a shaft" : "Internal Thread — in a hole"}
@@ -1342,7 +1508,7 @@ function ThreadCalc() {
               />
               <ResultRow label="Pitch Ø — d2 (gauge on this)" value={dim(pitchDia)} unit={unit} />
               <ResultRow label="Minor Ø — d3 (root)" value={dim(minor)} unit={unit} />
-              <ResultRow label="Total infeed — h3" value={dim(depth)} unit={unit} accent />
+              <ResultRow label="Total infeed — h3" value={dec(depth)} unit={unit} accent />
             </>
           ) : (
             <>
@@ -1354,25 +1520,29 @@ function ThreadCalc() {
               />
               <ResultRow label="Pitch Ø — D2 (gauge on this)" value={dim(pitchDia)} unit={unit} />
               <ResultRow label="Major Ø — D (crest)" value={dim(major)} unit={unit} />
-              <ResultRow label="Total infeed — H1" value={dim(depth)} unit={unit} accent />
+              <ResultRow label="Total infeed — H1" value={dec(depth)} unit={unit} accent />
               <ResultRow
-                label="Tap drill (chart)"
-                value={isM ? fmt(thread.tapDrill, 2) : fmt(mmToIn(thread.tapDrill), 4)}
+                label={isCustom ? "Tap drill (75% engagement)" : "Tap drill (chart)"}
+                value={dim(tapDrill, 2)}
                 unit={unit}
               />
             </>
           )}
 
-          <ResultRow label="Pitch" value={dim(pitch)} unit={unit} />
-          {thread.tpi !== undefined && (
-            <ResultRow label="TPI" value={fmt(thread.tpi, 0)} unit="TPI" />
+          <ResultRow label="Pitch" value={dec(pitch)} unit={unit} />
+          {isCustom ? (
+            <ResultRow label="TPI" value={fmt(25.4 / pitch, 2)} unit="TPI" />
+          ) : (
+            thread?.tpi !== undefined && (
+              <ResultRow label="TPI" value={fmt(thread.tpi, 0)} unit="TPI" />
+            )
           )}
 
           <CopyBtn
             text={
               external
-                ? `${thread.label} external: turn to ${fmt(major, 3)} mm, pitch Ø ${fmt(pitchDia, 3)} mm, infeed ${fmt(depth, 3)} mm`
-                : `${thread.label} internal: bore ${fmt(minor, 3)} mm, pitch Ø ${fmt(pitchDia, 3)} mm, infeed ${fmt(depth, 3)} mm`
+                ? `${threadName} external: turn to ${fmt(major, 3)} mm, pitch Ø ${fmt(pitchDia, 3)} mm, infeed ${fmt(depth, 3)} mm`
+                : `${threadName} internal: bore ${fmt(minor, 3)} mm, pitch Ø ${fmt(pitchDia, 3)} mm, infeed ${fmt(depth, 3)} mm`
             }
           />
 
@@ -1391,6 +1561,13 @@ function ThreadCalc() {
             ]}
           />
 
+          {!isM && inchStyle === "fraction" && (
+            <p className="text-[11px] text-gray-500 leading-relaxed mt-3">
+              Fractions are the nearest 1/64. A tilde in front of one means it does not land on a
+              64th exactly — switch to decimal for the figure to work to.
+            </p>
+          )}
+
           <p className="text-[11px] text-gray-400 leading-relaxed mt-3">
             {external
               ? "The screw's root is d3 — deeper than the nut's D1, by 0.0722 × pitch. Cutting an external thread only to the nut's depth leaves it a loose fit."
@@ -1405,7 +1582,17 @@ function ThreadCalc() {
         </Card>
       ) : (
         <Card variant="solid" padding="md" className="border-dark-600">
-          <p className="text-sm text-gray-500 py-6 text-center">Pick a thread</p>
+          <SectionHeader title="Results" />
+          {isCustom && major > 0 && pitch > 0 && rootDia <= 0 ? (
+            <p className="text-sm text-accent-amber leading-relaxed py-4">
+              A pitch of {fmt(pitch, 3)} mm on a {fmt(major, 3)} mm diameter leaves no thread — the
+              root would cut away past the centre. Check the pitch.
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500 py-6 text-center">
+              {isCustom ? "Enter a major diameter and a pitch" : "Pick a thread"}
+            </p>
+          )}
         </Card>
       )}
     </div>
@@ -1876,9 +2063,21 @@ function InsertCalc() {
   const isM = units === "metric";
   const [code, setCode] = useState("CNMG120408");
 
+  const [inchStyle, setInchStyle] = useState<InchStyle>("decimal");
+
   const result = useMemo(() => decodeInsert(code), [code]);
-  const dim = (mm: number | null, dec = 2) =>
-    mm === null ? "—" : isM ? fmt(mm, dec) : fmt(mmToIn(mm), dec + 2);
+  const dim = (mm: number | null, dec = 2) => {
+    if (mm === null) return "—";
+    if (isM) return fmt(mm, dec);
+    const inches = mmToIn(mm);
+    return inchStyle === "fraction" ? formatInchFraction(inches) : fmt(inches, dec + 2);
+  };
+  /*
+   * Tolerances stay decimal whatever the fraction setting says. A 0.13 mm
+   * tolerance has no 64th to land on — it snaps to zero and prints "± ~0",
+   * which reads as no tolerance at all rather than as five thou.
+   */
+  const dec = (mm: number, places = 3) => (isM ? fmt(mm, places) : fmt(mmToIn(mm), places + 2));
   const unit = isM ? "mm" : "in";
   // A dash standing in for a missing dimension must not carry a unit after it:
   // "—mm" reads as a measurement that failed rather than one the code never had.
@@ -1891,6 +2090,7 @@ function InsertCalc() {
           <SectionHeader title="Insert Code" className="!mb-0" />
           <UnitToggle value={units} onChange={setUnits} />
         </div>
+        {!isM && <InchStyleToggle value={inchStyle} onChange={setInchStyle} />}
         <div>
           <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
             ISO 1832 designation
@@ -2100,7 +2300,7 @@ function InsertCalc() {
             )}
             <ResultRow
               label="Thickness Tolerance"
-              value={`± ${dim(result.insert.tolerance.thickness, 3)}`}
+              value={`± ${dec(result.insert.tolerance.thickness)}`}
               unit={unit}
             />
             <ResultRow
@@ -2108,7 +2308,7 @@ function InsertCalc() {
               value={
                 result.insert.tolerance.inscribedCircle === null
                   ? "varies with size"
-                  : `± ${dim(result.insert.tolerance.inscribedCircle, 3)}`
+                  : `± ${dec(result.insert.tolerance.inscribedCircle)}`
               }
               unit={result.insert.tolerance.inscribedCircle === null ? undefined : unit}
             />
