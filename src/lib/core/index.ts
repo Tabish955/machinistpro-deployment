@@ -6,3 +6,4 @@ export * from "./formula-engine";
 export * from "./history";
 export * from "./math-symbols";
 export * from "./fraction";
+export * from "./session-store";
