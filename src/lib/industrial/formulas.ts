@@ -151,8 +151,34 @@ export const pulleySpeedRatio = (D2: number, D1: number) => D2 / D1;
 /** Belt speed: v = π × D × n / 60000  (D in mm, n in RPM → m/s) */
 export const beltSpeed = (D: number, n: number) => (PI * D * n) / 60000;
 
-/** Center distance from belt length: approx C = (L − π(D1+D2)/2) / 2 */
-export const centerFromBelt = (L: number, D1: number, D2: number) => (L - (PI * (D1 + D2)) / 2) / 2;
+/**
+ * Centre distance from a belt length — the exact inverse of `beltLength`.
+ *
+ * This used to drop the (D2−D1)²/(4C) term that `beltLength` includes, so the
+ * two disagreed with each other. On equal pulleys that term is zero and
+ * nothing showed; on a real reduction drive it is not small. An 80 mm pulley
+ * driving a 500 mm one at 600 mm centres came back 36.75 mm out — a drive
+ * that will not tension, from a figure that looked perfectly ordinary.
+ *
+ * Belts are bought in standard lengths, so this is the direction that actually
+ * gets used: pick the belt, then work out where the motor goes.
+ *
+ * Solving L = 2C + b + k/(4C) for C, with b = π(D1+D2)/2 and k = (D2−D1)²,
+ * gives 2C² + (b−L)C + k/4 = 0, and the physical root is the larger one:
+ *
+ *   C = [ (L−b) + √((L−b)² − 2k) ] / 4
+ *
+ * Returns 0 when the belt is too short to reach around both pulleys, which is
+ * a geometric impossibility rather than a number worth printing.
+ */
+export const centerFromBelt = (L: number, D1: number, D2: number) => {
+  const wrap = (PI * (D1 + D2)) / 2;
+  const difference = (D2 - D1) ** 2;
+  const span = L - wrap;
+  const discriminant = span * span - 2 * difference;
+  if (span <= 0 || discriminant < 0) return 0;
+  return (span + Math.sqrt(discriminant)) / 4;
+};
 
 // ═══ FORMAT ═════════════════════════════════════════════════════════════════
 export function fmt(n: number, d = 4): string {
