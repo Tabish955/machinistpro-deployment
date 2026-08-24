@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
   SHAPES_2D,
   SHAPE2D_GROUPS,
@@ -180,7 +181,17 @@ function ShapeCalc({
   inputUnit: string;
   outputUnit: string;
 }) {
-  const [vals, setVals] = useState<Record<string, string>>({});
+  /*
+   * Keyed by the shape, not shared across them. This component is deliberately
+   * remounted when the shape changes (see the `key` where it is used) so that a
+   * circle's radius does not turn into a square's side, and the same panel
+   * serves both the 2D and 3D lists. One storage key for all of them would
+   * undo exactly the separation the remount is there to create.
+   */
+  const [vals, setVals] = usePersistentState<Record<string, string>>(
+    `geometry.ShapeCalc.vals.${shape.id}`,
+    {},
+  );
   const setVal = (id: string, v: string) => setVals((prev) => ({ ...prev, [id]: v }));
 
   const parsed = useMemo(() => {
@@ -282,8 +293,13 @@ const COORD_MODES: { id: CoordMode; label: string }[] = [
 ];
 
 function CoordCalc() {
-  const [mode, setMode] = useState<CoordMode>("2points");
-  const [v, setV] = useState<Record<string, string>>({ x1: "", y1: "", x2: "", y2: "" });
+  const [mode, setMode] = usePersistentState<CoordMode>("geometry.CoordCalc.mode", "2points");
+  const [v, setV] = usePersistentState<Record<string, string>>("geometry.CoordCalc.v", {
+    x1: "",
+    y1: "",
+    x2: "",
+    y2: "",
+  });
   const set = (k: string) => (val: string) => setV((p) => ({ ...p, [k]: val }));
   const num = (k: string) => parseFloat(v[k] ?? "");
 
@@ -439,7 +455,10 @@ function CoordCalc() {
 /* ═══ Irregular polygon from coordinates ═════════════════════════════════════ */
 
 function PolygonCalc({ inputUnit, outputUnit }: { inputUnit: string; outputUnit: string }) {
-  const [text, setText] = useState("0,0\n60,0\n80,40\n30,70\n0,45");
+  const [text, setText] = usePersistentState(
+    "geometry.PolygonCalc.text",
+    "0,0\n60,0\n80,40\n30,70\n0,45",
+  );
   const points = useMemo(() => parsePoints(text), [text]);
   const stats = useMemo(() => polygonStats(points), [points]);
   // An odd number of values means a coordinate is unpaired, which would otherwise
@@ -590,8 +609,18 @@ function PolygonCalc({ inputUnit, outputUnit }: { inputUnit: string; outputUnit:
 const GRAPH_COLORS = ["#00d4ff", "#a78bfa", "#f59e0b", "#34d399"];
 
 function GraphCalc() {
-  const [inputs, setInputs] = useState(["x^2 - 4", "2*x + 1", "", ""]);
-  const [range, setRange] = useState({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
+  const [inputs, setInputs] = usePersistentState("geometry.GraphCalc.inputs", [
+    "x^2 - 4",
+    "2*x + 1",
+    "",
+    "",
+  ]);
+  const [range, setRange] = usePersistentState("geometry.GraphCalc.range", {
+    xMin: -10,
+    xMax: 10,
+    yMin: -10,
+    yMax: 10,
+  });
 
   const series = useMemo(() => {
     return inputs
@@ -807,11 +836,14 @@ const TABS = [
 /* ═══ Main page ══════════════════════════════════════════════════════════════ */
 
 export default function GeometryPage() {
-  const [tab, setTab] = useState("2d");
-  const [shapeId2d, setShapeId2d] = useState("circle");
-  const [shapeId3d, setShapeId3d] = useState("cylinder");
-  const [inputUnit, setInputUnit] = useState("mm");
-  const [outputUnit, setOutputUnit] = useState("mm");
+  const [tab, setTab] = usePersistentState("geometry.GeometryPage.tab", "2d");
+  const [shapeId2d, setShapeId2d] = usePersistentState("geometry.GeometryPage.shapeId2d", "circle");
+  const [shapeId3d, setShapeId3d] = usePersistentState(
+    "geometry.GeometryPage.shapeId3d",
+    "cylinder",
+  );
+  const [inputUnit, setInputUnit] = usePersistentState("geometry.GeometryPage.inputUnit", "mm");
+  const [outputUnit, setOutputUnit] = usePersistentState("geometry.GeometryPage.outputUnit", "mm");
 
   const shape2d = useMemo(() => SHAPES_2D.find((s) => s.id === shapeId2d)!, [shapeId2d]);
   const shape3d = useMemo(() => SHAPES_3D.find((s) => s.id === shapeId3d)!, [shapeId3d]);

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
   ALL_CATEGORIES,
   CATEGORY_MAP,
@@ -275,7 +276,12 @@ function ConversionView({ category, onBack }: { category: CategoryDef; onBack: (
   const [toUnit, setToUnit] = useState<UnitDef>(
     category.units.length > 1 ? category.units[1] : category.units[0],
   );
-  const [inputValue, setInputValue] = useState("1");
+  // Per category, because this panel is remounted when the category changes.
+  // A length of 25.4 has no business reappearing in the temperature box.
+  const [inputValue, setInputValue] = usePersistentState(
+    `converter.ConversionView.inputValue.${category.id}`,
+    "1",
+  );
   const { copied, failed, copy } = useCopy();
 
   const { addRecent } = useConverterStore();
@@ -464,7 +470,10 @@ function ConversionView({ category, onBack }: { category: CategoryDef; onBack: (
    ═══════════════════════════════════════════════════════════════════════════ */
 
 export default function ConverterPage() {
-  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const [selectedCatId, setSelectedCatId] = usePersistentState<string | null>(
+    "converter.ConverterPage.selectedCatId",
+    null,
+  );
   const selectedCat = selectedCatId ? (CATEGORY_MAP.get(selectedCatId) ?? null) : null;
 
   const { recentConversions, clearRecent } = useConverterStore();

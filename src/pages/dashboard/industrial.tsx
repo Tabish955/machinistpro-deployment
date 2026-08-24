@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import * as I from "@/lib/industrial/formulas";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -122,13 +123,16 @@ function pf(v: string) {
 /* ═══ Sheet Metal ════════════════════════════════════════════════════════════ */
 
 function SheetMetalCalc() {
-  const [angle, setAngle] = useState("90");
-  const [R, setR] = useState("");
-  const [T, setT] = useState("");
-  const [K, setK] = useState("0.33");
-  const [leg1, setLeg1] = useState("");
-  const [leg2, setLeg2] = useState("");
-  const [datum, setDatum] = useState<I.LegDatum>("flange");
+  const [angle, setAngle] = usePersistentState("industrial.SheetMetalCalc.angle", "90");
+  const [R, setR] = usePersistentState("industrial.SheetMetalCalc.R", "");
+  const [T, setT] = usePersistentState("industrial.SheetMetalCalc.T", "");
+  const [K, setK] = usePersistentState("industrial.SheetMetalCalc.K", "0.33");
+  const [leg1, setLeg1] = usePersistentState("industrial.SheetMetalCalc.leg1", "");
+  const [leg2, setLeg2] = usePersistentState("industrial.SheetMetalCalc.leg2", "");
+  const [datum, setDatum] = usePersistentState<I.LegDatum>(
+    "industrial.SheetMetalCalc.datum",
+    "flange",
+  );
 
   const ba = pf(R) > 0 && pf(T) > 0 ? I.bendAllowance(pf(angle), pf(R), pf(T), pf(K)) : null;
   const ossb = pf(R) > 0 && pf(T) > 0 ? I.outsideSetback(pf(R), pf(T), pf(angle)) : null;
@@ -231,13 +235,13 @@ function SheetMetalCalc() {
 /* ═══ Welding ════════════════════════════════════════════════════════════════ */
 
 function WeldCalc() {
-  const [leg, setLeg] = useState("");
-  const [length, setLength] = useState("");
-  const [rho, setRho] = useState("7850");
-  const [rodWt, setRodWt] = useState("0.030");
-  const [eff, setEff] = useState("0.65");
-  const [gasFlow, setGasFlow] = useState("15");
-  const [arcTime, setArcTime] = useState("");
+  const [leg, setLeg] = usePersistentState("industrial.WeldCalc.leg", "");
+  const [length, setLength] = usePersistentState("industrial.WeldCalc.length", "");
+  const [rho, setRho] = usePersistentState("industrial.WeldCalc.rho", "7850");
+  const [rodWt, setRodWt] = usePersistentState("industrial.WeldCalc.rodWt", "0.030");
+  const [eff, setEff] = usePersistentState("industrial.WeldCalc.eff", "0.65");
+  const [gasFlow, setGasFlow] = usePersistentState("industrial.WeldCalc.gasFlow", "15");
+  const [arcTime, setArcTime] = usePersistentState("industrial.WeldCalc.arcTime", "");
 
   const throat = pf(leg) > 0 ? I.weldThroat(pf(leg)) : null;
   const vol = pf(leg) > 0 && pf(length) > 0 ? I.filletWeldVolume(pf(leg), pf(length)) : null;
@@ -300,11 +304,11 @@ function WeldCalc() {
 /* ═══ Hydraulics ═════════════════════════════════════════════════════════════ */
 
 function HydraulicCalc() {
-  const [P, setP] = useState("");
-  const [D, setD] = useState("");
-  const [disp, setDisp] = useState("");
-  const [rpm, setRpm] = useState("");
-  const [effP, setEffP] = useState("0.85");
+  const [P, setP] = usePersistentState("industrial.HydraulicCalc.P", "");
+  const [D, setD] = usePersistentState("industrial.HydraulicCalc.D", "");
+  const [disp, setDisp] = usePersistentState("industrial.HydraulicCalc.disp", "");
+  const [rpm, setRpm] = usePersistentState("industrial.HydraulicCalc.rpm", "");
+  const [effP, setEffP] = usePersistentState("industrial.HydraulicCalc.effP", "0.85");
 
   const Am2 = pf(D) > 0 ? I.cylinderArea(pf(D) / 1000) : null; // D mm → m
   const force = Am2 !== null && pf(P) > 0 ? I.cylinderForce(pf(P) * 1e5, Am2) : null; // bar → Pa
@@ -347,11 +351,11 @@ function HydraulicCalc() {
 /* ═══ Pneumatics ═════════════════════════════════════════════════════════════ */
 
 function PneumaticCalc() {
-  const [P, setP] = useState("6");
-  const [D, setD] = useState("");
-  const [stroke, setStroke] = useState("");
-  const [cycles, setCycles] = useState("");
-  const [eff, setEff] = useState("0.80");
+  const [P, setP] = usePersistentState("industrial.PneumaticCalc.P", "6");
+  const [D, setD] = usePersistentState("industrial.PneumaticCalc.D", "");
+  const [stroke, setStroke] = usePersistentState("industrial.PneumaticCalc.stroke", "");
+  const [cycles, setCycles] = usePersistentState("industrial.PneumaticCalc.cycles", "");
+  const [eff, setEff] = usePersistentState("industrial.PneumaticCalc.eff", "0.80");
 
   const Am2 = pf(D) > 0 ? I.cylinderArea(pf(D) / 1000) : null;
   const force = Am2 !== null ? I.pneumaticForce(pf(P) * 1e5, Am2, pf(eff)) : null;
@@ -402,10 +406,10 @@ function PneumaticCalc() {
 /* ═══ Pipe ═══════════════════════════════════════════════════════════════════ */
 
 function PipeCalc() {
-  const [OD, setOD] = useState("");
-  const [wt, setWt] = useState("");
-  const [L, setL] = useState("1000");
-  const [rho, setRho] = useState("7850");
+  const [OD, setOD] = usePersistentState("industrial.PipeCalc.OD", "");
+  const [wt, setWt] = usePersistentState("industrial.PipeCalc.wt", "");
+  const [L, setL] = usePersistentState("industrial.PipeCalc.L", "1000");
+  const [rho, setRho] = usePersistentState("industrial.PipeCalc.rho", "7850");
 
   const ID = pf(OD) - 2 * pf(wt);
   const valid = pf(OD) > 0 && pf(wt) > 0 && ID > 0;
@@ -462,9 +466,9 @@ function PipeCalc() {
 /* ═══ Gears ══════════════════════════════════════════════════════════════════ */
 
 function GearCalc() {
-  const [m, setM] = useState("");
-  const [Z1, setZ1] = useState("");
-  const [Z2, setZ2] = useState("");
+  const [m, setM] = usePersistentState("industrial.GearCalc.m", "");
+  const [Z1, setZ1] = usePersistentState("industrial.GearCalc.Z1", "");
+  const [Z2, setZ2] = usePersistentState("industrial.GearCalc.Z2", "");
 
   const D1 = pf(m) > 0 && pf(Z1) > 0 ? I.pitchDiaFromModule(pf(m), pf(Z1)) : null;
   const D2 = pf(m) > 0 && pf(Z2) > 0 ? I.pitchDiaFromModule(pf(m), pf(Z2)) : null;
@@ -502,10 +506,10 @@ function GearCalc() {
 /* ═══ Belts & Pulleys ════════════════════════════════════════════════════════ */
 
 function BeltCalc() {
-  const [D1, setD1] = useState("");
-  const [D2, setD2] = useState("");
-  const [C, setC] = useState("");
-  const [n1, setN1] = useState("");
+  const [D1, setD1] = usePersistentState("industrial.BeltCalc.D1", "");
+  const [D2, setD2] = usePersistentState("industrial.BeltCalc.D2", "");
+  const [C, setC] = usePersistentState("industrial.BeltCalc.C", "");
+  const [n1, setN1] = usePersistentState("industrial.BeltCalc.n1", "");
 
   const bLen = pf(C) > 0 && pf(D1) > 0 && pf(D2) > 0 ? I.beltLength(pf(C), pf(D1), pf(D2)) : null;
   const ratio = pf(D1) > 0 && pf(D2) > 0 ? I.pulleySpeedRatio(pf(D2), pf(D1)) : null;
@@ -554,7 +558,7 @@ const TABS = [
 ];
 
 export default function IndustrialPage() {
-  const [tab, setTab] = useState("sheet");
+  const [tab, setTab] = usePersistentState("industrial.IndustrialPage.tab", "sheet");
   const ActiveComp = TABS.find((t) => t.id === tab)!.comp;
 
   return (

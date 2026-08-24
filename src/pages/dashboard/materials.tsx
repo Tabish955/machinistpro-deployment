@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import Link from "@/lib/next-compat";
 import {
   MATERIAL_PROFILES,
@@ -111,8 +112,8 @@ function MaterialDetail({ m, onBack }: { m: MaterialProfile; onBack: () => void 
 }
 
 function MaterialsTab() {
-  const [query, setQuery] = useState("");
-  const [cat, setCat] = useState<string>("all");
+  const [query, setQuery] = usePersistentState("materials.MaterialsTab.query", "");
+  const [cat, setCat] = usePersistentState<string>("materials.MaterialsTab.cat", "all");
   const [selected, setSelected] = useState<MaterialProfile | null>(null);
 
   const filtered = useMemo(() => {
@@ -207,8 +208,8 @@ function MaterialsTab() {
 /* ═══ TAB 2 — Threads ════════════════════════════════════════════════════════ */
 
 function ThreadsTab() {
-  const [std, setStd] = useState("all");
-  const [query, setQuery] = useState("");
+  const [std, setStd] = usePersistentState("materials.ThreadsTab.std", "all");
+  const [query, setQuery] = usePersistentState("materials.ThreadsTab.query", "");
   const filtered = useMemo(() => {
     let pool = std === "all" ? THREAD_DB : THREAD_DB.filter((t) => t.standard === std);
     if (query.trim()) {
@@ -295,8 +296,8 @@ function ThreadsTab() {
 /* ═══ TAB 3 — Drills ═════════════════════════════════════════════════════════ */
 
 function DrillsTab() {
-  const [type, setType] = useState("all");
-  const [query, setQuery] = useState("");
+  const [type, setType] = usePersistentState("materials.DrillsTab.type", "all");
+  const [query, setQuery] = usePersistentState("materials.DrillsTab.query", "");
   const filtered = useMemo(() => {
     let pool = type === "all" ? DRILL_SIZES : DRILL_SIZES.filter((d) => d.type === type);
     if (query.trim()) {
@@ -431,7 +432,7 @@ const TABS = [
 ];
 
 export default function MaterialsPage() {
-  const [tab, setTab] = useState("materials");
+  const [tab, setTab] = usePersistentState("materials.MaterialsPage.tab", "materials");
 
   return (
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">

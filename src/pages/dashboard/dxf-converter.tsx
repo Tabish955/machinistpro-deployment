@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -43,11 +44,17 @@ export default function DxfConverterPage() {
   const [advice, setAdvice] = useState("");
   const [dragging, setDragging] = useState(false);
 
-  const [units, setUnits] = useState<"mm" | "in">("mm");
+  const [units, setUnits] = usePersistentState<"mm" | "in">(
+    "dxf-converter.DxfConverterPage.units",
+    "mm",
+  );
   const [scale, setScale] = useState(1);
   const [scaleWasSet, setScaleWasSet] = useState(false);
-  const [output, setOutput] = useState<OutputFormat>("dxf");
-  const [invert, setInvert] = useState(false);
+  const [output, setOutput] = usePersistentState<OutputFormat>(
+    "dxf-converter.DxfConverterPage.output",
+    "dxf",
+  );
+  const [invert, setInvert] = usePersistentState("dxf-converter.DxfConverterPage.invert", false);
   // How far the exported geometry may sit from the traced outline, in source
   // pixels. This is not slack to be removed: a traced edge is a staircase of
   // whole pixels, and the tolerance is the room the fitter needs to lay a
@@ -55,7 +62,10 @@ export default function DxfConverterPage() {
   // which is a heavier file and a rougher edge, not a truer one. 0.8 px is
   // below what any cutter resolves, so it is fixed rather than asked about.
   const fitTolerance = 0.8;
-  const [stlMode, setStlMode] = useState<StlMode>("slice");
+  const [stlMode, setStlMode] = usePersistentState<StlMode>(
+    "dxf-converter.DxfConverterPage.stlMode",
+    "slice",
+  );
   // Left null the tracer decides from the ink; set, the user has overruled it.
   // An image is always read as a filled shape, which traces both edges of
   // every stroke — the outline you cut to. The centreline reading, which
@@ -128,7 +138,7 @@ export default function DxfConverterPage() {
         setBusy("");
       }
     },
-    [invert, stlMode, sliceZ, traceMode],
+    [invert, stlMode, sliceZ, traceMode, setUnits],
   );
 
   const accept = (chosen: File | undefined | null) => {

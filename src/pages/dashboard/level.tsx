@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
   applyCalibration,
   averageTilt,
@@ -75,7 +76,7 @@ export default function LevelPage() {
   const [raw, setRaw] = useState<Tilt>({ pitch: 0, roll: 0 });
   const [held, setHeld] = useState<Tilt | null>(null);
   const [heldEdge, setHeldEdge] = useState<Gravity | null>(null);
-  const [unit, setUnit] = useState<SlopeUnit>("deg");
+  const [unit, setUnit] = usePersistentState<SlopeUnit>("level.LevelPage.unit", "deg");
   const [calibration, setCalibration] = useState<LevelCalibration>(() => {
     try {
       const saved = localStorage.getItem(CAL_KEY);
@@ -89,12 +90,12 @@ export default function LevelPage() {
   // can be turned into screen axes — but it needs the motion permission, so the
   // orientation reading stays as a fallback until the first sample arrives.
   const hasMotion = useRef(false);
-  const [mode, setMode] = useState<LevelMode>("surface");
+  const [mode, setMode] = usePersistentState<LevelMode>("level.LevelPage.mode", "surface");
   // The whole gravity vector is kept rather than the handful of numbers derived
   // from it, so holding a reading freezes the position too and every figure on
   // screen keeps agreeing with every other.
   const [gview, setGview] = useState<Gravity | null>(null);
-  const [buzz, setBuzz] = useState(true);
+  const [buzz, setBuzz] = usePersistentState("level.LevelPage.buzz", true);
 
   const start = async () => {
     if (typeof DeviceOrientationEvent === "undefined") {
@@ -164,7 +165,7 @@ export default function LevelPage() {
       window.removeEventListener("deviceorientation", onOrient, true);
       window.removeEventListener("devicemotion", onMotion, true);
     };
-  }, [status]);
+  }, [status, setMode]);
 
   const live = applyCalibration(raw, calibration);
   const tilt = held ?? live;
