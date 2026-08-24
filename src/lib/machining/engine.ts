@@ -99,6 +99,28 @@ export function calcThreadDepthExternal(pitch_mm: number): number {
   return 0.61345 * pitch_mm;
 }
 
+/**
+ * Infeed to cut a full internal thread: (major − D1) / 2, so 0.54125 × P.
+ *
+ * Shallower than the external infeed and not interchangeable with it. A nut
+ * only has to run down to D1 where a screw runs to d3, and cutting an internal
+ * thread to the external depth takes it past the standard form and thins the
+ * flank. The two differ by 0.0722 × P, which on an M20 × 2.5 is 0.18 mm of
+ * radius — enough to matter on a gauge.
+ */
+export function calcThreadDepthInternal(pitch_mm: number): number {
+  return 0.54125 * pitch_mm;
+}
+
+/**
+ * Pitch diameter, d2 for a screw and D2 for a nut — the same figure for both.
+ * major − 0.649519 × P for any 60° thread, and the diameter a thread is
+ * actually gauged on.
+ */
+export function calcPitchDiameter(majorDia_mm: number, pitch_mm: number): number {
+  return majorDia_mm - 0.649519 * pitch_mm;
+}
+
 // ─── Drilling ───────────────────────────────────────────────────────────────
 /**
  * Feed per revolution for a twist drill, mm/rev. Feed scales with diameter:
