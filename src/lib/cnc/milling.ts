@@ -266,6 +266,13 @@ export function generateMillDrillCode(input: MillDrillInput): string[] {
 
   lines.push("G80");
   lines.push(`G00 Z${word(initialZ)}`);
+  /*
+   * And an end. Without M30 the control runs on past the last block into
+   * whatever else is in memory, which is the one omission in a short program
+   * that can still move the machine. The app's own checker raises it as a
+   * warning, and the first version of this generator ignored it.
+   */
+  lines.push("M30");
 
   return lines;
 }
