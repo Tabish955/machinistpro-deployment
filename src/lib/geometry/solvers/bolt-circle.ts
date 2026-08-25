@@ -19,8 +19,14 @@ export function calculateBoltCircle(params: BoltCircleParams): BoltCircleResult 
   const { pcd, holeCount, startAngleDeg = 0, centerX = 0, centerY = 0 } = params;
 
   if (pcd <= 0) throw new Error("PCD (Pitch Circle Diameter) must be positive.");
-  if (!Number.isInteger(holeCount) || holeCount < 2 || holeCount > 500) {
-    throw new Error("Number of holes must be an integer between 2 and 500.");
+  /*
+   * One hole is a real request — locating a single hole at a radius and an
+   * angle is ordinary work — and the machining engine's own bolt circle has
+   * always accepted it. This used to refuse anything below two, so the same
+   * job was possible on one screen and impossible on another.
+   */
+  if (!Number.isInteger(holeCount) || holeCount < 1 || holeCount > 500) {
+    throw new Error("Number of holes must be a whole number between 1 and 500.");
   }
 
   const radius = pcd / 2;
