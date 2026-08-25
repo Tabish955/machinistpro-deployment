@@ -9,6 +9,16 @@ import {
 } from "react";
 import { usePersistentState } from "@/hooks/use-persistent-state";
 import {
+  calcMillDrill,
+  generateMillDrillCode,
+  holesFromPattern,
+  type DrillCycle,
+  type HolePattern,
+  type MillDrillInput,
+  type ReturnMode,
+  type HolePosition as MillHole,
+} from "@/lib/cnc/milling";
+import {
   calculateG71,
   generateG71Code,
   profileCoordinates,
@@ -211,7 +221,9 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
         <thead className="text-gray-500">
           <tr>
             {head.map((h, i) => (
-              <th key={h} className={`font-normal ${i === 0 ? "text-left" : "text-right"}`}>
+              // Keyed by position rather than by text: two columns may share a
+              // label, and two blank ones certainly do.
+              <th key={i} className={`font-normal ${i === 0 ? "text-left" : "text-right"}`}>
                 {h}
               </th>
             ))}
@@ -2020,6 +2032,471 @@ function SimplePanel() {
 
 /* ═══ Page ══════════════════════════════════════════════════════════════════ */
 
+/* ── Milling · drilling cycles ─────────────────────────────────────────────
+   The mill's side of the page. Four cycles rather than four tabs, because
+   they differ by one word each and share everything else — the holes, the
+   depth, the planes, the feed. Splitting them would have meant filling the
+   same six boxes four times to compare them. */
+
+/** A plan view of the table: where the holes are and the order they are drilled. */
+function XYPlot({
+  holes,
+  drillDiameter,
+  error,
+}: {
+  holes: MillHole[];
+  drillDiameter: number;
+  error: string;
+}) {
+  if (error || holes.length === 0) {
+    return (
+      <Card variant="solid" padding="md" className="border-dark-600">
+        <SectionHeader title="Plan View" />
+        <p className="text-sm text-gray-500 py-8 text-center">{error || "No holes to draw yet."}</p>
+      </Card>
+    );
+  }
+
+  const radius = Math.max(drillDiameter / 2, 0.5);
+  const xs = holes.map((h) => h.x);
+  const ys = holes.map((h) => h.y);
+  const pad = Math.max(radius * 3, 8);
+  const minX = Math.min(...xs) - pad;
+  const maxX = Math.max(...xs) + pad;
+  const minY = Math.min(...ys) - pad;
+  const maxY = Math.max(...ys) + pad;
+  const width = Math.max(maxX - minX, 1);
+  const height = Math.max(maxY - minY, 1);
+
+  // Y is up on a drawing and down in SVG, so the whole thing is flipped once
+  // here rather than negated at every point.
+  return (
+    <Card variant="solid" padding="md" className="border-dark-600">
+      <SectionHeader title="Plan View" />
+      <div className="rounded-lg bg-dark-900/60 p-2">
+        <svg
+          viewBox={`${minX} ${-maxY} ${width} ${height}`}
+          className="w-full"
+          style={{ maxHeight: 320 }}
+          role="img"
+          aria-label={`Plan view of ${holes.length} holes`}
+        >
+          {/* The path the drill traverses, in the order the holes are drilled. */}
+          <polyline
+            points={holes.map((h) => `${h.x},${-h.y}`).join(" ")}
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth={Math.max(width, height) / 400}
+            strokeDasharray={`${Math.max(width, height) / 80} ${Math.max(width, height) / 120}`}
+            opacity={0.75}
+          />
+          {holes.map((hole, index) => (
+            <g key={`${hole.x}:${hole.y}:${index}`}>
+              <circle
+                cx={hole.x}
+                cy={-hole.y}
+                r={radius}
+                fill="rgba(0,212,255,0.15)"
+                stroke="#00d4ff"
+                strokeWidth={Math.max(width, height) / 500}
+              />
+              <text
+                x={hole.x}
+                y={-hole.y + radius * 0.45}
+                textAnchor="middle"
+                fill="#e5e7eb"
+                fontSize={radius * 1.1}
+                fontFamily="monospace"
+              >
+                {index + 1}
+              </text>
+            </g>
+          ))}
+          {/* The origin, so the pattern can be read against the datum. */}
+          <line
+            x1={minX}
+            y1={0}
+            x2={maxX}
+            y2={0}
+            stroke="#4b5563"
+            strokeWidth={Math.max(width, height) / 800}
+          />
+          <line
+            x1={0}
+            y1={-maxY}
+            x2={0}
+            y2={-minY}
+            stroke="#4b5563"
+            strokeWidth={Math.max(width, height) / 800}
+          />
+        </svg>
+      </div>
+      <p className="text-[10px] text-gray-600 leading-relaxed mt-2">
+        Holes are numbered in the order the cycle drills them, and the dashed line is the traverse
+        between them. The cross is X0 Y0.
+      </p>
+    </Card>
+  );
+}
+
+function MillDrillPanel() {
+  const [cycle, setCycle] = usePersistentState<DrillCycle>("cnc.Mill.cycle", "G81");
+  const [returnMode, setReturnMode] = usePersistentState<ReturnMode>("cnc.Mill.return", "G99");
+
+  const [depth, setDepth] = usePersistentState("cnc.Mill.depth", "12");
+  const [drill, setDrill] = usePersistentState("cnc.Mill.drill", "8");
+  const [retract, setRetract] = usePersistentState("cnc.Mill.retract", "2");
+  const [initial, setInitial] = usePersistentState("cnc.Mill.initial", "25");
+  const [feed, setFeed] = usePersistentState("cnc.Mill.feed", "150");
+  const [peck, setPeck] = usePersistentState("cnc.Mill.peck", "4");
+  const [dwell, setDwell] = usePersistentState("cnc.Mill.dwell", "0.5");
+  const [pitch, setPitch] = usePersistentState("cnc.Mill.pitch", "1.25");
+  const [rpm, setRpm] = usePersistentState("cnc.Mill.rpm", "400");
+  const [through, setThrough] = usePersistentState("cnc.Mill.through", false);
+
+  // Where the holes are.
+  const [patternKind, setPatternKind] = usePersistentState<"grid" | "circle" | "list">(
+    "cnc.Mill.patternKind",
+    "grid",
+  );
+  const [cols, setCols] = usePersistentState("cnc.Mill.cols", "3");
+  const [rows, setRows] = usePersistentState("cnc.Mill.rows", "2");
+  const [xSpace, setXSpace] = usePersistentState("cnc.Mill.xSpace", "25");
+  const [ySpace, setYSpace] = usePersistentState("cnc.Mill.ySpace", "20");
+  const [originX, setOriginX] = usePersistentState("cnc.Mill.originX", "10");
+  const [originY, setOriginY] = usePersistentState("cnc.Mill.originY", "10");
+  const [count, setCount] = usePersistentState("cnc.Mill.count", "6");
+  const [pcd, setPcd] = usePersistentState("cnc.Mill.pcd", "80");
+  const [startAngle, setStartAngle] = usePersistentState("cnc.Mill.startAngle", "0");
+  const [centreX, setCentreX] = usePersistentState("cnc.Mill.centreX", "0");
+  const [centreY, setCentreY] = usePersistentState("cnc.Mill.centreY", "0");
+  const [listText, setListText] = usePersistentState(
+    "cnc.Mill.listText",
+    "10, 10\n40, 10\n40, 40\n10, 40",
+  );
+
+  const out = useMemo(() => {
+    try {
+      const pattern: HolePattern =
+        patternKind === "grid"
+          ? {
+              kind: "grid",
+              columns: Math.round(pf(cols)) || 0,
+              rows: Math.round(pf(rows)) || 0,
+              xSpacing: pf(xSpace) || 0,
+              ySpacing: pf(ySpace) || 0,
+              originX: pf(originX) || 0,
+              originY: pf(originY) || 0,
+            }
+          : patternKind === "circle"
+            ? {
+                kind: "circle",
+                count: Math.round(pf(count)) || 0,
+                pcd: pf(pcd) || 0,
+                startAngleDeg: pf(startAngle) || 0,
+                centreX: pf(centreX) || 0,
+                centreY: pf(centreY) || 0,
+              }
+            : { kind: "list", text: listText };
+
+      const holes = holesFromPattern(pattern);
+      const input: MillDrillInput = {
+        cycle,
+        holes,
+        depth: pf(depth),
+        retractZ: pf(retract),
+        initialZ: pf(initial),
+        feed: pf(feed),
+        peck: pf(peck),
+        dwell: pf(dwell),
+        pitch: pf(pitch),
+        rpm: pf(rpm),
+        returnMode,
+        drillDiameter: pf(drill),
+        throughHole: through,
+      };
+
+      return {
+        holes,
+        result: calcMillDrill(input),
+        code: generateMillDrillCode(input),
+        error: "",
+      };
+    } catch (cause) {
+      return {
+        holes: [] as MillHole[],
+        result: null,
+        code: [] as string[],
+        error: cause instanceof Error ? cause.message : "Check the values.",
+      };
+    }
+  }, [
+    cycle,
+    returnMode,
+    depth,
+    drill,
+    retract,
+    initial,
+    feed,
+    peck,
+    dwell,
+    pitch,
+    rpm,
+    through,
+    patternKind,
+    cols,
+    rows,
+    xSpace,
+    ySpace,
+    originX,
+    originY,
+    count,
+    pcd,
+    startAngle,
+    centreX,
+    centreY,
+    listText,
+  ]);
+
+  const CYCLES: { id: DrillCycle; label: string; what: string }[] = [
+    { id: "G81", label: "G81 · Drill", what: "Straight down and straight out. The plain hole." },
+    {
+      id: "G82",
+      label: "G82 · Spotface",
+      what: "Pauses at the bottom so the tool cleans up a flat. Spotfaces, counterbores, chamfers.",
+    },
+    {
+      id: "G83",
+      label: "G83 · Peck",
+      what: "Comes fully out to the R plane on every peck, which is what clears the chips.",
+    },
+    {
+      id: "G84",
+      label: "G84 · Tap",
+      what: "Feeds at one pitch per revolution and reverses at the bottom.",
+    },
+  ];
+
+  const active = CYCLES.find((c) => c.id === cycle)!;
+
+  return (
+    <div className="space-y-4">
+      {/* Which cycle */}
+      <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
+        <SectionHeader title="Cycle" />
+        <div className="flex gap-1.5 flex-wrap">
+          {CYCLES.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setCycle(c.id)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                cycle === c.id
+                  ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
+                  : "bg-dark-800/60 text-gray-500 border border-dark-700 hover:text-white"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-gray-400 leading-relaxed">{active.what}</p>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* The hole pattern */}
+        <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
+          <SectionHeader title="Where the holes are" />
+          <div className="flex gap-1.5">
+            {(
+              [
+                ["grid", "Grid"],
+                ["circle", "Bolt circle"],
+                ["list", "Coordinates"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setPatternKind(id)}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  patternKind === id
+                    ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
+                    : "bg-dark-800/60 text-gray-500 border border-dark-700 hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {patternKind === "grid" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Num label="Columns" value={cols} onChange={setCols} />
+              <Num label="Rows" value={rows} onChange={setRows} />
+              <Num label="X Spacing" value={xSpace} onChange={setXSpace} suffix="mm" />
+              <Num label="Y Spacing" value={ySpace} onChange={setYSpace} suffix="mm" />
+              <Num label="First Hole X" value={originX} onChange={setOriginX} suffix="mm" />
+              <Num label="First Hole Y" value={originY} onChange={setOriginY} suffix="mm" />
+            </div>
+          )}
+
+          {patternKind === "circle" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Num label="Holes" value={count} onChange={setCount} />
+              <Num label="Pitch Circle Ø" value={pcd} onChange={setPcd} suffix="mm" />
+              <Num label="First Hole At" value={startAngle} onChange={setStartAngle} suffix="°" />
+              <div />
+              <Num label="Centre X" value={centreX} onChange={setCentreX} suffix="mm" />
+              <Num label="Centre Y" value={centreY} onChange={setCentreY} suffix="mm" />
+            </div>
+          )}
+
+          {patternKind === "list" && (
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">
+                X and Y, one hole a line
+              </label>
+              <textarea
+                value={listText}
+                onChange={(e) => setListText(e.target.value)}
+                rows={6}
+                spellCheck={false}
+                aria-label="Hole coordinates"
+                className="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-sm font-mono text-white focus:border-accent-cyan/50 focus:outline-none"
+              />
+            </div>
+          )}
+
+          <p className="text-[10px] text-gray-600 leading-relaxed">
+            {patternKind === "grid"
+              ? "Alternate rows are drilled the other way round, so the drill finishes each row beside the start of the next instead of traversing back across the table."
+              : patternKind === "circle"
+                ? "Angles run anticlockwise from the X axis, the way a drawing reads them."
+                : "Read straight off the print. Several pairs on one line are all read."}
+          </p>
+        </Card>
+
+        {/* The cut */}
+        <Card variant="solid" padding="md" className="border-dark-600 space-y-3">
+          <SectionHeader title="The cut" />
+          <div className="grid grid-cols-2 gap-3">
+            <Num label="Hole Depth" value={depth} onChange={setDepth} suffix="mm" />
+            <Num label="Drill Ø" value={drill} onChange={setDrill} suffix="mm" />
+            <Num label="R Plane" value={retract} onChange={setRetract} suffix="mm" />
+            <Num label="Start Z" value={initial} onChange={setInitial} suffix="mm" />
+            {cycle === "G84" ? (
+              <>
+                <Num label="Pitch" value={pitch} onChange={setPitch} suffix="mm" />
+                <Num label="Spindle" value={rpm} onChange={setRpm} suffix="rpm" />
+              </>
+            ) : (
+              <Num label="Feed" value={feed} onChange={setFeed} suffix="mm/min" />
+            )}
+            {cycle === "G83" && (
+              <Num label="Peck (Q)" value={peck} onChange={setPeck} suffix="mm" />
+            )}
+            {cycle === "G82" && (
+              <Num label="Dwell (P)" value={dwell} onChange={setDwell} suffix="sec" />
+            )}
+          </div>
+
+          <div className="flex gap-1.5">
+            {(
+              [
+                ["G99", "G99 — back to R"],
+                ["G98", "G98 — back to start Z"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setReturnMode(id)}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                  returnMode === id
+                    ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
+                    : "bg-dark-800/60 text-gray-500 border border-dark-700 hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={through}
+              onChange={(e) => setThrough(e.target.checked)}
+              className="h-4 w-4 rounded accent-accent-cyan"
+            />
+            <span className="text-xs text-gray-300">
+              Through hole — add the drill point so it breaks out
+            </span>
+          </label>
+
+          {cycle === "G84" && (
+            <p className="text-[11px] text-accent-amber/90 leading-relaxed">
+              The feed is not yours to set. A tap advances one pitch per turn because the thread it
+              is cutting says so, so it is worked out from the pitch and the speed.
+            </p>
+          )}
+        </Card>
+      </div>
+
+      {/* What it works out */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card variant="solid" padding="md" className="border-dark-600">
+          <SectionHeader title="The cycle" />
+          {out.error ? (
+            <p className="text-sm text-accent-red py-4">{out.error}</p>
+          ) : (
+            out.result && (
+              <>
+                <Table
+                  head={["Figure", "Value"]}
+                  rows={[
+                    ["Holes", out.result.holeCount],
+                    ["Drilled to Z", out.result.programmedZ],
+                    ...(out.result.breakThrough > 0
+                      ? [["Past the far face", out.result.breakThrough] as (string | number)[]]
+                      : []),
+                    ["Depth in diameters", out.result.depthRatio.toFixed(1)],
+                    ["Feed", `${out.result.feed} mm/min`],
+                    ["Metal cut, all holes", `${out.result.cuttingDistance} mm`],
+                    ...(out.result.pecks
+                      ? [["Pecks a hole", out.result.pecks.length] as (string | number)[]]
+                      : []),
+                  ]}
+                />
+                {out.result.pecks && (
+                  <div className="mt-3">
+                    <Table
+                      head={["Peck", "Z", "Advance"]}
+                      rows={out.result.pecks.map((p) => [p.peck, p.z, p.advance])}
+                    />
+                  </div>
+                )}
+                {out.result.warnings.map((warning, index) => (
+                  <p key={index} className="text-[11px] text-accent-amber/90 leading-relaxed mt-3">
+                    {warning}
+                  </p>
+                ))}
+              </>
+            )
+          )}
+        </Card>
+
+        <XYPlot holes={out.holes} drillDiameter={pf(drill) || 8} error={out.error} />
+      </div>
+
+      {!out.error && (
+        <Program
+          lines={out.code}
+          note="The cycle is stated once and every X and Y after it drills another hole with it. G80 at the end cancels it — without that, the next positioning move anywhere in the program drills a hole where it lands."
+        />
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   { id: "g71", label: "G71 · OD Rough", comp: G71Panel },
   { id: "g72", label: "G72 · Facing", comp: G72Panel },
@@ -2028,6 +2505,10 @@ const TABS = [
   { id: "g75", label: "G75 · Groove", comp: G75Panel },
   { id: "g76", label: "G76 · Thread", comp: G76Panel },
   { id: "simple", label: "G90 · G92 · G94", comp: SimplePanel },
+  // The mill's side. One tab rather than four, because G81 to G84 differ by a
+  // single word each and share every other input; four tabs would have meant
+  // filling the same six boxes over again to compare them.
+  { id: "mill", label: "G81–G84 · Mill Drill", comp: MillDrillPanel },
   // The backplot is a tab of its own rather than a footer under every cycle.
   // Repeated seven times it only ever showed the same canned sample.
   { id: "backplot", label: "Backplot", comp: null },
@@ -2103,7 +2584,7 @@ export default function CNCPage() {
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
       <PageHeader
         title="CNC Canned Cycles"
-        description="Fanuc lathe cycles — pass coordinates and the blocks to type in"
+        description="Fanuc lathe and mill cycles — pass coordinates and the blocks to type in"
         icon={<Cpu size={20} />}
       />
 
