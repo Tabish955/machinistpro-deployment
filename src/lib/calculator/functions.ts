@@ -314,7 +314,7 @@ export const FUNCTIONS: Record<string, MathFunction> = {
     description: "Modulo",
   },
 
-  // Rounding functions
+  // Rounding & Number Theory
   floor: {
     name: "floor",
     fn: ([x]) => Math.floor(x),
@@ -332,6 +332,74 @@ export const FUNCTIONS: Record<string, MathFunction> = {
     fn: ([x]) => Math.round(x),
     argCount: 1,
     description: "Round",
+  },
+  trunc: {
+    name: "trunc",
+    fn: ([x]) => Math.trunc(x),
+    argCount: 1,
+    description: "Truncate to integer",
+  },
+  sign: {
+    name: "sign",
+    fn: ([x]) => Math.sign(x),
+    argCount: 1,
+    description: "Signum (-1, 0, 1)",
+  },
+  gcd: {
+    name: "gcd",
+    fn: ([a, b]) => {
+      let x = Math.abs(Math.round(a));
+      let y = Math.abs(Math.round(b));
+      while (y !== 0) {
+        const t = y;
+        y = x % y;
+        x = t;
+      }
+      return x;
+    },
+    argCount: 2,
+    description: "Greatest common divisor",
+  },
+  lcm: {
+    name: "lcm",
+    fn: ([a, b]) => {
+      let x = Math.abs(Math.round(a));
+      let y = Math.abs(Math.round(b));
+      if (x === 0 || y === 0) return 0;
+      let gA = x, gB = y;
+      while (gB !== 0) {
+        const t = gB;
+        gB = gA % gB;
+        gA = t;
+      }
+      return Math.abs(x * y) / gA;
+    },
+    argCount: 2,
+    description: "Least common multiple",
+  },
+  clamp: {
+    name: "clamp",
+    fn: ([x, min, max]) => Math.max(min, Math.min(max, x)),
+    argCount: 3,
+    description: "Clamp value between min and max",
+  },
+  degToRad: {
+    name: "degToRad",
+    fn: ([x]) => x * DEG_TO_RAD,
+    argCount: 1,
+    description: "Convert degrees to radians",
+  },
+  radToDeg: {
+    name: "radToDeg",
+    fn: ([x]) => x * RAD_TO_DEG,
+    argCount: 1,
+    description: "Convert radians to degrees",
+  },
+  degToGrad: {
+    name: "degToGrad",
+    fn: ([x]) => (x * 200) / 180,
+    argCount: 1,
+    description: "Convert degrees to gradians",
   },
   ncr: {
     name: "ncr",

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { evaluate } from "mathjs";
 import { GraphingCalculator } from "@/components/graphing/graphing-calculator";
+import { StatisticsSuite } from "./statistics-suite";
 import {
   cartesianToPolar,
   complexDetails,
@@ -678,80 +679,12 @@ function EngineeringWorkspace({
 }
 
 function StatisticsWorkspace() {
-  const [data, setData] = useState("12, 18, 15, 20, 18, 22, 17");
-  const [pairs, setPairs] = useState("1,2; 2,4.1; 3,5.9; 4,8.2");
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState("");
-  const describe = () => {
-    try {
-      const values = data
-        .split(/[\s,;]+/)
-        .filter(Boolean)
-        .map(Number);
-      setResult(statistics(values));
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Invalid dataset.");
-    }
-  };
-  const regress = () => {
-    try {
-      // Drop blank segments so a trailing semicolon — which the placeholder
-      // invites — does not turn into an empty pair.
-      const parsed = pairs
-        .split(";")
-        .map((pair) => pair.trim())
-        .filter(Boolean)
-        .map((pair) => {
-          const [x, y] = pair.split(",").map(Number);
-          return { x, y };
-        });
-      setResult(linearRegression(parsed));
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Invalid x,y pairs.");
-    }
-  };
   return (
-    <Workspace title="Statistics" subtitle="Descriptive statistics and linear regression">
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className={panel}>
-          <label className="text-xs text-gray-400">Dataset</label>
-          <textarea
-            className={`${field} mt-2 min-h-24`}
-            value={data}
-            onChange={(e) => setData(e.target.value)}
-          />
-          <button className={`${primary} mt-2`} onClick={describe}>
-            Analyze data
-          </button>
-        </div>
-        <div className={panel}>
-          <label className="text-xs text-gray-400">Regression pairs (x,y; x,y)</label>
-          <textarea
-            className={`${field} mt-2 min-h-24`}
-            value={pairs}
-            onChange={(e) => setPairs(e.target.value)}
-          />
-          <button className={`${primary} mt-2`} onClick={regress}>
-            Run regression
-          </button>
-        </div>
-      </div>
-      <Result error={error}>
-        {result && (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-            {Object.entries(result).map(([key, value]) => (
-              <div key={key}>
-                <dt className="text-[10px] capitalize text-gray-600">
-                  {key.replace(/([A-Z])/g, " $1")}
-                </dt>
-                <dd className="font-mono text-sm text-white">{formatAdvanced(value)}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </Result>
+    <Workspace
+      title="Statistics"
+      subtitle="Comprehensive 1-variable descriptive analytics, 2-variable regressions, probability distributions, and hypothesis testing"
+    >
+      <StatisticsSuite />
     </Workspace>
   );
 }
