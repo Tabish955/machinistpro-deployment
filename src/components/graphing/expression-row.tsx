@@ -3,6 +3,8 @@ import { Eye, EyeOff, Copy, Trash2, AlertCircle, Sparkles } from "lucide-react";
 import type { FunctionItem, ImplicitItem, InequalityItem, ParametricItem, PolarItem } from "@/lib/graphing/types";
 import { DEFAULT_COLORS } from "@/lib/graphing/state/graph-store";
 
+import { DesmosMathInput } from "./desmos-math-input";
+
 type AnyMathItem = FunctionItem | ImplicitItem | InequalityItem | ParametricItem | PolarItem;
 
 interface ExpressionRowProps {
@@ -27,7 +29,6 @@ export function ExpressionRow({
   onEnterPress,
 }: ExpressionRowProps) {
   const [showColorPicker, setShowColorPicker] = React.useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const getRawValue = () => {
     if (item.type === "parametric") return `(${item.xExpr}, ${item.yExpr})`;
@@ -50,17 +51,8 @@ export function ExpressionRow({
   };
 
   const insertSymbol = (sym: string) => {
-    const input = inputRef.current;
-    if (!input) return;
-    const start = input.selectionStart || 0;
-    const end = input.selectionEnd || 0;
     const current = getRawValue();
-    const next = current.slice(0, start) + sym + current.slice(end);
-    handleTextChange(next);
-    setTimeout(() => {
-      input.focus();
-      input.setSelectionRange(start + sym.length, start + sym.length);
-    }, 10);
+    handleTextChange(current + sym);
   };
 
   return (
@@ -108,21 +100,13 @@ export function ExpressionRow({
         {/* Index indicator */}
         <span className="text-[11px] font-mono text-gray-500">{index + 1}</span>
 
-        {/* Math input */}
+        {/* Desmos-style Math input with raised superscripts */}
         <div className="relative flex-1">
-          <input
-            ref={inputRef}
-            type="text"
+          <DesmosMathInput
             value={getRawValue()}
-            onChange={(e) => handleTextChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onEnterPress();
-              }
-            }}
+            onChange={handleTextChange}
+            onEnter={onEnterPress}
             placeholder="e.g. y = x^2 - 4 or sin(x) { -2 < x < 5 }"
-            className="w-full rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 font-mono text-sm text-white placeholder:text-gray-600 focus:border-accent-cyan/40 focus:outline-none"
           />
         </div>
 
