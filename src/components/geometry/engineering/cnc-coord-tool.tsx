@@ -80,14 +80,16 @@ export function CncCoordTool() {
     <div className="space-y-4 text-white">
       {/* Sub Tabs */}
       <div className="flex gap-1.5 border-b border-white/[0.08] pb-2">
-        {[
-          { id: "table", label: "Absolute ⇄ Incremental Table" },
-          { id: "vector", label: "Point-to-Point Vector & Angle" },
-          { id: "polar", label: "Cartesian ⇄ Polar Transform" },
-        ].map((t) => (
+        {(
+          [
+            { id: "table", label: "Absolute ⇄ Incremental Table" },
+            { id: "vector", label: "Point-to-Point Vector & Angle" },
+            { id: "polar", label: "Cartesian ⇄ Polar Transform" },
+          ] as const
+        ).map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id as any)}
+            onClick={() => setTab(t.id)}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
               tab === t.id
                 ? "bg-accent-amber/20 text-accent-amber border border-accent-amber/30"

@@ -105,13 +105,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               Display Elements
             </label>
 
-            {[
-              { key: "showMajorGrid", label: "Major Grid Lines" },
-              { key: "showMinorGrid", label: "Minor Grid Subdivisions" },
-              { key: "showAxes", label: "Coordinate Axes (X and Y)" },
-              { key: "showNumbers", label: "Axis Tick Numbers" },
-              { key: "highPrecision", label: "High Precision Float Mode" },
-            ].map(({ key, label }) => (
+            {(
+              [
+                { key: "showMajorGrid", label: "Major Grid Lines" },
+                { key: "showMinorGrid", label: "Minor Grid Subdivisions" },
+                { key: "showAxes", label: "Coordinate Axes (X and Y)" },
+                { key: "showNumbers", label: "Axis Tick Numbers" },
+                { key: "highPrecision", label: "High Precision Float Mode" },
+              ] as const
+            ).map(({ key, label }) => (
               <label
                 key={key}
                 className="flex cursor-pointer items-center justify-between rounded-lg bg-dark-800/50 p-2 hover:bg-dark-800"
@@ -119,7 +121,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <span className="text-gray-300">{label}</span>
                 <input
                   type="checkbox"
-                  checked={Boolean((settings as any)[key])}
+                  checked={Boolean(settings[key])}
                   onChange={(e) => setSettings({ [key]: e.target.checked })}
                   className="h-4 w-4 rounded accent-accent-cyan"
                 />

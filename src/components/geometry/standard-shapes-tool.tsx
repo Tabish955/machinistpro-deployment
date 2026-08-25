@@ -30,6 +30,14 @@ export function StandardShapesTool() {
       : SHAPES_3D.find((s) => s.id === shapeId3d) || SHAPES_3D[0];
   }, [mode, shapeId2d, shapeId3d]);
 
+  /*
+   * Both shape types already declare `svg?: (v) => string`, so this needed a
+   * binding rather than a cast. Holding it in a local is what lets the
+   * optional call narrow: reading activeShape.svg twice does not tell the
+   * compiler the second read is still defined.
+   */
+  const drawShape = activeShape.svg;
+
   const parsed = useMemo(() => {
     const d: Record<string, number> = {};
     for (const f of activeShape.fields) d[f.id] = parseFloat(vals[f.id] ?? "");
@@ -184,12 +192,12 @@ export function StandardShapesTool() {
             {activeShape.name} Dimensions
           </span>
 
-          {"svg" in activeShape && (activeShape as any).svg && (
+          {drawShape && (
             <div className="flex justify-center py-2">
               <svg
                 viewBox="0 0 200 200"
                 className="w-40 h-40"
-                dangerouslySetInnerHTML={{ __html: (activeShape as any).svg(parsed) }}
+                dangerouslySetInnerHTML={{ __html: drawShape(parsed) }}
               />
             </div>
           )}

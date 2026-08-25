@@ -168,10 +168,22 @@ export function ExpressionPanel() {
               );
             }
 
+            if (item.type === "folder") {
+              /*
+               * Folders are declared in the item union but nothing in the app
+               * creates one yet. Handing a folder to ExpressionRow would give
+               * that component an item it has no branch for; skipping is the
+               * honest thing until folders are actually built. This used to be
+               * an `as any` on the line below, which hid the gap rather than
+               * dealing with it.
+               */
+              return null;
+            }
+
             return (
               <ExpressionRow
                 key={item.id}
-                item={item as any}
+                item={item}
                 index={index}
                 isSelected={selectedItemId === item.id}
                 onSelect={() => setSelectedItemId(item.id)}

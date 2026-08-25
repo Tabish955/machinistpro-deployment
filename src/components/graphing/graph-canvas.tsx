@@ -147,9 +147,10 @@ export function GraphCanvas() {
               curves.push({ points: ineq.boundary, color: item.color, dash: [4, 4] });
             }
           }
-        } catch (err: any) {
-          if (item.error !== err.message) {
-            updateItem(item.id, { error: err.message });
+        } catch (cause) {
+          const message = cause instanceof Error ? cause.message : String(cause);
+          if (item.error !== message) {
+            updateItem(item.id, { error: message });
           }
         }
       }

@@ -33,6 +33,7 @@ import {
   buildEvaluationScope,
 } from "@/lib/graphing/engine/compiler";
 import type { TableItem, FunctionItem, SliderItem } from "@/lib/graphing/types";
+import type { Point2D } from "@/lib/graphing/types";
 
 interface GraphToolbarProps {
   onOpenSettings: () => void;
@@ -83,7 +84,7 @@ export function GraphToolbar({
       .map((s) => ({ name: s.variableName, expr: String(s.value) }));
     const scope = buildEvaluationScope(varDefs, [], settings.angleMode);
 
-    const curves: Array<{ points: any[]; color: string }> = [];
+    const curves: Array<{ points: (Point2D | null)[]; color: string }> = [];
     const markers: Array<{ x: number; y: number; label?: string; color?: string }> = [];
 
     for (const item of items) {

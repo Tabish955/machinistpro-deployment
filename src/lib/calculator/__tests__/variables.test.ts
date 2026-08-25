@@ -23,8 +23,12 @@ describe("Variables and Custom Functions Engine", () => {
     store.setFunction("f", ["x"], "x^2 + 2*x + 1");
 
     const scope = store.getEvaluationScope();
-    expect(typeof scope.f).toBe("function");
-    expect(scope.f(3)).toBe(16);
-    expect(scope.f(0)).toBe(1);
+    // A scope entry is a number or a callable, so the callable has to be
+    // established before it is called rather than assumed.
+    const f = scope.f;
+    expect(typeof f).toBe("function");
+    if (typeof f !== "function") throw new Error("f was not defined as a function");
+    expect(f(3)).toBe(16);
+    expect(f(0)).toBe(1);
   });
 });

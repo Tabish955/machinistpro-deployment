@@ -3,6 +3,7 @@
  */
 
 import { CONSTANTS_DATABASE } from "./constants-db";
+import type { UserVariable } from "./variables-store";
 
 export interface AutocompleteItem {
   id: string;
@@ -41,7 +42,7 @@ const BUILTIN_FUNCTIONS: Array<{ label: string; insertText: string; detail: stri
  */
 export function getAutocompleteSuggestions(
   currentText: string,
-  variables: Record<string, any> = {},
+  variables: Record<string, UserVariable> = {},
 ): AutocompleteItem[] {
   if (!currentText || !currentText.trim()) return [];
 

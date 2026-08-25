@@ -20,6 +20,17 @@ export interface UserFunction {
   expression: string;
 }
 
+/**
+ * What an expression is evaluated against.
+ *
+ * Only two things ever go in: a number, from a constant or a resolved
+ * variable, and a callable, from a function the user has defined. The callable
+ * returns whatever mathjs makes of its body, which is not necessarily a number
+ * — an expression can evaluate to a unit or a matrix — so that stays unknown
+ * and is checked at the point it is used.
+ */
+export type EvaluationScope = Record<string, number | ((...args: number[]) => unknown)>;
+
 interface VariablesState {
   variables: Record<string, UserVariable>;
   functions: Record<string, UserFunction>;
@@ -28,7 +39,7 @@ interface VariablesState {
   setFunction: (name: string, args: string[], expression: string) => void;
   removeFunction: (name: string) => void;
   recomputeAll: () => void;
-  getEvaluationScope: () => Record<string, any>;
+  getEvaluationScope: () => EvaluationScope;
   clearAll: () => void;
 }
 
@@ -82,7 +93,7 @@ export const useVariablesStore = create<VariablesState>()(
 
       recomputeAll: () => {
         const vars = { ...get().variables };
-        const scope: Record<string, any> = {
+        const scope: EvaluationScope = {
           pi: Math.PI,
           e: Math.E,
           phi: (1 + Math.sqrt(5)) / 2,
@@ -103,9 +114,9 @@ export const useVariablesStore = create<VariablesState>()(
                 v.value = null;
                 v.error = "Non-numeric result";
               }
-            } catch (err: any) {
+            } catch (cause) {
               v.value = null;
-              v.error = err.message;
+              v.error = cause instanceof Error ? cause.message : String(cause);
             }
           }
         }
@@ -114,7 +125,7 @@ export const useVariablesStore = create<VariablesState>()(
       },
 
       getEvaluationScope: () => {
-        const scope: Record<string, any> = {
+        const scope: EvaluationScope = {
           pi: Math.PI,
           e: Math.E,
           phi: (1 + Math.sqrt(5)) / 2,

@@ -70,10 +70,11 @@ export function evaluateUnitExpression(expr: string): UnitEvaluationResult {
       success: true,
       displayResult: String(result),
     };
-  } catch (err: any) {
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
     return {
       success: false,
-      error: err.message || "Unit evaluation failed",
+      error: message || "Unit evaluation failed",
     };
   }
 }

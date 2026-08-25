@@ -38,8 +38,8 @@ export function TriangleSolverTool() {
       else if (method === "SSA") list = solveSSA(v1, v2, v3); // a, b, alpha
 
       return { results: list, error: null };
-    } catch (err: any) {
-      return { results: [], error: err.message };
+    } catch (cause) {
+      return { results: [], error: cause instanceof Error ? cause.message : String(cause) };
     }
   }, [method, val1, val2, val3]);
 

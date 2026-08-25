@@ -23,8 +23,8 @@ export function ArcSolverTool() {
 
     try {
       return { data: solveArcGeometry(params), error: null };
-    } catch (err: any) {
-      return { data: null, error: err.message };
+    } catch (cause) {
+      return { data: null, error: cause instanceof Error ? cause.message : String(cause) };
     }
   }, [radius, chord, sagitta, angle, arcLength]);
 
