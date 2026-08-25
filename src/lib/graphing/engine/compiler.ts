@@ -58,7 +58,20 @@ export function normalizeMathExpression(expr: string): string {
     .replace(/π/g, "pi")
     .replace(/θ/g, "theta")
     .replace(/√\s*\((.*?)\)/g, "sqrt($1)")
-    .replace(/√([0-9a-zA-Z]+)/g, "sqrt($1)");
+    .replace(/√([0-9a-zA-Z]+)/g, "sqrt($1)")
+    // Raised digits, which is how a power arrives when it is pasted out of a
+    // drawing or a datasheet. Taken as a run, so two raised digits are one
+    // two-digit exponent and not two separate powers.
+    .replace(
+      /[\u2070\u00b9\u00b2\u00b3\u2074-\u2079]+/g,
+      (run) =>
+        "^" +
+        [...run]
+          .map((c) =>
+            String("\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079".indexOf(c)),
+          )
+          .join(""),
+    );
 
   // Insert implicit multiplication:
   // 1. Number followed by variable or function or parenthesis: 2x -> 2*x, 3sin(x) -> 3*sin(x), 2(x+1) -> 2*(x+1)
