@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { evaluate } from "mathjs";
+import { GraphingCalculator } from "@/components/graphing/graphing-calculator";
 import {
   cartesianToPolar,
   complexDetails,
@@ -1566,6 +1567,6 @@ export function AdvancedWorkspace({
     case "equation":
       return <EquationWorkspace />;
     case "graphing":
-      return <GraphingWorkspace />;
+      return <GraphingCalculator />;
   }
 }
