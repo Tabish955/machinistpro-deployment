@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Settings2, Check } from "lucide-react";
+import { X, Settings2, Check, Compass, Grid } from "lucide-react";
 import { useGraphStore } from "@/lib/graphing/state/graph-store";
 
 interface SettingsModalProps {
@@ -14,12 +14,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-white/[0.12] bg-dark-900 p-5 text-white shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl border border-white/[0.12] bg-dark-900 p-5 text-white shadow-2xl animate-fade-in">
         <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
           <div className="flex items-center gap-2">
             <Settings2 size={18} className="text-accent-cyan" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-              Graph Settings
+              Graph Settings & Coordinate System
             </h3>
           </div>
           <button
@@ -45,7 +45,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     : "border-white/10 bg-dark-800 text-gray-400 hover:text-white"
                 }`}
               >
-                {settings.angleMode === "rad" && <Check size={13} />} Radians (rad)
+                {settings.angleMode === "rad" && <Check size={13} />} Radians (rad, π)
               </button>
               <button
                 onClick={() => setSettings({ angleMode: "deg" })}
@@ -55,7 +55,46 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     : "border-white/10 bg-dark-800 text-gray-400 hover:text-white"
                 }`}
               >
-                {settings.angleMode === "deg" && <Check size={13} />} Degrees (deg)
+                {settings.angleMode === "deg" && <Check size={13} />} Degrees (deg, °)
+              </button>
+            </div>
+          </div>
+
+          {/* Grid Style Mode */}
+          <div>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+              Coordinate Grid Mode
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => setSettings({ gridStyle: "cartesian" })}
+                className={`flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-medium transition ${
+                  settings.gridStyle === "cartesian"
+                    ? "border-accent-cyan/50 bg-accent-cyan/20 text-accent-cyan"
+                    : "border-white/10 bg-dark-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                <Grid size={13} /> Cartesian (X, Y)
+              </button>
+              <button
+                onClick={() => setSettings({ gridStyle: "polar" })}
+                className={`flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-medium transition ${
+                  settings.gridStyle === "polar"
+                    ? "border-accent-purple/50 bg-accent-purple/20 text-accent-purple"
+                    : "border-white/10 bg-dark-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                <Compass size={13} /> Polar (r, θ)
+              </button>
+              <button
+                onClick={() => setSettings({ gridStyle: "none" })}
+                className={`flex items-center justify-center gap-1 rounded-xl border py-2 text-xs font-medium transition ${
+                  settings.gridStyle === "none"
+                    ? "border-accent-amber/50 bg-accent-amber/20 text-accent-amber"
+                    : "border-white/10 bg-dark-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                Off (Clean)
               </button>
             </div>
           </div>
@@ -63,7 +102,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {/* Grid Visibility Options */}
           <div className="space-y-2 border-t border-white/[0.06] pt-3">
             <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-              Canvas Elements
+              Display Elements
             </label>
 
             {[

@@ -10,6 +10,7 @@ import {
   Layers,
 } from "lucide-react";
 import { GeometryEngine } from "@/lib/geometry/interactive/engine";
+import { exportSceneToDXF } from "@/lib/geometry/export/dxf-export";
 import { ConstructionToolbar } from "./construction-toolbar";
 import { MeasurementPanel } from "./measurement-panel";
 import { InteractiveCanvas } from "./interactive-canvas";
@@ -57,6 +58,20 @@ export function GeometryWorkspace() {
     setSceneState({ ...engine.getScene() });
   };
 
+  const handleRotate = () => {
+    engine.rotateAll({ x: 0, y: 0 }, 45);
+    setSceneState({ ...engine.getScene() });
+  };
+
+  const handleTranslate = () => {
+    engine.translateAll(5, 5);
+    setSceneState({ ...engine.getScene() });
+  };
+
+  const handleExportDXF = () => {
+    exportSceneToDXF(sceneState, "machinistpro-construction.dxf");
+  };
+
   const navTabs: Array<{ id: GeometryTab; label: string; icon: React.ReactNode }> = [
     { id: "workbench", label: "Interactive 2D Canvas", icon: <PenTool size={14} /> },
     { id: "pcd", label: "Bolt Circle (PCD)", icon: <CircleDot size={14} /> },
@@ -94,6 +109,9 @@ export function GeometryWorkspace() {
           <ConstructionToolbar
             activeTool={activeTool}
             onSelectTool={setActiveTool}
+            onRotate={handleRotate}
+            onTranslate={handleTranslate}
+            onExportDXF={handleExportDXF}
             onClear={handleClear}
           />
           <div className="flex flex-1 overflow-hidden">

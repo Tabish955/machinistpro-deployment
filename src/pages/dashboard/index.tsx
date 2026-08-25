@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { ModuleCard } from "@/components/dashboard/module-card";
 import { Card } from "@/components/ui/card";
@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
 import {
   calculatorModules,
-  referenceModules,
   allCalculatorModules,
   getModuleById,
 } from "@/config/modules";
@@ -14,6 +13,7 @@ import { FORMULAS } from "@/lib/formulas";
 import { MATERIAL_PROFILES } from "@/lib/engdb/materials";
 import { useHistoryStore } from "@/store/history-store";
 import { relativeTime, type HistoryEntry } from "@/lib/core/history";
+import { useWorldTime } from "@/hooks/use-world-time";
 import {
   Sparkles,
   Clock,
@@ -26,50 +26,16 @@ import {
   Moon,
   CloudSun,
   Command,
+  Globe2,
 } from "lucide-react";
 import Link from "@/lib/next-compat";
 
-function getGreeting(): { text: string; icon: typeof Sun } {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return { text: "Good morning", icon: Sun };
-  if (h >= 12 && h < 17) return { text: "Good afternoon", icon: CloudSun };
-  if (h >= 17 && h < 21) return { text: "Good evening", icon: CloudSun };
-  return { text: "Good night", icon: Moon };
-}
-
-function formatDate(): string {
-  return new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatTime(): string {
-  return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-}
-
-/**
- * The quick bar, ordered by how often a tool gets reached for rather than by
- * the registry's own order. Only the order is stated here — the label, the path
- * and the colour are read from the module registry, so a renamed tool or a
- * moved route cannot leave a stale entry behind.
- *
- * The six hand-written entries this replaces had already drifted: three of them
- * disagreed with the sidebar about what the same tool is called, and nothing
- * would have caught a changed href until somebody clicked it.
- *
- * An id that no longer exists, or a tool that stops being available, drops out
- * rather than rendering a link to nowhere.
- */
 const QUICK_LINK_IDS = ["scientific", "converter", "weight", "machining", "geometry", "formulas"];
 
 const QUICK_LINKS = QUICK_LINK_IDS.map((id) => getModuleById(id)).filter(
   (m): m is NonNullable<typeof m> => !!m && m.status === "available",
 );
 
-/** Chip styling per module colour. Was rebuilt on every row of the map. */
 const QUICK_LINK_STYLES: Record<string, string> = {
   cyan: "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/20",
   blue: "bg-accent-blue/15 text-accent-blue border-accent-blue/20",
@@ -82,17 +48,8 @@ const QUICK_LINK_STYLES: Record<string, string> = {
 };
 
 const availableModules = allCalculatorModules.filter((m) => m.status === "available");
-
-/** How many rows each of the two activity cards shows before it stops. */
 const ACTIVITY_ROWS = 5;
 
-/**
- * One saved calculation, linking back to the module that produced it.
- *
- * The module id is looked up rather than pasted into a path: several ids do not
- * match their route, and a wrong guess here is a dead link on the first card a
- * user sees.
- */
 function EntryRow({ entry }: { entry: HistoryEntry }) {
   const href = getModuleById(entry.module)?.href ?? "/dashboard/history";
   return (
@@ -114,7 +71,6 @@ function EntryRow({ entry }: { entry: HistoryEntry }) {
   );
 }
 
-/** Shared empty state so the two cards read the same when there is nothing yet. */
 function EmptyActivity({
   icon: Icon,
   title,
@@ -135,14 +91,10 @@ function EmptyActivity({
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const [time, setTime] = useState(formatTime());
-  const greeting = getGreeting();
-  const GIcon = greeting.icon;
+  const { formattedTime, formattedDate, greetingText, hours, isSynced, timezone } = useWorldTime({ showSeconds: false });
 
-  // The history store was already being written to by every module; the
-  // dashboard was the one place that never read it back. Favourites rendered a
-  // fixed empty state whether or not any existed, and "Recent" appeared only in
-  // a comment.
+  const GIcon = hours >= 5 && hours < 12 ? Sun : hours >= 12 && hours < 21 ? CloudSun : Moon;
+
   const entries = useHistoryStore((s) => s.entries);
   const recent = useMemo(() => entries.slice(0, ACTIVITY_ROWS), [entries]);
   const favorites = useMemo(
@@ -150,8 +102,6 @@ export default function DashboardPage() {
     [entries],
   );
 
-  // A licence that runs out is the thing a user most needs warning about, and
-  // the tile read a hardcoded "Active" until the day it stopped letting them in.
   const licence = useMemo(() => {
     const plan = user?.subscription || "Standard";
     const ms = user?.expiry ? new Date(user.expiry).getTime() : NaN;
@@ -165,14 +115,9 @@ export default function DashboardPage() {
     };
   }, [user]);
 
-  useEffect(() => {
-    const id = setInterval(() => setTime(formatTime()), 30000);
-    return () => clearInterval(id);
-  }, []);
-
   return (
     <div className="space-y-6 pb-4">
-      {/* ═══ Welcome ═══ */}
+      {/* ═══ Welcome Header with Synced World Clock ═══ */}
       <Card
         variant="solid"
         padding="lg"
@@ -187,9 +132,14 @@ export default function DashboardPage() {
               <Badge color="green">
                 <Sparkles size={10} /> Online
               </Badge>
+              {isSynced && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <Globe2 size={10} /> UTC Synced
+                </span>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              {greeting.text}, {user?.username || "Engineer"}!
+              {greetingText}, {user?.username || "Engineer"}!
             </h1>
             <p className="text-sm text-gray-500 mt-1 max-w-md">
               Your precision engineering workspace is ready. Open any tool below or press{" "}
@@ -200,11 +150,16 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-2 text-gray-500 font-mono text-xs">
               <Calendar size={13} />
-              <span className="text-xs">{formatDate()}</span>
+              <span>{formattedDate}</span>
             </div>
-            <p className="text-3xl font-bold text-white font-mono tracking-tight">{time}</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-3xl font-bold text-white font-mono tracking-tight">{formattedTime}</p>
+            </div>
+            <span className="text-[10px] font-mono text-gray-600">
+              {timezone}
+            </span>
           </div>
         </div>
       </Card>
@@ -240,8 +195,6 @@ export default function DashboardPage() {
             color: "text-accent-cyan",
             bg: "bg-accent-cyan/10",
           },
-          // Counted, not typed in. The library had grown to 186 while the card
-          // still read 42, and the number a user checks first was the one wrong.
           {
             icon: TrendingUp,
             label: "Formulas",
@@ -285,7 +238,7 @@ export default function DashboardPage() {
 
       {/* ═══ Modules Grid ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left — Recent & Favorites */}
+        {/* Left — Recent & Favorites (Keyboard Shortcuts removed cleanly) */}
         <div className="space-y-5">
           <div className="animate-fade-in" style={{ animationDelay: "0.12s", opacity: 0 }}>
             <SectionHeader
@@ -330,26 +283,6 @@ export default function DashboardPage() {
               )}
             </Card>
           </div>
-
-          <div className="animate-fade-in" style={{ animationDelay: "0.2s", opacity: 0 }}>
-            <SectionHeader title="Keyboard Shortcuts" />
-            <Card variant="solid" padding="md" className="border-dark-600">
-              <div className="space-y-2 text-xs">
-                {[
-                  { keys: "⌘ K", action: "Search everything" },
-                  { keys: "Esc", action: "Close / Clear" },
-                  { keys: "↑ ↓ ↵", action: "Navigate & select" },
-                ].map((s) => (
-                  <div key={s.keys} className="flex items-center justify-between">
-                    <kbd className="px-2 py-1 rounded bg-dark-700 font-mono text-gray-400">
-                      {s.keys}
-                    </kbd>
-                    <span className="text-gray-500">{s.action}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
         </div>
 
         {/* Right — Calculator Modules */}
@@ -368,15 +301,6 @@ export default function DashboardPage() {
                 >
                   <ModuleCard module={m} />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="animate-fade-in" style={{ animationDelay: "0.35s", opacity: 0 }}>
-            <SectionHeader title="Reference & Tools" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {referenceModules.map((m) => (
-                <ModuleCard key={m.id} module={m} />
               ))}
             </div>
           </div>

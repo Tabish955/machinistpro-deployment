@@ -1,10 +1,11 @@
-import React, { useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useRef, useEffect, useCallback, useMemo, useState } from "react";
 import { useGraphStore } from "@/lib/graphing/state/graph-store";
 import { renderGraphScene, toWorldX, toWorldY, toScreenX, toScreenY } from "@/lib/graphing/renderer/canvas2d";
 import { sampleFunctionY, sampleFunctionX, samplePolar, sampleParametric } from "@/lib/graphing/engine/sampler";
 import { solveImplicitCurve, sampleInequalityRegion } from "@/lib/graphing/engine/implicit";
 import { getTangentAndNormal } from "@/lib/graphing/engine/calculus";
 import { fitRegression } from "@/lib/graphing/engine/regression";
+import { findCurveIntersections } from "@/lib/graphing/engine/intersections";
 import { parseExpression, compileFunction, buildEvaluationScope } from "@/lib/graphing/engine/compiler";
 import type { Point2D, SliderItem, FunctionItem, TableItem } from "@/lib/graphing/types";
 
@@ -23,6 +24,7 @@ export function GraphCanvas() {
     updateItem,
   } = useGraphStore();
 
+  const [pinnedPoints, setPinnedPoints] = useState<Point2D[]>([]);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ x: number; y: number; vp: typeof vp }>({ x: 0, y: 0, vp });
 
@@ -40,7 +42,9 @@ export function GraphCanvas() {
     const implicitSegments: Array<{ segments: [Point2D, Point2D][]; color: string }> = [];
     const shadedPolygons: Array<{ points: Point2D[]; fillColor: string }> = [];
     const scatterSeries: Array<{ points: Point2D[]; color: string; joined?: boolean }> = [];
-    const markers: Array<{ x: number; y: number; label?: string; kind: "root" | "min" | "max" | "intersection"; color?: string }> = [];
+    const markers: Array<{ x: number; y: number; label?: string; kind: "root" | "min" | "max" | "intersection" | "point"; color?: string; isPinned?: boolean }> = [];
+
+    const compiledFunctions: Array<{ id: string; fn: (x: number) => number; color: string }> = [];
 
     for (const item of items) {
       if (!item.visible) continue;
@@ -53,6 +57,8 @@ export function GraphCanvas() {
           const parsed = parseExpression(raw);
           if (parsed.kind === "function_y") {
             const fn = compileFunction(parsed.rightExpr || "0", ["x"], scope, settings.angleMode);
+            compiledFunctions.push({ id: item.id, fn, color: item.color });
+
             const sample = sampleFunctionY(fn, vp.xMin, vp.xMax, vp.yMin, vp.yMax, parsed.domain);
             curves.push({ points: sample.points, color: item.color });
 
@@ -84,7 +90,6 @@ export function GraphCanvas() {
             }
           }
         } catch (err: any) {
-          // Catch and record compilation error
           if (item.error !== err.message) {
             updateItem(item.id, { error: err.message });
           }
@@ -103,7 +108,6 @@ export function GraphCanvas() {
             joined: (item as TableItem).joinPoints,
           });
 
-          // Render regression curve if enabled
           const tItem = item as TableItem;
           if (tItem.showRegressionLine && tItem.regressionModel && tItem.regressionModel !== "none" && validPoints.length >= 2) {
             try {
@@ -118,10 +122,34 @@ export function GraphCanvas() {
       }
     }
 
-    return { curves, implicitSegments, shadedPolygons, scatterSeries, markers };
-  }, [items, vp, scope, settings.angleMode, updateItem]);
+    // 3. Multi-Curve Intersections Solver
+    for (let i = 0; i < compiledFunctions.length; i++) {
+      for (let j = i + 1; j < compiledFunctions.length; j++) {
+        const f1 = compiledFunctions[i];
+        const f2 = compiledFunctions[j];
+        const inters = findCurveIntersections(f1.fn, f2.fn, vp.xMin, vp.xMax);
+        inters.forEach((p) => {
+          if (p.y >= vp.yMin && p.y <= vp.yMax) {
+            markers.push({ x: p.x, y: p.y, kind: "intersection", color: "#ec4899" });
+          }
+        });
+      }
+    }
 
-  // 3. Render Canvas Frame
+    // 4. Attach pinned points status
+    for (const pinned of pinnedPoints) {
+      const existing = markers.find((m) => Math.hypot(m.x - pinned.x, m.y - pinned.y) < 1e-3);
+      if (existing) {
+        existing.isPinned = true;
+      } else {
+        markers.push({ x: pinned.x, y: pinned.y, kind: "point", isPinned: true, color: "#00d4ff" });
+      }
+    }
+
+    return { curves, implicitSegments, shadedPolygons, scatterSeries, markers };
+  }, [items, vp, scope, settings.angleMode, pinnedPoints, updateItem]);
+
+  // 4. Render Canvas Frame
   const drawFrame = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -139,7 +167,6 @@ export function GraphCanvas() {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
 
-    // Compute tangent line for active trace point if trace is active
     let tracePointData = null;
     if (activeTrace) {
       let tangentLine = undefined;
@@ -178,21 +205,40 @@ export function GraphCanvas() {
     drawFrame();
   }, [drawFrame]);
 
-  // Resize handler
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    const observer = new ResizeObserver(() => {
-      drawFrame();
-    });
+    const observer = new ResizeObserver(() => drawFrame());
     observer.observe(container);
     return () => observer.disconnect();
   }, [drawFrame]);
 
-  // 4. Mouse / Touch Interactions (Pan & Zoom)
+  // Mouse / Touch Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+
+    // Check if clicked an existing marker to toggle pin
+    const clickedMarker = sceneData.markers.find((m) => {
+      const msx = toScreenX(m.x, vp, rect.width);
+      const msy = toScreenY(m.y, vp, rect.height);
+      return Math.hypot(sx - msx, sy - msy) < 12;
+    });
+
+    if (clickedMarker) {
+      setPinnedPoints((prev) => {
+        const idx = prev.findIndex((p) => Math.hypot(p.x - clickedMarker.x, p.y - clickedMarker.y) < 1e-3);
+        if (idx >= 0) return prev.filter((_, i) => i !== idx);
+        return [...prev, { x: clickedMarker.x, y: clickedMarker.y }];
+      });
+      return;
+    }
+
     isDraggingRef.current = true;
     dragStartRef.current = { x: e.clientX, y: e.clientY, vp: { ...vp } };
   };
@@ -207,18 +253,14 @@ export function GraphCanvas() {
     if (isDraggingRef.current) {
       const dx = e.clientX - dragStartRef.current.x;
       const dy = e.clientY - dragStartRef.current.y;
-
       const spanX = dragStartRef.current.vp.xMax - dragStartRef.current.vp.xMin;
       const spanY = dragStartRef.current.vp.yMax - dragStartRef.current.vp.yMin;
 
-      const worldDx = (dx / rect.width) * spanX;
-      const worldDy = (dy / rect.height) * spanY;
-
       setViewport({
-        xMin: dragStartRef.current.vp.xMin - worldDx,
-        xMax: dragStartRef.current.vp.xMax - worldDx,
-        yMin: dragStartRef.current.vp.yMin + worldDy,
-        yMax: dragStartRef.current.vp.yMax + worldDy,
+        xMin: dragStartRef.current.vp.xMin - (dx / rect.width) * spanX,
+        xMax: dragStartRef.current.vp.xMax - (dx / rect.width) * spanX,
+        yMin: dragStartRef.current.vp.yMin + (dy / rect.height) * spanY,
+        yMax: dragStartRef.current.vp.yMax + (dy / rect.height) * spanY,
       });
       return;
     }
@@ -227,7 +269,6 @@ export function GraphCanvas() {
     const worldX = toWorldX(sx, vp, rect.width);
     const worldY = toWorldY(sy, vp, rect.height);
 
-    // Find nearest function curve
     const activeFns = items.filter((it): it is FunctionItem => it.type === "function" && it.visible && Boolean(it.rawExpression));
     if (activeFns.length > 0) {
       try {
@@ -253,7 +294,6 @@ export function GraphCanvas() {
       }
     }
 
-    // Default free cursor trace
     setActiveTrace({ x: worldX, y: worldY });
   };
 
@@ -271,16 +311,11 @@ export function GraphCanvas() {
 
     const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
 
-    const newXMin = cursorX - (cursorX - vp.xMin) * zoomFactor;
-    const newXMax = cursorX + (vp.xMax - cursorX) * zoomFactor;
-    const newYMin = cursorY - (cursorY - vp.yMin) * zoomFactor;
-    const newYMax = cursorY + (vp.yMax - cursorY) * zoomFactor;
-
     setViewport({
-      xMin: newXMin,
-      xMax: newXMax,
-      yMin: newYMin,
-      yMax: newYMax,
+      xMin: cursorX - (cursorX - vp.xMin) * zoomFactor,
+      xMax: cursorX + (vp.xMax - cursorX) * zoomFactor,
+      yMin: cursorY - (cursorY - vp.yMin) * zoomFactor,
+      yMax: cursorY + (vp.yMax - cursorY) * zoomFactor,
     });
   };
 

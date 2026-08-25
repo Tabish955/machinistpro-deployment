@@ -7,15 +7,53 @@ import { GraphCanvas3D } from "./graph-canvas-3d";
 import { CalculusInspector } from "./calculus-inspector";
 import { StatisticsView } from "./statistics-view";
 import { SettingsModal } from "./settings-modal";
-import { ChevronLeft, ChevronRight, Calculator } from "lucide-react";
+import { MathKeypad } from "./math-keypad";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { FunctionItem } from "@/lib/graphing/types";
 
 export function GraphingCalculator() {
-  const { is3DMode, undo, redo, addItem } = useGraphStore();
+  const { is3DMode, undo, redo, items, selectedItemId, updateItem, addItem } = useGraphStore();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showCalculus, setShowCalculus] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showKeypad, setShowKeypad] = useState(false);
+
+  // Keypad insert action
+  const handleKeypadInsert = (symbol: string) => {
+    let targetItem = items.find((it) => it.id === selectedItemId);
+    if (!targetItem) {
+      targetItem = items.find((it) => it.type === "function");
+    }
+
+    if (targetItem && targetItem.type === "function") {
+      const current = (targetItem as FunctionItem).rawExpression || "";
+      updateItem(targetItem.id, { rawExpression: current + symbol });
+    } else {
+      addItem({
+        type: "function",
+        rawExpression: symbol,
+      });
+    }
+  };
+
+  const handleKeypadBackspace = () => {
+    const targetItem = items.find((it) => it.id === selectedItemId) || items.find((it) => it.type === "function");
+    if (targetItem && targetItem.type === "function") {
+      const current = (targetItem as FunctionItem).rawExpression || "";
+      if (current.length > 0) {
+        updateItem(targetItem.id, { rawExpression: current.slice(0, -1) });
+      }
+    }
+  };
+
+  const handleKeypadEnter = () => {
+    addItem({
+      type: "function",
+      rawExpression: "",
+    });
+  };
 
   // Keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z, Enter)
   useEffect(() => {
@@ -50,6 +88,8 @@ export function GraphingCalculator() {
         setShowCalculus={setShowCalculus}
         showStats={showStats}
         setShowStats={setShowStats}
+        showKeypad={showKeypad}
+        setShowKeypad={setShowKeypad}
       />
 
       {/* Main Workspace (Split View) */}
@@ -69,7 +109,7 @@ export function GraphingCalculator() {
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="absolute left-0 top-1/2 z-30 flex h-10 w-4 -translate-y-1/2 items-center justify-center rounded-r-md border border-l-0 border-white/10 bg-dark-800/90 text-gray-400 backdrop-blur-sm transition hover:bg-dark-700 hover:text-white"
-          style={{ left: isSidebarOpen ? (window.innerWidth < 640 ? "100%" : "384px") : "0" }}
+          style={{ left: isSidebarOpen ? (typeof window !== "undefined" && window.innerWidth < 640 ? "100%" : "384px") : "0" }}
           title={isSidebarOpen ? "Collapse Expressions Panel" : "Expand Expressions Panel"}
         >
           {isSidebarOpen ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
@@ -94,6 +134,15 @@ export function GraphingCalculator() {
           )}
         </div>
       </div>
+
+      {/* Virtual Math Keypad Drawer */}
+      <MathKeypad
+        isOpen={showKeypad}
+        onClose={() => setShowKeypad(false)}
+        onInsert={handleKeypadInsert}
+        onBackspace={handleKeypadBackspace}
+        onEnter={handleKeypadEnter}
+      />
 
       {/* Settings Modal */}
       <SettingsModal

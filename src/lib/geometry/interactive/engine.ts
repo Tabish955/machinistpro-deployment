@@ -1,7 +1,7 @@
 /**
  * Interactive Geometry Engine
  * Manages geometric entities (Points, Segments, Lines, Circles, Polygons, Vectors),
- * dynamic dependency updates, live measurements, and construction tools.
+ * dynamic dependency updates, live measurements, geometric transformations, and construction tools.
  */
 
 import type {
@@ -17,6 +17,7 @@ import type {
 } from "../types";
 import type { Point2D } from "../../graphing/types";
 import { toDegrees, formatNumber } from "../../shared/math-utils";
+import { rotatePoint, translatePoint, scalePoint, reflectPointAcrossLine } from "../solvers/transformations";
 
 export class GeometryEngine {
   private scene: InteractiveGeometryScene;
@@ -99,6 +100,43 @@ export class GeometryEngine {
     return poly;
   }
 
+  // Geometric Transformations
+  public rotateAll(pivot: Point2D, angleDeg: number) {
+    for (const pt of this.scene.points) {
+      const res = rotatePoint({ x: pt.x, y: pt.y }, pivot, angleDeg);
+      pt.x = res.x;
+      pt.y = res.y;
+    }
+    this.recomputeMeasurements();
+  }
+
+  public translateAll(dx: number, dy: number) {
+    for (const pt of this.scene.points) {
+      const res = translatePoint({ x: pt.x, y: pt.y }, dx, dy);
+      pt.x = res.x;
+      pt.y = res.y;
+    }
+    this.recomputeMeasurements();
+  }
+
+  public scaleAll(center: Point2D, scaleFactor: number) {
+    for (const pt of this.scene.points) {
+      const res = scalePoint({ x: pt.x, y: pt.y }, center, scaleFactor);
+      pt.x = res.x;
+      pt.y = res.y;
+    }
+    this.recomputeMeasurements();
+  }
+
+  public reflectAll(p1: Point2D, p2: Point2D) {
+    for (const pt of this.scene.points) {
+      const res = reflectPointAcrossLine({ x: pt.x, y: pt.y }, p1, p2);
+      pt.x = res.x;
+      pt.y = res.y;
+    }
+    this.recomputeMeasurements();
+  }
+
   public addMeasurement(
     type: GeoMeasurement["type"],
     targetIds: string[],
@@ -144,7 +182,6 @@ export class GeometryEngine {
     }
 
     if (type === "angle" && targetIds.length >= 3) {
-      // Angle at vertex targetIds[1] between targetIds[0] and targetIds[2]
       const pA = pointMap.get(targetIds[0]);
       const pB = pointMap.get(targetIds[1]); // Vertex
       const pC = pointMap.get(targetIds[2]);
@@ -160,7 +197,6 @@ export class GeometryEngine {
     if (type === "area" && targetIds.length >= 3) {
       const pts = targetIds.map((id) => pointMap.get(id)).filter((p): p is GeoPoint => !!p);
       if (pts.length < 3) return null;
-      // Shoelace formula
       let sum = 0;
       for (let i = 0; i < pts.length; i++) {
         const j = (i + 1) % pts.length;

@@ -8,20 +8,29 @@ import {
   Hexagon,
   Spline,
   GitCommit,
-  Maximize2,
+  RotateCw,
+  Move,
+  Download,
   Trash2,
+  Layers,
 } from "lucide-react";
 import type { ConstructionTool } from "@/lib/geometry/types";
 
 interface ConstructionToolbarProps {
   activeTool: ConstructionTool;
   onSelectTool: (tool: ConstructionTool) => void;
+  onRotate: () => void;
+  onTranslate: () => void;
+  onExportDXF: () => void;
   onClear: () => void;
 }
 
 export function ConstructionToolbar({
   activeTool,
   onSelectTool,
+  onRotate,
+  onTranslate,
+  onExportDXF,
   onClear,
 }: ConstructionToolbarProps) {
   const tools: Array<{ id: ConstructionTool; label: string; icon: React.ReactNode }> = [
@@ -29,7 +38,7 @@ export function ConstructionToolbar({
     { id: "point", label: "Point", icon: <Dot size={18} /> },
     { id: "segment", label: "Segment", icon: <Minus size={14} /> },
     { id: "line", label: "Line", icon: <MoveRight size={14} /> },
-    { id: "circle_center_point", label: "Circle (Center+Pt)", icon: <Circle size={14} /> },
+    { id: "circle_center_point", label: "Circle", icon: <Circle size={14} /> },
     { id: "polygon", label: "Polygon", icon: <Hexagon size={14} /> },
     { id: "vector", label: "Vector", icon: <Spline size={14} /> },
     { id: "midpoint", label: "Midpoint", icon: <GitCommit size={14} /> },
@@ -55,13 +64,44 @@ export function ConstructionToolbar({
       </div>
 
       <div className="flex items-center gap-1.5">
+        {/* Transformations */}
+        <button
+          onClick={onRotate}
+          className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:bg-white/10 hover:text-white"
+          title="Rotate Scene 45°"
+        >
+          <RotateCw size={13} />
+          <span className="hidden sm:inline">Rotate 45°</span>
+        </button>
+
+        <button
+          onClick={onTranslate}
+          className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:bg-white/10 hover:text-white"
+          title="Translate Scene"
+        >
+          <Move size={13} />
+          <span className="hidden sm:inline">Shift</span>
+        </button>
+
+        <div className="mx-1 h-4 w-px bg-white/10" />
+
+        {/* DXF Export */}
+        <button
+          onClick={onExportDXF}
+          className="flex items-center gap-1 rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan hover:bg-accent-cyan/20"
+          title="Export to AutoCAD DXF CAD format"
+        >
+          <Download size={13} />
+          <span>Export DXF</span>
+        </button>
+
+        {/* Clear */}
         <button
           onClick={onClear}
           className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:border-accent-red/40 hover:bg-accent-red/10 hover:text-accent-red"
           title="Clear Scene"
         >
           <Trash2 size={13} />
-          <span>Clear</span>
         </button>
       </div>
     </div>

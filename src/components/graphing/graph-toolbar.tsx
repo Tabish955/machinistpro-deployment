@@ -15,15 +15,20 @@ import {
   FileSpreadsheet,
   FileCode,
   Image as ImageIcon,
+  Keyboard,
+  Layers,
 } from "lucide-react";
 import { useGraphStore } from "@/lib/graphing/state/graph-store";
 import {
   exportCanvasToPNG,
+  exportGraphToSVG,
   exportTableToCSV,
   exportSessionToJSON,
   parseSessionJSON,
 } from "@/lib/graphing/renderer/export";
-import type { TableItem } from "@/lib/graphing/types";
+import { sampleFunctionY } from "@/lib/graphing/engine/sampler";
+import { parseExpression, compileFunction, buildEvaluationScope } from "@/lib/graphing/engine/compiler";
+import type { TableItem, FunctionItem, SliderItem } from "@/lib/graphing/types";
 
 interface GraphToolbarProps {
   onOpenSettings: () => void;
@@ -31,6 +36,8 @@ interface GraphToolbarProps {
   setShowCalculus: (v: boolean) => void;
   showStats: boolean;
   setShowStats: (v: boolean) => void;
+  showKeypad: boolean;
+  setShowKeypad: (v: boolean) => void;
 }
 
 export function GraphToolbar({
@@ -39,6 +46,8 @@ export function GraphToolbar({
   setShowCalculus,
   showStats,
   setShowStats,
+  showKeypad,
+  setShowKeypad,
 }: GraphToolbarProps) {
   const {
     viewport,
@@ -61,6 +70,35 @@ export function GraphToolbar({
   const handleExportPNG = () => {
     const canvas = document.querySelector("canvas");
     if (canvas) exportCanvasToPNG(canvas, "machinistpro-graph.png");
+    setShowExportMenu(false);
+  };
+
+  const handleExportSVG = () => {
+    const varDefs = items
+      .filter((it): it is SliderItem => it.type === "slider")
+      .map((s) => ({ name: s.variableName, expr: String(s.value) }));
+    const scope = buildEvaluationScope(varDefs, [], settings.angleMode);
+
+    const curves: Array<{ points: any[]; color: string }> = [];
+    const markers: Array<{ x: number; y: number; label?: string; color?: string }> = [];
+
+    for (const item of items) {
+      if (item.type === "function" && item.visible && item.rawExpression) {
+        try {
+          const parsed = parseExpression(item.rawExpression);
+          if (parsed.kind === "function_y") {
+            const fn = compileFunction(parsed.rightExpr || "0", ["x"], scope, settings.angleMode);
+            const sample = sampleFunctionY(fn, viewport.xMin, viewport.xMax, viewport.yMin, viewport.yMax);
+            curves.push({ points: sample.points, color: item.color });
+            sample.roots.forEach((r) => markers.push({ x: r.x, y: r.y, color: "#10b981" }));
+          }
+        } catch {
+          // Ignore
+        }
+      }
+    }
+
+    exportGraphToSVG(viewport, curves, markers, 1200, 800, "machinistpro-graph.svg");
     setShowExportMenu(false);
   };
 
@@ -150,8 +188,22 @@ export function GraphToolbar({
         </button>
       </div>
 
-      {/* Right: Modes, Tools, Settings, Export */}
+      {/* Right: Modes, Keypad, Tools, Settings, Export */}
       <div className="flex items-center gap-1.5">
+        {/* Virtual Keypad Toggle */}
+        <button
+          onClick={() => setShowKeypad(!showKeypad)}
+          className={`flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+            showKeypad
+              ? "border-accent-cyan/50 bg-accent-cyan/20 text-accent-cyan"
+              : "border-white/10 bg-white/5 text-gray-400 hover:text-white"
+          }`}
+          title="Toggle Virtual Math Keyboard"
+        >
+          <Keyboard size={14} />
+          <span className="hidden sm:inline">Keypad</span>
+        </button>
+
         {/* 2D / 3D Toggle */}
         <button
           onClick={() => setIs3DMode(!is3DMode)}
@@ -214,13 +266,21 @@ export function GraphToolbar({
           </button>
 
           {showExportMenu && (
-            <div className="absolute right-0 top-10 z-40 w-44 rounded-2xl border border-white/15 bg-dark-900 p-2 shadow-2xl backdrop-blur-md">
+            <div className="absolute right-0 top-10 z-40 w-48 rounded-2xl border border-white/15 bg-dark-900 p-2 shadow-2xl backdrop-blur-md">
               <button
                 onClick={handleExportPNG}
                 className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs text-gray-200 hover:bg-white/10 hover:text-white"
               >
                 <ImageIcon size={14} className="text-accent-cyan" />
-                <span>Export PNG Image</span>
+                <span>Export PNG (HiDPI)</span>
+              </button>
+
+              <button
+                onClick={handleExportSVG}
+                className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs text-gray-200 hover:bg-white/10 hover:text-white"
+              >
+                <Layers size={14} className="text-accent-purple" />
+                <span>Export Vector (SVG)</span>
               </button>
 
               <button
@@ -240,7 +300,7 @@ export function GraphToolbar({
               </button>
 
               <label className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs text-gray-200 hover:bg-white/10 hover:text-white">
-                <Download size={14} className="text-accent-purple" />
+                <Download size={14} className="text-accent-cyan" />
                 <span>Load Session (JSON)</span>
                 <input
                   ref={fileInputRef}
