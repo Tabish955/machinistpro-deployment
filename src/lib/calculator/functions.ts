@@ -372,8 +372,6 @@ export const FUNCTIONS: Record<string, MathFunction> = {
 export const FUNCTION_ALIASES: Record<string, string> = {
   "√": "sqrt",
   "∛": "cbrt",
-  "log₁₀": "log10",
+  "log₁₀": "log",
   "log₂": "log2",
-  "log": "log10",
-  "fact": "factorial",
 };

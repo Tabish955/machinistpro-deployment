@@ -288,7 +288,17 @@ function parseTokenList(tokens: string[]): MathNode[] {
     // Exponentiation ^
     if (tok === "^" || tok === "**") {
       i++;
-      const prevNode = nodes.pop() || { type: "number", value: "" };
+      let prevNode = nodes.pop() || { type: "number", value: "" };
+
+      // If prevNode is (7), unwrap to 7 for cleaner display unless negative
+      if (
+        prevNode.type === "parentheses" &&
+        prevNode.content.length === 1 &&
+        prevNode.content[0].type === "number" &&
+        !prevNode.content[0].value.startsWith("-")
+      ) {
+        prevNode = prevNode.content[0];
+      }
 
       // Collect exponent tokens
       if (i < tokens.length) {

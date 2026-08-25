@@ -142,18 +142,25 @@ function splitTrailingOperand(expression: string): { prefix: string; operand: st
 
 // Wrappers for keys that transform a single operand in place.
 const UNARY_WRAPPERS: Record<string, (operand: string) => string> = {
-  square: (operand) => `(${operand})^2`,
-  cube: (operand) => `(${operand})^3`,
+  square: (operand) => (/^\d+(?:\.\d+)?$/.test(operand) ? `${operand}^2` : `(${operand})^2`),
+  cube: (operand) => (/^\d+(?:\.\d+)?$/.test(operand) ? `${operand}^3` : `(${operand})^3`),
+  sqrt: (operand) => `sqrt(${operand})`,
   sqrtOf: (operand) => `sqrt(${operand})`,
-  // Fully parenthesised so 2/9 ¹⁄ₓ becomes 2/(1/(9)) — not (2/1)/9.
+  cbrt: (operand) => `cbrt(${operand})`,
   recip: (operand) => `(1/(${operand}))`,
   fact: (operand) => `fact(${operand})`,
+  factorial: (operand) => `factorial(${operand})`,
 };
 
 // What these keys leave behind when there is nothing at all to act on.
 const UNARY_EMPTY_FALLBACK: Record<string, string> = {
+  square: "^2",
+  cube: "^3",
+  sqrt: "sqrt(",
   sqrtOf: "sqrt(",
+  cbrt: "cbrt(",
   fact: "fact(",
+  factorial: "factorial(",
   recip: "1/",
 };
 
@@ -207,6 +214,8 @@ interface CalculatorStore {
 
   calculate: (allowRepeat?: boolean, calculatorMode?: "standard" | "scientific") => void;
   negate: () => void;
+  toggleSign: () => void;
+  inputPower: () => void;
   percentage: () => void;
 
   // Memory operations
@@ -702,6 +711,15 @@ export const useCalculatorStore = create<CalculatorStore>()(
           expression: newExpr,
           displayExpression: formatExpression(newExpr),
         });
+      },
+
+      toggleSign: () => {
+        get().negate();
+      },
+
+      inputPower: () => {
+        const { isSecondFunction, inputFunction } = get();
+        inputFunction(isSecondFunction ? "cube" : "square");
       },
 
       // Percentage
