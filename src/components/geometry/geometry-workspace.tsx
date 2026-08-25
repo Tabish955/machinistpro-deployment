@@ -24,14 +24,7 @@ import { StandardShapesTool } from "./standard-shapes-tool";
 import type { ConstructionTool, InteractiveGeometryScene } from "@/lib/geometry/types";
 
 type GeometryTab =
-  | "workbench"
-  | "pcd"
-  | "cnc_coord"
-  | "arc"
-  | "fillet_chamfer"
-  | "triangle"
-  | "toolpath"
-  | "shapes";
+  "workbench" | "pcd" | "cnc_coord" | "arc" | "fillet_chamfer" | "triangle" | "toolpath" | "shapes";
 
 export function GeometryWorkspace() {
   const [tab, setTab] = useState<GeometryTab>("workbench");

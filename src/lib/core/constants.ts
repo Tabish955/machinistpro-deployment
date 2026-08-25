@@ -14,13 +14,7 @@ export interface EngineeringConstant {
 }
 
 export type ConstantCategory =
-  | "mathematical"
-  | "physical"
-  | "material"
-  | "thermal"
-  | "electrical"
-  | "conversion"
-  | "machining";
+  "mathematical" | "physical" | "material" | "thermal" | "electrical" | "conversion" | "machining";
 
 export const CONSTANT_CATEGORIES: Record<ConstantCategory, string> = {
   mathematical: "Mathematical",

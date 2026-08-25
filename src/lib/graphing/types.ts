@@ -115,13 +115,7 @@ export interface TableItem extends BaseGraphItem {
   showScatter: boolean;
   joinPoints: boolean;
   regressionModel?:
-    | "none"
-    | "linear"
-    | "quadratic"
-    | "polynomial"
-    | "exponential"
-    | "logarithmic"
-    | "power";
+    "none" | "linear" | "quadratic" | "polynomial" | "exponential" | "logarithmic" | "power";
   polynomialDegree?: number;
   showRegressionLine?: boolean;
 }
@@ -178,12 +172,7 @@ export interface TracePoint {
 }
 
 export type RegressionModel =
-  | "linear"
-  | "quadratic"
-  | "polynomial"
-  | "exponential"
-  | "logarithmic"
-  | "power";
+  "linear" | "quadratic" | "polynomial" | "exponential" | "logarithmic" | "power";
 
 export interface RegressionResult {
   model: RegressionModel;

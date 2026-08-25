@@ -101,7 +101,7 @@ export function subpathToPaths(
     }
   };
 
-  for (let cursor = 0; cursor < data.length; ) {
+  for (let cursor = 0; cursor < data.length;) {
     const verb = data[cursor++];
     if (verb === DRAW_MOVE_TO) {
       flush(false);
