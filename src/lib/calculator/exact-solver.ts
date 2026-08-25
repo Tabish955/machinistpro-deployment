@@ -4,8 +4,6 @@
  * and exact trigonometric values (e.g. sin(30°) = 1/2).
  */
 
-import { Fraction } from "../core/fraction";
-
 export interface ExactResult {
   exact: string;
   approximate: string;
@@ -51,24 +49,41 @@ export function simplifySquareRoot(n: number): { k: number; m: number; str: stri
 }
 
 /**
- * Simplify decimal to exact irreducible fraction
+ * Convert a decimal number to an exact irreducible fraction using Farey/Continued Fractions
  */
-export function toExactFraction(val: number, maxDenominator = 10000): { num: number; den: number; str: string } | null {
+export function toExactFraction(val: number, tolerance = 1e-7, maxDenominator = 10000): { num: number; den: number; str: string } | null {
   if (!Number.isFinite(val)) return null;
   if (Number.isInteger(val)) return { num: val, den: 1, str: String(val) };
 
-  try {
-    const frac = Fraction.from(val, 1e-7);
-    if (frac && frac.d <= maxDenominator && frac.d > 1) {
-      return {
-        num: frac.n,
-        den: frac.d,
-        str: `${frac.n}/${frac.d}`,
-      };
-    }
-  } catch {
-    // Fallback
+  const sign = val < 0 ? -1 : 1;
+  const target = Math.abs(val);
+
+  let h1 = 1, h2 = 0;
+  let k1 = 0, k2 = 1;
+  let b = target;
+
+  do {
+    const a = Math.floor(b);
+    let aux = h1;
+    h1 = a * h1 + h2;
+    h2 = aux;
+
+    aux = k1;
+    k1 = a * k1 + k2;
+    k2 = aux;
+
+    b = 1 / (b - a);
+  } while (Math.abs(target - h1 / k1) > target * tolerance && k1 <= maxDenominator && Number.isFinite(b));
+
+  if (k1 > 1 && k1 <= maxDenominator && Math.abs(target - h1 / k1) <= Math.max(1e-5, target * 1e-4)) {
+    const num = sign * h1;
+    return {
+      num,
+      den: k1,
+      str: `${num}/${k1}`,
+    };
   }
+
   return null;
 }
 

@@ -180,6 +180,15 @@ export const FUNCTIONS: Record<string, MathFunction> = {
     argCount: 1,
     description: "Base-10 logarithm",
   },
+  log10: {
+    name: "log10",
+    fn: ([x]) => {
+      if (x <= 0) throw new Error("Domain error: log10 requires x > 0");
+      return Math.log10(x);
+    },
+    argCount: 1,
+    description: "Base-10 logarithm",
+  },
   log2: {
     name: "log2",
     fn: ([x]) => {
@@ -280,6 +289,12 @@ export const FUNCTIONS: Record<string, MathFunction> = {
     argCount: 1,
     description: "Factorial",
   },
+  factorial: {
+    name: "factorial",
+    fn: ([x]) => factorial(x),
+    argCount: 1,
+    description: "Factorial",
+  },
   recip: {
     name: "recip",
     fn: ([x]) => {
@@ -357,6 +372,8 @@ export const FUNCTIONS: Record<string, MathFunction> = {
 export const FUNCTION_ALIASES: Record<string, string> = {
   "√": "sqrt",
   "∛": "cbrt",
-  "log₁₀": "log",
+  "log₁₀": "log10",
   "log₂": "log2",
+  "log": "log10",
+  "fact": "factorial",
 };

@@ -83,8 +83,8 @@ describe("Standard + Scientific Calculator Magnum Opus Test Suite", () => {
   });
 
   describe("Logarithms", () => {
-    it("evaluates log10(100) = 2", () => {
-      const res = evaluate("log10(100)");
+    it("evaluates log(100) = 2", () => {
+      const res = evaluate("log(100)");
       expect(res.success).toBe(true);
       expect(res.result).toBe(2);
     });
@@ -97,10 +97,16 @@ describe("Standard + Scientific Calculator Magnum Opus Test Suite", () => {
   });
 
   describe("Combinatorics and Factorials", () => {
-    it("evaluates 5! = 120", () => {
-      const res = evaluate("5!");
+    it("evaluates fact(5) = 120", () => {
+      const res = evaluate("fact(5)");
       expect(res.success).toBe(true);
       expect(res.result).toBe(120);
+    });
+
+    it("evaluates ncr(5, 2) = 10", () => {
+      const res = evaluate("ncr(5, 2)");
+      expect(res.success).toBe(true);
+      expect(res.result).toBe(10);
     });
   });
 });
