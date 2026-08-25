@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useCalculatorStore, type CalculatorSnapshot } from "@/store/calculator-store";
-import { PremiumDisplay } from "./premium-display";
-import { PremiumKeypad } from "./premium-keypad";
+import { InteractiveMathDisplay } from "./interactive-math-display";
+import { StandardKeypad } from "./standard-keypad";
+import { ScientificKeypad } from "./scientific-keypad";
+import { ConstantBrowserModal } from "./constant-browser-modal";
+import { VariableManagerModal } from "./variable-manager-modal";
 import { HistoryPanel } from "./history-panel";
-import { ArrowLeft, Clock, Undo2, Redo2, ClipboardPaste } from "lucide-react";
+import { ArrowLeft, Clock, Undo2, Redo2, ClipboardPaste, Hash, Variable } from "lucide-react";
 import { Link } from "@/lib/next-compat";
 import type { AngleMode, CalculationResult, CalculatorError } from "@/lib/calculator/types";
 import type { CalculatorMode } from "@/lib/calculator/advanced";
+import type { MathConstant } from "@/lib/calculator/constants-db";
 import { ModeSelector } from "./mode-selector";
 import { AdvancedWorkspace } from "./advanced-workspaces";
 
@@ -22,6 +26,9 @@ function formatMemoryValue(value: number): string {
 export function PremiumCalculator() {
   const [mode, setModeState] = useState<CalculatorMode>("scientific");
   const [advancedHistoryItem, setAdvancedHistoryItem] = useState<CalculationResult | null>(null);
+  const [isConstantsOpen, setIsConstantsOpen] = useState(false);
+  const [isVariablesOpen, setIsVariablesOpen] = useState(false);
+
   type ScalarMode = "standard" | "scientific";
   interface ScalarDraft {
     expression: string;
@@ -33,6 +40,7 @@ export function PremiumCalculator() {
     undoStack: CalculatorSnapshot[];
     redoStack: CalculatorSnapshot[];
   }
+
   const emptyDraft = (): ScalarDraft => ({
     expression: "",
     displayExpression: "",
@@ -43,10 +51,12 @@ export function PremiumCalculator() {
     undoStack: [],
     redoStack: [],
   });
+
   const scalarDrafts = useRef<Record<ScalarMode, ScalarDraft>>({
     standard: emptyDraft(),
     scientific: emptyDraft(),
   });
+
   const setMode = (nextMode: CalculatorMode) => {
     const store = useCalculatorStore.getState();
     if (mode === "standard" || mode === "scientific") {
@@ -70,13 +80,16 @@ export function PremiumCalculator() {
       store.clearRepeatOperation();
     }
     setModeState(nextMode);
-    window.localStorage.setItem("machinist-pro-calculator-mode", nextMode);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("machinist-pro-calculator-mode", nextMode);
+    }
   };
-  // The route sets a fixed "Scientific" title, so every mode looked identical in the
-  // browser tab. Name the mode actually in use.
+
   useEffect(() => {
     const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-    document.title = `${label} Calculator | MachinistPro`;
+    if (typeof document !== "undefined") {
+      document.title = `${label} Calculator | MachinistPro`;
+    }
   }, [mode]);
 
   const loadHistoryItem = (item: CalculationResult) => {
@@ -95,6 +108,7 @@ export function PremiumCalculator() {
       useCalculatorStore.getState().loadFromHistory(item);
     }
   };
+
   const {
     angleMode,
     setAngleMode,
@@ -126,9 +140,8 @@ export function PremiumCalculator() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const savedMode = window.localStorage.getItem(
-      "machinist-pro-calculator-mode",
-    ) as CalculatorMode | null;
+    if (typeof window === "undefined") return;
+    const savedMode = window.localStorage.getItem("machinist-pro-calculator-mode") as CalculatorMode | null;
     const supportedModes: CalculatorMode[] = [
       "standard",
       "scientific",
@@ -197,8 +210,6 @@ export function PremiumCalculator() {
         inputOperator("/");
         return;
       }
-      // ^ and parentheses have no Standard keypad key — they belong to Scientific only.
-      // (The engine still uses them internally for x², √ and %.)
       if (mode === "scientific" && key === "^") {
         inputOperator("^");
         return;
@@ -207,11 +218,11 @@ export function PremiumCalculator() {
         percentage();
         return;
       }
-      if (mode === "scientific" && key === "(") {
+      if (key === "(") {
         inputParenthesis("(");
         return;
       }
-      if (mode === "scientific" && key === ")") {
+      if (key === ")") {
         inputParenthesis(")");
         return;
       }
@@ -239,7 +250,6 @@ export function PremiumCalculator() {
         pasteNumber();
         return;
       }
-      // π is a Scientific constant; in Standard this only stole the browser's Print shortcut.
       if (mode === "scientific" && key === "p" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         inputConstant("π");
@@ -280,28 +290,24 @@ export function PremiumCalculator() {
   };
 
   const angleModes: AngleMode[] = ["deg", "rad", "grad"];
-
   const cycleAngleMode = () => {
     const i = angleModes.indexOf(angleMode);
     setAngleMode(angleModes[(i + 1) % angleModes.length]);
   };
 
+  const handleSelectConstant = (c: MathConstant) => {
+    inputConstant(c.symbol);
+  };
+
   return (
     <>
-      {/*
-        calc-shell fills the entire content area the parent layout gives us.
-        On mobile the parent's <main> stretches to the viewport minus the
-        header / bottom-nav — we set negative margins to reclaim that padding
-        and occupy the full area without any scrolling.
-      */}
       <div
         ref={containerRef}
         className="flex h-[calc(100dvh-11.25rem)] max-h-[calc(100dvh-11.25rem)] flex-col -m-4 overflow-x-hidden overflow-y-auto bg-gradient-to-b from-dark-900 via-dark-950 to-dark-990 lg:h-[calc(100dvh-3.5rem)] lg:max-h-[calc(100dvh-3.5rem)] lg:-m-6"
         style={{ touchAction: "manipulation" }}
       >
-        {/* ─── Top bar ─── */}
+        {/* Top bar */}
         <div className="shrink-0 flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 border-b border-white/[0.04]">
-          {/* Left cluster */}
           <div className="flex items-center gap-1.5">
             <Link
               href="/dashboard"
@@ -316,8 +322,7 @@ export function PremiumCalculator() {
             </span>
           </div>
 
-          {/* Right cluster */}
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
             {(mode === "standard" || mode === "scientific") && (
               <>
                 <button
@@ -367,7 +372,7 @@ export function PremiumCalculator() {
 
         <ModeSelector value={mode} onChange={setMode} />
 
-        {/* ─── Mode bar ─── */}
+        {/* Mode & Memory Bar */}
         {(mode === "standard" || mode === "scientific") && (
           <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 sm:px-4">
             {mode === "scientific" && (
@@ -407,28 +412,32 @@ export function PremiumCalculator() {
           </div>
         )}
 
+        {/* Standard / Scientific Calculator View */}
         {(mode === "standard" || mode === "scientific") && (
-          <>
-            {/* ─── Display ─── */}
-            <div
-              className={`shrink-0 px-3 pt-1 pb-2 sm:px-4 ${mode === "standard" ? "mx-auto w-full max-w-2xl" : ""}`}
-            >
-              <PremiumDisplay />
+          <div className="flex flex-col flex-1 px-2 pb-2 sm:px-4 sm:pb-3 max-w-4xl mx-auto w-full">
+            {/* Interactive Math Display */}
+            <div className="shrink-0 pt-1 pb-2">
+              <InteractiveMathDisplay
+                onToggleAngleMode={cycleAngleMode}
+                calculatorMode={mode}
+              />
             </div>
 
-            {/* ─── Keypad (fills all remaining space) ─── */}
-            <div
-              className={`flex-1 px-2 pb-2 sm:px-3 sm:pb-3 lg:pb-2 ${
-                mode === "standard"
-                  ? "mx-auto w-full max-w-2xl min-h-[19rem]"
-                  : "min-h-0 overflow-y-auto"
-              }`}
-            >
-              <PremiumKeypad scientific={mode === "scientific"} />
+            {/* Keypad */}
+            <div className="flex-1 overflow-y-auto">
+              {mode === "standard" ? (
+                <StandardKeypad />
+              ) : (
+                <ScientificKeypad
+                  onOpenConstants={() => setIsConstantsOpen(true)}
+                  onOpenVariables={() => setIsVariablesOpen(true)}
+                />
+              )}
             </div>
-          </>
+          </div>
         )}
 
+        {/* Advanced Workspaces */}
         <div className={mode === "standard" || mode === "scientific" ? "hidden" : "flex-1 min-h-0"}>
           {(
             [
@@ -452,7 +461,18 @@ export function PremiumCalculator() {
         </div>
       </div>
 
-      {/* History panel (uses fixed positioning internally) */}
+      {/* Modals and History */}
+      <ConstantBrowserModal
+        isOpen={isConstantsOpen}
+        onClose={() => setIsConstantsOpen(false)}
+        onSelectConstant={handleSelectConstant}
+      />
+
+      <VariableManagerModal
+        isOpen={isVariablesOpen}
+        onClose={() => setIsVariablesOpen(false)}
+      />
+
       <HistoryPanel onLoadItem={loadHistoryItem} />
     </>
   );
