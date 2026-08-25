@@ -16,6 +16,15 @@ export function erf(x: number): number {
   const a5 = 1.061405429;
   const p = 0.3275911;
 
+  /*
+   * The A&S coefficients add up to 0.999999999 rather than 1, so the formula
+   * returns 1e-9 at zero instead of nothing. That is well inside its stated
+   * 1.5e-7 accuracy and harmless in a p-value, but erf(0) = 0 is a definition
+   * rather than an estimate, and a calculator showing normalCdf(0) as
+   * 0.5000000005 looks broken to the person reading it.
+   */
+  if (x === 0) return 0;
+
   const sign = x < 0 ? -1 : 1;
   const absX = Math.abs(x);
 

@@ -42,9 +42,23 @@ export function parsePairs(rawInput: string): Point2D[] {
     const cleaned = line.replace(/[()[\]{}]/g, "").trim();
     if (!cleaned) continue;
     const parts = cleaned.split(/[\s,:\t|]+/).filter(Boolean);
-    if (parts.length >= 2) {
-      const x = Number(parts[0]);
-      const y = Number(parts[1]);
+
+    /*
+     * Every pair on the line, not just the first one.
+     *
+     * This used to read parts[0] and parts[1] and drop the rest, which meant
+     * "(1, 2), (3, 4)" — a format this function's own description offers —
+     * silently became a single point. Pasting four pairs across two lines gave
+     * a regression fitted to two of them, reported r² = 1.00 because two points
+     * always sit on a line, and predicted 40 where the honest answer was 81.3.
+     * Nothing on the screen said half the data had gone.
+     *
+     * An odd number left at the end of a line has no partner and is dropped;
+     * that is a genuinely incomplete pair rather than data being discarded.
+     */
+    for (let i = 0; i + 1 < parts.length; i += 2) {
+      const x = Number(parts[i]);
+      const y = Number(parts[i + 1]);
       if (Number.isFinite(x) && Number.isFinite(y)) {
         points.push({ x, y });
       }

@@ -4,7 +4,10 @@
  * point tables, vectors, distances, and angles between sequential coordinates.
  */
 
-import type { CncCoordinateRow, Point2D } from "../types";
+import type { CncCoordinateRow } from "../types";
+// Point2D lives in the graphing types, which is where every other file
+// under geometry/ imports it from. "../types" never exported it.
+import type { Point2D } from "../../graphing/types";
 import { toDegrees, toRadians, cleanTrigValue } from "../../shared/math-utils";
 
 export interface RawCncPoint {
