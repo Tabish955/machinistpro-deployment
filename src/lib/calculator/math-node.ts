@@ -311,11 +311,27 @@ function parseTokenList(tokens: string[]): MathNode[] {
         prevNode = prevNode.content[0];
       }
 
-      // Collect exponent tokens
+      /*
+       * Collect the exponent.
+       *
+       * Powers are right-associative: 2^3^2 means 2^(3^2), which is 512, not
+       * (2^3)^2, which is 64. This used to take a single token as the exponent
+       * and then let the next ^ build on the power it had just made, which
+       * chained the display the opposite way from the parser.
+       *
+       * That mattered more than a normal display fault. The person types
+       * 2^3^2, the screen shows it grouped as (2³)², they read it back, agree
+       * with it, press equals — and get 512, the answer to the sum the screen
+       * was not showing. So the chain is followed here and handed to the
+       * exponent whole.
+       */
       if (i < tokens.length) {
+        const expTokens: string[] = [];
+
+        // The first operand of the exponent. A single parenthesised group has
+        // its brackets dropped, so 2^(3) still draws as a plain raised 3.
         if (tokens[i] === "(") {
           i++;
-          const expTokens: string[] = [];
           let depth = 1;
           while (i < tokens.length && depth > 0) {
             if (tokens[i] === "(") depth++;
@@ -323,21 +339,36 @@ function parseTokenList(tokens: string[]): MathNode[] {
             if (depth > 0) expTokens.push(tokens[i]);
             i++;
           }
-          const expNodes = parseTokenList(expTokens);
-          nodes.push({
-            type: "power",
-            base: prevNode,
-            exponent: expNodes.length === 1 ? expNodes[0] : { type: "group", children: expNodes },
-          });
         } else {
-          const expTok = tokens[i++];
-          const expNodes = parseTokenList([expTok]);
-          nodes.push({
-            type: "power",
-            base: prevNode,
-            exponent: expNodes[0] || { type: "number", value: expTok },
-          });
+          expTokens.push(tokens[i++]);
         }
+
+        // Any further ^ belongs inside this exponent, not outside it.
+        while (i < tokens.length && (tokens[i] === "^" || tokens[i] === "**")) {
+          expTokens.push(tokens[i++]);
+          if (i < tokens.length && tokens[i] === "(") {
+            let depth = 0;
+            do {
+              if (tokens[i] === "(") depth++;
+              else if (tokens[i] === ")") depth--;
+              expTokens.push(tokens[i++]);
+            } while (i < tokens.length && depth > 0);
+          } else if (i < tokens.length) {
+            expTokens.push(tokens[i++]);
+          }
+        }
+
+        const expNodes = parseTokenList(expTokens);
+        nodes.push({
+          type: "power",
+          base: prevNode,
+          exponent:
+            expNodes.length === 1
+              ? expNodes[0]
+              : expNodes.length === 0
+                ? { type: "number", value: "" }
+                : { type: "group", children: expNodes },
+        });
       } else {
         nodes.push({ type: "power", base: prevNode, exponent: { type: "number", value: "" } });
       }
