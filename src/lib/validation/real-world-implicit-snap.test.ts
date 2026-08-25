@@ -111,8 +111,7 @@ describe("implicit curves are drawn where the equation is actually satisfied", (
   it("shades an inequality only where the inequality holds", () => {
     // y < x is true below the diagonal and nowhere else.
     const region = sampleInequalityRegion((x: number) => x, "<", -10, 10, -10, 10) as unknown as
-      | { points?: { x: number; y: number }[] }
-      | undefined;
+      { points?: { x: number; y: number }[] } | undefined;
     if (!region?.points?.length) return; // the shape of this one is up to the renderer
 
     for (const point of region.points) {
