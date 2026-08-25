@@ -65,6 +65,18 @@ const CANNED_CYCLES: Record<number, string> = {
   94: "single-block facing",
 };
 
+/*
+ * G94 is two different things depending on the machine. On a lathe it is the
+ * single-block facing cycle above. On a mill it is feed per minute, which is
+ * a modal state and not a cycle at all — and a milling program says so by
+ * declaring G17 for the XY plane before it does anything else.
+ *
+ * Without this the backplot told anyone pasting a milling program that their
+ * feed-rate declaration was a facing cycle, which is a confident and useless
+ * thing to say.
+ */
+const MILL_PLANE = /\bG0*17\b/;
+
 export function parseGCode(source: string): ParseResult {
   const moves: GMove[] = [];
   const warnings: Array<{ line: number; message: string }> = [];
@@ -76,6 +88,27 @@ export function parseGCode(source: string): ParseResult {
   let feed: number | undefined;
   let incremental = false;
   const cycleSeen = new Set<number>();
+  // Decided once from the whole program, because the plane is declared at the
+  // top and the note about G94 is emitted further down.
+  const milling = MILL_PLANE.test(source);
+
+  /*
+   * Say plainly that this cannot be drawn.
+   *
+   * A move here has an X and a Z and no Y, because it was written for a lathe
+   * where there is no Y to have. Handed a milling program it reads the X and
+   * the Z, ignores every Y, and produces a path that is not the one in the
+   * program — and until this warning existed the checker went on to report
+   * "nothing wrong with the blocks", which is true of the blocks and
+   * thoroughly misleading about the picture beside them.
+   */
+  if (milling && /(^|\n)[^(;\n]*\bY-?\d/.test(source)) {
+    warnings.push({
+      line: 1,
+      message:
+        "This is a milling program — it declares G17 and moves in Y. The backplot draws in X and Z only, so every Y here is dropped and the path shown is not the path programmed. Read the blocks, not the picture.",
+    });
+  }
 
   source.split(/\r?\n/).forEach((rawLine, index) => {
     const line = index + 1;
@@ -97,7 +130,11 @@ export function parseGCode(source: string): ParseResult {
     // an entire cycle, so say so rather than quietly plotting a stub.
     // Once per cycle, not once per block: G71 takes two lines and saying it
     // twice is noise.
-    const canned = gWords.find((g) => g in CANNED_CYCLES && !cycleSeen.has(g));
+    const canned = gWords.find(
+      // G94 only means the facing cycle on a lathe. In a milling program it is
+      // feed per minute, and calling it a cycle is worse than saying nothing.
+      (g) => g in CANNED_CYCLES && !(milling && g === 94) && !cycleSeen.has(g),
+    );
     if (canned !== undefined) {
       cycleSeen.add(canned);
       warnings.push({

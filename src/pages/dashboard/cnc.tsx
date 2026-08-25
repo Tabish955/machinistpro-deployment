@@ -153,7 +153,23 @@ function Pick<T extends string>({
 const SendToBackplot = createContext<((lines: string[]) => void) | null>(null);
 
 /** A generated program with the copy button beside it. */
-function Program({ lines, note }: { lines: string[]; note?: ReactNode }) {
+function Program({
+  lines,
+  note,
+  backplot = true,
+}: {
+  lines: string[];
+  note?: ReactNode;
+  /**
+   * Whether the backplot can draw this program.
+   *
+   * The backplot reads with the lathe parser, whose move has an X and a Z and
+   * no Y at all. Handed a milling program it silently drops every Y and draws
+   * a path that is not the one in the program — so the button is withheld
+   * rather than offering a picture that cannot be right.
+   */
+  backplot?: boolean;
+}) {
   // Three states, not two. A copy that did not happen must not look like one
   // that did: the operator would paste whatever was on the clipboard before
   // into the control, believing it to be the blocks on screen.
@@ -171,7 +187,7 @@ function Program({ lines, note }: { lines: string[]; note?: ReactNode }) {
       <div className="flex items-center justify-between mb-2">
         <SectionHeader title="Program Blocks" className="!mb-0" />
         <div className="flex items-center gap-2">
-          {plot && (
+          {plot && backplot && (
             <button
               onClick={() => plot(lines)}
               className="flex items-center gap-1.5 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-2.5 py-1.5 text-[11px] font-semibold text-accent-cyan hover:bg-accent-cyan/20 cursor-pointer"
@@ -2490,7 +2506,21 @@ function MillDrillPanel() {
       {!out.error && (
         <Program
           lines={out.code}
-          note="The cycle is stated once and every X and Y after it drills another hole with it. G80 at the end cancels it — without that, the next positioning move anywhere in the program drills a hole where it lands."
+          backplot={false}
+          note={
+            <>
+              The cycle is stated once and every X and Y after it drills another hole with it. G80
+              at the end cancels it — without that, the next positioning move anywhere in the
+              program drills a hole where it lands, and M30 ends the program so the control does not
+              run on into whatever follows.
+              <br />
+              <br />
+              There is no backplot button here on purpose: that view reads programs with the lathe
+              parser, which has an X and a Z and no Y, so it would drop every Y in this program and
+              draw a path that is not the one written. The plan view above is the picture of this
+              job.
+            </>
+          }
         />
       )}
     </div>
