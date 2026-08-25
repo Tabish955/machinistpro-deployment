@@ -97,7 +97,7 @@ export function StandardKeypad() {
       <div className="pt-1">
         <button
           type="button"
-          onClick={calculate}
+          onClick={() => calculate(true, "standard")}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-accent-cyan via-accent-blue to-accent-cyan p-3.5 text-lg font-bold text-dark-950 shadow-lg shadow-accent-cyan/25 transition-all active:scale-[0.98] hover:brightness-110"
         >
           <Equal size={22} />
