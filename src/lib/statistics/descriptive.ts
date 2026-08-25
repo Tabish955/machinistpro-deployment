@@ -110,7 +110,8 @@ export function computeDescriptiveStatistics(data: number[]): DescriptiveStatist
   // Trimmed Mean (10% two-sided trim)
   const trimK = Math.floor(n * 0.1);
   const trimmed = sorted.slice(trimK, n - trimK);
-  const trimmedMean = trimmed.length > 0 ? trimmed.reduce((a, b) => a + b, 0) / trimmed.length : mean;
+  const trimmedMean =
+    trimmed.length > 0 ? trimmed.reduce((a, b) => a + b, 0) / trimmed.length : mean;
 
   // Median (Q2)
   const q2 = calculatePercentile(sorted, 0.5);
@@ -172,7 +173,7 @@ export function computeDescriptiveStatistics(data: number[]): DescriptiveStatist
   if (n >= 4 && sampleStdDev > 0) {
     const s4 = Math.pow(sampleStdDev, 4);
     const term1 = (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3));
-    const term2 = (sumDiffFourth / s4);
+    const term2 = sumDiffFourth / s4;
     const term3 = (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
     kurtosis = term1 * term2 - term3; // Excess kurtosis
   }

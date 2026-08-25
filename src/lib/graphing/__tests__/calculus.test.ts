@@ -45,7 +45,12 @@ describe("Calculus Engine", () => {
 
   it("computes area between two curves", () => {
     // Area between y = x and y = x^2 from 0 to 1: \int_0^1 (x - x^2) dx = 1/2 - 1/3 = 1/6 \approx 0.16667
-    const res = computeAreaBetweenCurves((x) => x, (x) => x * x, 0, 1);
+    const res = computeAreaBetweenCurves(
+      (x) => x,
+      (x) => x * x,
+      0,
+      1,
+    );
     expect(res.value).toBeCloseTo(1 / 6, 4);
   });
 

@@ -51,7 +51,7 @@ describe("Mathematical Expression Compiler", () => {
       ],
       [
         { name: "g", args: ["x"], expr: "b * x" }, // g(x) = 5x
-      ]
+      ],
     );
 
     expect(scope.variables.a).toBe(2);

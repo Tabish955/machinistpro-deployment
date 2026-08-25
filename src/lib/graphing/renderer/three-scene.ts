@@ -35,7 +35,7 @@ function heightToColor(t: number): THREE.Color {
     color.setRGB(
       (1 - factor) * 0.0 + factor * 0.66,
       (1 - factor) * 0.83 + factor * 0.33,
-      (1 - factor) * 1.0 + factor * 0.97
+      (1 - factor) * 1.0 + factor * 0.97,
     );
   } else {
     // 0.5 to 1: Purple (#a855f7) to Amber (#f59e0b)
@@ -43,7 +43,7 @@ function heightToColor(t: number): THREE.Color {
     color.setRGB(
       (1 - factor) * 0.66 + factor * 0.96,
       (1 - factor) * 0.33 + factor * 0.62,
-      (1 - factor) * 0.97 + factor * 0.04
+      (1 - factor) * 0.97 + factor * 0.04,
     );
   }
   return color;
@@ -152,7 +152,7 @@ export class ThreeGraphController {
         this.updateCameraPosition();
         this.render();
       },
-      { passive: false }
+      { passive: false },
     );
   }
 

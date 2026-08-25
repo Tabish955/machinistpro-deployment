@@ -4,11 +4,7 @@ import { ModuleCard } from "@/components/dashboard/module-card";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
-import {
-  calculatorModules,
-  allCalculatorModules,
-  getModuleById,
-} from "@/config/modules";
+import { calculatorModules, allCalculatorModules, getModuleById } from "@/config/modules";
 import { FORMULAS } from "@/lib/formulas";
 import { MATERIAL_PROFILES } from "@/lib/engdb/materials";
 import { useHistoryStore } from "@/store/history-store";
@@ -91,7 +87,9 @@ function EmptyActivity({
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const { formattedTime, formattedDate, greetingText, hours, isSynced, timezone } = useWorldTime({ showSeconds: false });
+  const { formattedTime, formattedDate, greetingText, hours, isSynced, timezone } = useWorldTime({
+    showSeconds: false,
+  });
 
   const GIcon = hours >= 5 && hours < 12 ? Sun : hours >= 12 && hours < 21 ? CloudSun : Moon;
 
@@ -155,11 +153,11 @@ export default function DashboardPage() {
               <span>{formattedDate}</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-white font-mono tracking-tight">{formattedTime}</p>
+              <p className="text-3xl font-bold text-white font-mono tracking-tight">
+                {formattedTime}
+              </p>
             </div>
-            <span className="text-[10px] font-mono text-gray-600">
-              {timezone}
-            </span>
+            <span className="text-[10px] font-mono text-gray-600">{timezone}</span>
           </div>
         </div>
       </Card>

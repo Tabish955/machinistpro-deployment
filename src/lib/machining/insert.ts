@@ -550,7 +550,8 @@ export interface DecodedInsert {
 }
 
 export type InsertDecodeResult =
-  { ok: true; insert: DecodedInsert; warnings: string[] } | { ok: false; error: string };
+  | { ok: true; insert: DecodedInsert; warnings: string[] }
+  | { ok: false; error: string };
 
 const isDigits = (s: string) => /^[0-9]+$/.test(s);
 

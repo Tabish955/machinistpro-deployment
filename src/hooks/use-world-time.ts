@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { getAccurateWorldDate, syncWorldTime, getWorldTimeState, type WorldTimeState } from "@/lib/core/world-time";
+import {
+  getAccurateWorldDate,
+  syncWorldTime,
+  getWorldTimeState,
+  type WorldTimeState,
+} from "@/lib/core/world-time";
 
 export function useWorldTime(options?: { showSeconds?: boolean }) {
   const [currentDate, setCurrentDate] = useState<Date>(() => getAccurateWorldDate());
@@ -18,9 +23,12 @@ export function useWorldTime(options?: { showSeconds?: boolean }) {
     }, 1000);
 
     // Periodic re-sync every 15 minutes
-    const resyncId = setInterval(() => {
-      void syncWorldTime().then((state) => setSyncInfo(state));
-    }, 15 * 60 * 1000);
+    const resyncId = setInterval(
+      () => {
+        void syncWorldTime().then((state) => setSyncInfo(state));
+      },
+      15 * 60 * 1000,
+    );
 
     return () => {
       clearInterval(intervalId);

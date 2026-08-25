@@ -3,6 +3,7 @@
  */
 
 import { CONSTANTS_DATABASE } from "./constants-db";
+import type { UserVariable } from "./variables-store";
 
 export interface AutocompleteItem {
   id: string;
@@ -41,7 +42,7 @@ const BUILTIN_FUNCTIONS: Array<{ label: string; insertText: string; detail: stri
  */
 export function getAutocompleteSuggestions(
   currentText: string,
-  variables: Record<string, any> = {}
+  variables: Record<string, UserVariable> = {},
 ): AutocompleteItem[] {
   if (!currentText || !currentText.trim()) return [];
 
@@ -54,7 +55,10 @@ export function getAutocompleteSuggestions(
 
   // 1. Functions
   for (const fn of BUILTIN_FUNCTIONS) {
-    if (fn.label.toLowerCase().startsWith(prefix) || fn.insertText.toLowerCase().startsWith(prefix)) {
+    if (
+      fn.label.toLowerCase().startsWith(prefix) ||
+      fn.insertText.toLowerCase().startsWith(prefix)
+    ) {
       suggestions.push({
         id: `fn-${fn.label}`,
         label: fn.label,
@@ -67,7 +71,11 @@ export function getAutocompleteSuggestions(
 
   // 2. Constants
   for (const c of CONSTANTS_DATABASE) {
-    if (c.symbol.toLowerCase().startsWith(prefix) || c.id.toLowerCase().startsWith(prefix) || c.name.toLowerCase().startsWith(prefix)) {
+    if (
+      c.symbol.toLowerCase().startsWith(prefix) ||
+      c.id.toLowerCase().startsWith(prefix) ||
+      c.name.toLowerCase().startsWith(prefix)
+    ) {
       suggestions.push({
         id: `const-${c.id}`,
         label: `${c.symbol} (${c.name})`,

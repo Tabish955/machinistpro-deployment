@@ -7,7 +7,11 @@ import {
   computeArcLength,
   getTangentAndNormal,
 } from "@/lib/graphing/engine/calculus";
-import { compileFunction, buildEvaluationScope, parseExpression } from "@/lib/graphing/engine/compiler";
+import {
+  compileFunction,
+  buildEvaluationScope,
+  parseExpression,
+} from "@/lib/graphing/engine/compiler";
 import { formatNumber } from "@/lib/shared/math-utils";
 import type { FunctionItem, SliderItem } from "@/lib/graphing/types";
 
@@ -19,8 +23,9 @@ export function CalculusInspector() {
   const [intB, setIntB] = useState("3");
 
   const functionItems = useMemo(
-    () => items.filter((it): it is FunctionItem => it.type === "function" && Boolean(it.rawExpression)),
-    [items]
+    () =>
+      items.filter((it): it is FunctionItem => it.type === "function" && Boolean(it.rawExpression)),
+    [items],
   );
 
   const activeExpression = targetExpr || functionItems[0]?.rawExpression || "y = x^2";
@@ -127,12 +132,20 @@ export function CalculusInspector() {
                 className="w-20 rounded-md border border-white/10 bg-dark-900 px-2 py-1 text-xs text-white"
               />
               <span className="text-[10px] text-gray-500">Slope:</span>
-              <strong className="text-accent-amber">{formatNumber(derivativeResult.slope, 4)}</strong>
+              <strong className="text-accent-amber">
+                {formatNumber(derivativeResult.slope, 4)}
+              </strong>
             </div>
 
             <div className="mt-2 rounded-lg bg-dark-900/60 p-2 text-[11px] text-gray-300">
-              <div>Tangent: <span className="text-white">{derivativeResult.tangentInfo.tangentEquation}</span></div>
-              <div className="mt-0.5">Normal: <span className="text-white">{derivativeResult.tangentInfo.normalEquation}</span></div>
+              <div>
+                Tangent:{" "}
+                <span className="text-white">{derivativeResult.tangentInfo.tangentEquation}</span>
+              </div>
+              <div className="mt-0.5">
+                Normal:{" "}
+                <span className="text-white">{derivativeResult.tangentInfo.normalEquation}</span>
+              </div>
             </div>
           </div>
         )}
@@ -146,7 +159,9 @@ export function CalculusInspector() {
 
         <div className="mt-2.5 grid grid-cols-2 gap-2 font-mono text-xs">
           <div>
-            <label className="mb-1 block text-[10px] uppercase text-gray-500">Lower Bound (a)</label>
+            <label className="mb-1 block text-[10px] uppercase text-gray-500">
+              Lower Bound (a)
+            </label>
             <input
               type="number"
               value={intA}
@@ -155,7 +170,9 @@ export function CalculusInspector() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-[10px] uppercase text-gray-500">Upper Bound (b)</label>
+            <label className="mb-1 block text-[10px] uppercase text-gray-500">
+              Upper Bound (b)
+            </label>
             <input
               type="number"
               value={intB}
@@ -169,7 +186,9 @@ export function CalculusInspector() {
           <div className="mt-3 rounded-lg bg-accent-purple/10 p-2.5 font-mono text-xs text-accent-purple">
             <div className="flex justify-between">
               <span>∫ f(x) dx:</span>
-              <strong className="text-white">{formatNumber(integralResult.integralValue, 5)}</strong>
+              <strong className="text-white">
+                {formatNumber(integralResult.integralValue, 5)}
+              </strong>
             </div>
             <div className="mt-1 flex justify-between border-t border-accent-purple/20 pt-1 text-[11px]">
               <span>Arc Length:</span>

@@ -141,7 +141,9 @@ export function PremiumCalculator() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedMode = window.localStorage.getItem("machinist-pro-calculator-mode") as CalculatorMode | null;
+    const savedMode = window.localStorage.getItem(
+      "machinist-pro-calculator-mode",
+    ) as CalculatorMode | null;
     const supportedModes: CalculatorMode[] = [
       "standard",
       "scientific",
@@ -417,10 +419,7 @@ export function PremiumCalculator() {
           <div className="flex flex-col flex-1 px-2 pb-2 sm:px-4 sm:pb-3 max-w-4xl mx-auto w-full">
             {/* Interactive Math Display */}
             <div className="shrink-0 pt-1 pb-2">
-              <InteractiveMathDisplay
-                onToggleAngleMode={cycleAngleMode}
-                calculatorMode={mode}
-              />
+              <InteractiveMathDisplay onToggleAngleMode={cycleAngleMode} calculatorMode={mode} />
             </div>
 
             {/* Keypad */}
@@ -468,10 +467,7 @@ export function PremiumCalculator() {
         onSelectConstant={handleSelectConstant}
       />
 
-      <VariableManagerModal
-        isOpen={isVariablesOpen}
-        onClose={() => setIsVariablesOpen(false)}
-      />
+      <VariableManagerModal isOpen={isVariablesOpen} onClose={() => setIsVariablesOpen(false)} />
 
       <HistoryPanel onLoadItem={loadHistoryItem} />
     </>

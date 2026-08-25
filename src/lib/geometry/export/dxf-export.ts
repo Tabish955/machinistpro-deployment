@@ -7,7 +7,7 @@ import type { InteractiveGeometryScene, GeoPoint } from "../types";
 
 export function exportSceneToDXF(
   scene: InteractiveGeometryScene,
-  filename = "machinistpro-cad.dxf"
+  filename = "machinistpro-cad.dxf",
 ) {
   const pointMap = new Map<string, GeoPoint>(scene.points.map((p) => [p.id, p]));
   const lines: string[] = [];
@@ -15,7 +15,7 @@ export function exportSceneToDXF(
   // DXF Header
   lines.push("0", "SECTION", "2", "HEADER");
   lines.push("9", "$ACADVER", "1", "AC1009"); // AutoCAD R12 ASCII compatibility
-  lines.push("9", "$INSUNITS", "70", "4");    // 4 = Millimeters
+  lines.push("9", "$INSUNITS", "70", "4"); // 4 = Millimeters
   lines.push("0", "ENDSEC");
 
   // DXF Entities Section

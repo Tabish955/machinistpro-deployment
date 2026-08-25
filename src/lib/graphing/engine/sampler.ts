@@ -41,7 +41,12 @@ function safeEval(fn: (x: number) => number, x: number): number {
 /**
  * Find exact root using bisection method within [a, b]
  */
-function findRootBisection(fn: (x: number) => number, a: number, b: number, maxIter = 30): number | null {
+function findRootBisection(
+  fn: (x: number) => number,
+  a: number,
+  b: number,
+  maxIter = 30,
+): number | null {
   let ya = safeEval(fn, a);
   let yb = safeEval(fn, b);
   if (Number.isNaN(ya) || Number.isNaN(yb)) return null;
@@ -76,7 +81,7 @@ export function sampleFunctionY(
   yMin: number,
   yMax: number,
   domain?: DomainRestriction | null,
-  baseSamples = 800
+  baseSamples = 800,
 ): SampledCurve {
   if (!(xMin < xMax)) {
     return { points: [], roots: [], extrema: [], error: "Invalid viewport range" };
@@ -164,7 +169,7 @@ export function sampleFunctionY(
 
   // Deduplicate roots with tolerance
   const uniqueRoots = roots.filter(
-    (r, idx, arr) => arr.findIndex((c) => Math.abs(c.x - r.x) < step * 1.5) === idx
+    (r, idx, arr) => arr.findIndex((c) => Math.abs(c.x - r.x) < step * 1.5) === idx,
   );
 
   return { points, roots: uniqueRoots.slice(0, 30), extrema: extrema.slice(0, 30) };
@@ -178,7 +183,7 @@ export function sampleFunctionX(
   yMin: number,
   yMax: number,
   domain?: DomainRestriction | null,
-  baseSamples = 800
+  baseSamples = 800,
 ): SampledCurve {
   const step = (yMax - yMin) / baseSamples;
   const points: (Point2D | null)[] = [];
@@ -208,7 +213,7 @@ export function samplePolar(
   thetaMin: number,
   thetaMax: number,
   angleMode: AngleMode = "rad",
-  samples = 1200
+  samples = 1200,
 ): SampledCurve {
   const step = (thetaMax - thetaMin) / samples;
   const points: (Point2D | null)[] = [];
@@ -238,7 +243,7 @@ export function sampleParametric(
   fnY: (t: number) => number,
   tMin: number,
   tMax: number,
-  samples = 1000
+  samples = 1000,
 ): SampledCurve {
   const step = (tMax - tMin) / samples;
   const points: (Point2D | null)[] = [];

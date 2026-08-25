@@ -161,7 +161,9 @@ export function TableRow({ item, onChange, onDelete }: TableRowProps) {
       {/* Regression Section */}
       <div className="mt-3 border-t border-white/[0.06] pt-2.5">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] uppercase tracking-wider text-gray-500">Regression Model</label>
+          <label className="text-[10px] uppercase tracking-wider text-gray-500">
+            Regression Model
+          </label>
           <select
             value={item.regressionModel || "none"}
             onChange={(e) =>

@@ -105,13 +105,20 @@ export function computeSpearmanRank(points: Point2D[]): number {
 /**
  * Compute regression model on 2D point dataset
  */
-export function computeRegression(points: Point2D[], modelType: RegressionModelType = "linear"): RegressionResult {
+export function computeRegression(
+  points: Point2D[],
+  modelType: RegressionModelType = "linear",
+): RegressionResult {
   const n = points.length;
   if (n < 2) {
     throw new Error("Regression requires at least 2 points.");
   }
 
-  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  let sumX = 0,
+    sumY = 0,
+    sumXY = 0,
+    sumX2 = 0,
+    sumY2 = 0;
   for (const p of points) {
     sumX += p.x;
     sumY += p.y;
@@ -154,7 +161,9 @@ export function computeRegression(points: Point2D[], modelType: RegressionModelT
 
     case "quadratic": {
       // y = ax^2 + bx + c using 3x3 normal equations
-      let sumX3 = 0, sumX4 = 0, sumX2Y = 0;
+      let sumX3 = 0,
+        sumX4 = 0,
+        sumX2Y = 0;
       for (const p of points) {
         const x2 = p.x * p.x;
         sumX3 += x2 * p.x;
@@ -203,9 +212,13 @@ export function computeRegression(points: Point2D[], modelType: RegressionModelT
     case "exponential": {
       // y = a * e^(bx) -> ln(y) = ln(a) + bx
       const validPoints = points.filter((p) => p.y > 0);
-      if (validPoints.length < 2) throw new Error("Exponential regression requires positive y values.");
+      if (validPoints.length < 2)
+        throw new Error("Exponential regression requires positive y values.");
 
-      let sX = 0, sLnY = 0, sXLnY = 0, sX2 = 0;
+      let sX = 0,
+        sLnY = 0,
+        sXLnY = 0,
+        sX2 = 0;
       const nv = validPoints.length;
       for (const p of validPoints) {
         const lnY = Math.log(p.y);
@@ -226,9 +239,13 @@ export function computeRegression(points: Point2D[], modelType: RegressionModelT
     case "power": {
       // y = a * x^b -> ln(y) = ln(a) + b*ln(x)
       const validPoints = points.filter((p) => p.x > 0 && p.y > 0);
-      if (validPoints.length < 2) throw new Error("Power regression requires strictly positive x and y values.");
+      if (validPoints.length < 2)
+        throw new Error("Power regression requires strictly positive x and y values.");
 
-      let sLnX = 0, sLnY = 0, sLnXLnY = 0, sLnX2 = 0;
+      let sLnX = 0,
+        sLnY = 0,
+        sLnXLnY = 0,
+        sLnX2 = 0;
       const nv = validPoints.length;
       for (const p of validPoints) {
         const lnX = Math.log(p.x);
@@ -250,9 +267,13 @@ export function computeRegression(points: Point2D[], modelType: RegressionModelT
     case "logarithmic": {
       // y = a + b*ln(x)
       const validPoints = points.filter((p) => p.x > 0);
-      if (validPoints.length < 2) throw new Error("Logarithmic regression requires positive x values.");
+      if (validPoints.length < 2)
+        throw new Error("Logarithmic regression requires positive x values.");
 
-      let sLnX = 0, sY = 0, sLnXY = 0, sLnX2 = 0;
+      let sLnX = 0,
+        sY = 0,
+        sLnXY = 0,
+        sLnX2 = 0;
       const nv = validPoints.length;
       for (const p of validPoints) {
         const lnX = Math.log(p.x);

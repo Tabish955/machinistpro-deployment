@@ -11,13 +11,7 @@ interface MathKeypadProps {
 
 type KeypadTab = "123" | "trig" | "calc" | "abc";
 
-export function MathKeypad({
-  isOpen,
-  onClose,
-  onInsert,
-  onBackspace,
-  onEnter,
-}: MathKeypadProps) {
+export function MathKeypad({ isOpen, onClose, onInsert, onBackspace, onEnter }: MathKeypadProps) {
   const [activeTab, setActiveTab] = useState<KeypadTab>("123");
 
   if (!isOpen) return null;
@@ -162,9 +156,26 @@ export function MathKeypad({
       {activeTab === "abc" && (
         <div className="space-y-2">
           <div className="grid grid-cols-7 sm:grid-cols-10 gap-1.5 font-mono text-xs">
-            {["a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "p", "q", "s", "t", "u", "v", "w", "z"].map((c) =>
-              renderKey(c, c)
-            )}
+            {[
+              "a",
+              "b",
+              "c",
+              "d",
+              "f",
+              "g",
+              "h",
+              "k",
+              "m",
+              "n",
+              "p",
+              "q",
+              "s",
+              "t",
+              "u",
+              "v",
+              "w",
+              "z",
+            ].map((c) => renderKey(c, c))}
           </div>
           <div className="border-t border-white/[0.06] pt-2 grid grid-cols-6 sm:grid-cols-8 gap-1.5 font-serif">
             {[

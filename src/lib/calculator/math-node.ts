@@ -134,7 +134,10 @@ export function tokenizeExpression(expr: string): string[] {
     // Numbers (including decimals and scientific notation like 1e-4)
     if (/\d/.test(char) || (char === "." && /\d/.test(expr[i + 1] || ""))) {
       let num = "";
-      while (i < expr.length && (/[\d.]/.test(expr[i]) || (/[eE]/.test(expr[i]) && /[-+\d]/.test(expr[i + 1] || "")))) {
+      while (
+        i < expr.length &&
+        (/[\d.]/.test(expr[i]) || (/[eE]/.test(expr[i]) && /[-+\d]/.test(expr[i + 1] || "")))
+      ) {
         num += expr[i];
         if (/[eE]/.test(expr[i]) && (expr[i + 1] === "+" || expr[i + 1] === "-")) {
           num += expr[++i];
@@ -237,7 +240,11 @@ function parseTokenList(tokens: string[]): MathNode[] {
     }
 
     // Function calls or radicals
-    if (/^(sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|ln|log|log10|sqrt|cbrt|abs|floor|ceil|exp)$/i.test(tok)) {
+    if (
+      /^(sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|ln|log|log10|sqrt|cbrt|abs|floor|ceil|exp)$/i.test(
+        tok,
+      )
+    ) {
       const fnName = tok.toLowerCase();
       i++;
 
@@ -258,7 +265,11 @@ function parseTokenList(tokens: string[]): MathNode[] {
         if (fnName === "sqrt") {
           nodes.push({ type: "radical", radicand: argNodes });
         } else if (fnName === "cbrt") {
-          nodes.push({ type: "radical", degree: { type: "number", value: "3" }, radicand: argNodes });
+          nodes.push({
+            type: "radical",
+            degree: { type: "number", value: "3" },
+            radicand: argNodes,
+          });
         } else {
           nodes.push({ type: "function", name: fnName, args: [argNodes] });
         }
@@ -342,7 +353,16 @@ function parseTokenList(tokens: string[]): MathNode[] {
     }
 
     // Binary Operators
-    if (tok === "+" || tok === "-" || tok === "−" || tok === "*" || tok === "×" || tok === "/" || tok === "÷" || tok === "%") {
+    if (
+      tok === "+" ||
+      tok === "-" ||
+      tok === "−" ||
+      tok === "*" ||
+      tok === "×" ||
+      tok === "/" ||
+      tok === "÷" ||
+      tok === "%"
+    ) {
       let op: BinaryOpNode["operator"] = "+";
       if (tok === "-" || tok === "−") op = "−";
       else if (tok === "*" || tok === "×") op = "×";

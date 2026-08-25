@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  oneSampleZTest,
-  oneSampleTTest,
-  twoSampleTTest,
-  oneWayAnova,
-} from "../hypothesis-tests";
+import { oneSampleZTest, oneSampleTTest, twoSampleTTest, oneWayAnova } from "../hypothesis-tests";
 
 describe("Hypothesis Testing Engine", () => {
   it("performs 1-Sample Z-Test correctly", () => {

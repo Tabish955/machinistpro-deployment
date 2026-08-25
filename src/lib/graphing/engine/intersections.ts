@@ -24,7 +24,7 @@ export function findCurveIntersections(
   fn2: (x: number) => number,
   xMin: number,
   xMax: number,
-  samples = 400
+  samples = 400,
 ): Point2D[] {
   const diffFn = (x: number) => fn1(x) - fn2(x);
   const intersections: Point2D[] = [];
@@ -48,7 +48,7 @@ export function findCurveIntersections(
         for (let iter = 0; iter < 24; iter++) {
           const mid = (a + b) / 2;
           const fMid = diffFn(mid);
-          if (Math.abs(fMid) < 1e-12 || (b - a) < 1e-12) {
+          if (Math.abs(fMid) < 1e-12 || b - a < 1e-12) {
             a = mid;
             break;
           }

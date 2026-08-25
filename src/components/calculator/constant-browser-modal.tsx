@@ -61,15 +61,17 @@ export function ConstantBrowserModal({
           </div>
 
           <div className="flex gap-1.5">
-            {[
-              { id: "all", label: "All Constants", icon: <Hash size={12} /> },
-              { id: "math", label: "Mathematics", icon: <Hash size={12} /> },
-              { id: "physics", label: "Physics", icon: <Atom size={12} /> },
-              { id: "engineering", label: "Engineering", icon: <Cpu size={12} /> },
-            ].map((cat) => (
+            {(
+              [
+                { id: "all", label: "All Constants", icon: <Hash size={12} /> },
+                { id: "math", label: "Mathematics", icon: <Hash size={12} /> },
+                { id: "physics", label: "Physics", icon: <Atom size={12} /> },
+                { id: "engineering", label: "Engineering", icon: <Cpu size={12} /> },
+              ] as const
+            ).map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setCategory(cat.id as any)}
+                onClick={() => setCategory(cat.id)}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
                   category === cat.id
                     ? "bg-accent-amber/20 text-accent-amber border border-accent-amber/40"
@@ -96,7 +98,9 @@ export function ConstantBrowserModal({
             >
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-serif font-bold text-accent-amber text-base">{c.symbol}</span>
+                  <span className="font-serif font-bold text-accent-amber text-base">
+                    {c.symbol}
+                  </span>
                   <span className="text-xs font-semibold text-white group-hover:text-accent-cyan">
                     {c.name}
                   </span>

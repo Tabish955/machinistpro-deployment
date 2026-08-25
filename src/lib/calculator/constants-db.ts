@@ -207,6 +207,7 @@ export const CONSTANTS_DATABASE: MathConstant[] = [
 export function findConstant(query: string): MathConstant | undefined {
   const q = query.trim().toLowerCase();
   return CONSTANTS_DATABASE.find(
-    (c) => c.id.toLowerCase() === q || c.symbol.toLowerCase() === q || c.name.toLowerCase().includes(q)
+    (c) =>
+      c.id.toLowerCase() === q || c.symbol.toLowerCase() === q || c.name.toLowerCase().includes(q),
   );
 }

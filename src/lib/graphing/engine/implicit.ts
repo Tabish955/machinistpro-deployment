@@ -8,12 +8,7 @@ import type { Point2D, ImplicitContour, InequalityRegion } from "../types";
 /**
  * Linear interpolation to find the exact zero-crossing between two field values
  */
-function interpolate(
-  p1: Point2D,
-  p2: Point2D,
-  v1: number,
-  v2: number
-): Point2D {
+function interpolate(p1: Point2D, p2: Point2D, v1: number, v2: number): Point2D {
   if (Math.abs(v1 - v2) < 1e-12) return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
   const t = -v1 / (v2 - v1);
   const clampedT = Math.max(0, Math.min(1, t));
@@ -33,7 +28,7 @@ export function solveImplicitCurve(
   yMin: number,
   yMax: number,
   gridCols = 160,
-  gridRows = 120
+  gridRows = 120,
 ): ImplicitContour {
   const dx = (xMax - xMin) / gridCols;
   const dy = (yMax - yMin) / gridRows;
@@ -156,7 +151,7 @@ export function sampleInequalityRegion(
   yMin: number,
   yMax: number,
   cols = 100,
-  rows = 80
+  rows = 80,
 ): InequalityRegion {
   const dx = (xMax - xMin) / cols;
   const dy = (yMax - yMin) / rows;

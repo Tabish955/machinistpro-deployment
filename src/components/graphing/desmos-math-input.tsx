@@ -57,9 +57,7 @@ export function DesmosMathInput({
             <MathRenderer expression={value} showCursor={isFocused} />
           </div>
         ) : (
-          <span className="text-gray-600 font-sans text-xs sm:text-sm italic">
-            {placeholder}
-          </span>
+          <span className="text-gray-600 font-sans text-xs sm:text-sm italic">{placeholder}</span>
         )}
       </div>
 

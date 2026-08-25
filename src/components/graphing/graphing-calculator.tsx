@@ -39,7 +39,8 @@ export function GraphingCalculator() {
   };
 
   const handleKeypadBackspace = () => {
-    const targetItem = items.find((it) => it.id === selectedItemId) || items.find((it) => it.type === "function");
+    const targetItem =
+      items.find((it) => it.id === selectedItemId) || items.find((it) => it.type === "function");
     if (targetItem && targetItem.type === "function") {
       const current = (targetItem as FunctionItem).rawExpression || "";
       if (current.length > 0) {
@@ -58,10 +59,7 @@ export function GraphingCalculator() {
   // Keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z, Enter)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
@@ -109,7 +107,13 @@ export function GraphingCalculator() {
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="absolute left-0 top-1/2 z-30 flex h-10 w-4 -translate-y-1/2 items-center justify-center rounded-r-md border border-l-0 border-white/10 bg-dark-800/90 text-gray-400 backdrop-blur-sm transition hover:bg-dark-700 hover:text-white"
-          style={{ left: isSidebarOpen ? (typeof window !== "undefined" && window.innerWidth < 640 ? "100%" : "384px") : "0" }}
+          style={{
+            left: isSidebarOpen
+              ? typeof window !== "undefined" && window.innerWidth < 640
+                ? "100%"
+                : "384px"
+              : "0",
+          }}
           title={isSidebarOpen ? "Collapse Expressions Panel" : "Expand Expressions Panel"}
         >
           {isSidebarOpen ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
@@ -145,10 +149,7 @@ export function GraphingCalculator() {
       />
 
       {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 }

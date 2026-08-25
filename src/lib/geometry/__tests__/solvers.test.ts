@@ -18,7 +18,7 @@ describe("MachinistPro Geometry & Engineering Solvers", () => {
       expect(res.area).toBeCloseTo(6, 4);
       expect(res.perimeter).toBe(12);
       expect(res.gammaDeg).toBeCloseTo(90, 4); // Angle opposite to side 5
-      expect(res.inradius).toBeCloseTo(1, 4);   // r = A/s = 6/6 = 1
+      expect(res.inradius).toBeCloseTo(1, 4); // r = A/s = 6/6 = 1
       expect(res.circumradius).toBeCloseTo(2.5, 4); // R = 5/2 = 2.5
       expect(res.isRight).toBe(true);
     });

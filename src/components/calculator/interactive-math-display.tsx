@@ -12,7 +12,10 @@ interface InteractiveMathDisplayProps {
   calculatorMode?: string;
 }
 
-export function InteractiveMathDisplay({ onToggleAngleMode, calculatorMode }: InteractiveMathDisplayProps) {
+export function InteractiveMathDisplay({
+  onToggleAngleMode,
+  calculatorMode,
+}: InteractiveMathDisplayProps) {
   const {
     expression,
     displayExpression,
@@ -99,7 +102,8 @@ export function InteractiveMathDisplay({ onToggleAngleMode, calculatorMode }: In
             onClick={() => {
               if (onToggleAngleMode) onToggleAngleMode();
               else {
-                const next: AngleMode = angleMode === "deg" ? "rad" : angleMode === "rad" ? "grad" : "deg";
+                const next: AngleMode =
+                  angleMode === "deg" ? "rad" : angleMode === "rad" ? "grad" : "deg";
                 setAngleMode(next);
               }
             }}
@@ -111,24 +115,28 @@ export function InteractiveMathDisplay({ onToggleAngleMode, calculatorMode }: In
           </button>
 
           {/* Exact / Approx Toggle */}
-          {exactBreakdown && exactBreakdown.isExactPossible && exactBreakdown.type !== "integer" && (
-            <button
-              onClick={() =>
-                setExactMode((prev) => (prev === "auto" ? "exact" : prev === "exact" ? "approx" : "auto"))
-              }
-              className="flex items-center gap-1 rounded-lg border border-accent-purple/30 bg-accent-purple/10 px-2 py-0.5 text-[11px] font-semibold text-accent-purple transition hover:bg-accent-purple/20"
-              title="Toggle Exact / Approximate representation"
-            >
-              <Sparkles size={11} />
-              <span>
-                {exactMode === "exact"
-                  ? `Exact: ${exactBreakdown.exact}`
-                  : exactMode === "approx"
-                    ? `Approx: ≈${exactBreakdown.approximate}`
-                    : `Exact: ${exactBreakdown.exact}`}
-              </span>
-            </button>
-          )}
+          {exactBreakdown &&
+            exactBreakdown.isExactPossible &&
+            exactBreakdown.type !== "integer" && (
+              <button
+                onClick={() =>
+                  setExactMode((prev) =>
+                    prev === "auto" ? "exact" : prev === "exact" ? "approx" : "auto",
+                  )
+                }
+                className="flex items-center gap-1 rounded-lg border border-accent-purple/30 bg-accent-purple/10 px-2 py-0.5 text-[11px] font-semibold text-accent-purple transition hover:bg-accent-purple/20"
+                title="Toggle Exact / Approximate representation"
+              >
+                <Sparkles size={11} />
+                <span>
+                  {exactMode === "exact"
+                    ? `Exact: ${exactBreakdown.exact}`
+                    : exactMode === "approx"
+                      ? `Approx: ≈${exactBreakdown.approximate}`
+                      : `Exact: ${exactBreakdown.exact}`}
+                </span>
+              </button>
+            )}
         </div>
 
         {calculatorMode && (
@@ -152,9 +160,7 @@ export function InteractiveMathDisplay({ onToggleAngleMode, calculatorMode }: In
             <MathRenderer expression={expression} showCursor={true} />
           </div>
         ) : (
-          <p className="text-sm sm:text-base text-gray-600 font-mono text-right select-none">
-            0
-          </p>
+          <p className="text-sm sm:text-base text-gray-600 font-mono text-right select-none">0</p>
         )}
       </div>
 
@@ -193,7 +199,13 @@ export function InteractiveMathDisplay({ onToggleAngleMode, calculatorMode }: In
             }`}
             title={copyState === "done" ? "Copied!" : "Copy Result to Clipboard"}
           >
-            {copyState === "done" ? <Check size={18} /> : copyState === "failed" ? <X size={18} /> : <Copy size={18} />}
+            {copyState === "done" ? (
+              <Check size={18} />
+            ) : copyState === "failed" ? (
+              <X size={18} />
+            ) : (
+              <Copy size={18} />
+            )}
           </button>
         )}
       </div>

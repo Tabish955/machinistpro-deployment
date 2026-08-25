@@ -87,7 +87,9 @@ export function MeasurementPanel({ scene }: MeasurementPanelProps) {
                       className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-dark-800/40 p-2"
                     >
                       <span className="font-bold text-accent-cyan">{p.name || "P"}:</span>
-                      <span className="text-gray-300">({p.x}, {p.y})</span>
+                      <span className="text-gray-300">
+                        ({p.x}, {p.y})
+                      </span>
                     </div>
                   ))}
                 </div>

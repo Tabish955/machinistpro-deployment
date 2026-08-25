@@ -40,7 +40,7 @@ export function oneSampleZTest(
   hypothesizedMean: number,
   populationStdDev: number,
   alpha = 0.05,
-  tail: "two-tailed" | "greater" | "less" = "two-tailed"
+  tail: "two-tailed" | "greater" | "less" = "two-tailed",
 ): HypothesisTestResult {
   if (sampleSize <= 0 || populationStdDev <= 0) {
     throw new Error("Sample size and population standard deviation must be > 0.");
@@ -90,7 +90,7 @@ export function oneSampleTTest(
   sampleSize: number,
   hypothesizedMean: number,
   alpha = 0.05,
-  tail: "two-tailed" | "greater" | "less" = "two-tailed"
+  tail: "two-tailed" | "greater" | "less" = "two-tailed",
 ): HypothesisTestResult {
   if (sampleSize <= 1 || sampleStdDev <= 0) {
     throw new Error("Sample size must be > 1 and sample standard deviation must be > 0.");
@@ -140,7 +140,7 @@ export function twoSampleTTest(
   mean2: number,
   s2: number,
   n2: number,
-  alpha = 0.05
+  alpha = 0.05,
 ): HypothesisTestResult {
   if (n1 <= 1 || n2 <= 1 || s1 <= 0 || s2 <= 0) {
     throw new Error("Sample sizes must be > 1 and standard deviations must be > 0.");

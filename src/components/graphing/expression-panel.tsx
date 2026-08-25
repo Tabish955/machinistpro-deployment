@@ -28,7 +28,7 @@ export function ExpressionPanel() {
   const handleAddSlider = () => {
     // Pick next available variable letter (a, b, c, k, m, n)
     const existingVars = new Set(
-      items.filter((it): it is SliderItem => it.type === "slider").map((s) => s.variableName)
+      items.filter((it): it is SliderItem => it.type === "slider").map((s) => s.variableName),
     );
     const candidateVars = ["a", "b", "c", "k", "m", "n", "p", "q"];
     const varName = candidateVars.find((v) => !existingVars.has(v)) || "a1";
@@ -125,9 +125,7 @@ export function ExpressionPanel() {
           <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 text-center text-gray-500">
             <Plus size={24} className="mb-2 text-gray-600" />
             <p className="text-xs">No expressions yet</p>
-            <p className="mt-1 text-[10px] text-gray-600">
-              Click + Expression to start graphing
-            </p>
+            <p className="mt-1 text-[10px] text-gray-600">Click + Expression to start graphing</p>
           </div>
         ) : (
           items.map((item, index) => {
@@ -170,10 +168,22 @@ export function ExpressionPanel() {
               );
             }
 
+            if (item.type === "folder") {
+              /*
+               * Folders are declared in the item union but nothing in the app
+               * creates one yet. Handing a folder to ExpressionRow would give
+               * that component an item it has no branch for; skipping is the
+               * honest thing until folders are actually built. This used to be
+               * an `as any` on the line below, which hid the gap rather than
+               * dealing with it.
+               */
+              return null;
+            }
+
             return (
               <ExpressionRow
                 key={item.id}
-                item={item as any}
+                item={item}
                 index={index}
                 isSelected={selectedItemId === item.id}
                 onSelect={() => setSelectedItemId(item.id)}

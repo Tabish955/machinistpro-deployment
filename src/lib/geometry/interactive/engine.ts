@@ -17,7 +17,12 @@ import type {
 } from "../types";
 import type { Point2D } from "../../graphing/types";
 import { toDegrees, formatNumber } from "../../shared/math-utils";
-import { rotatePoint, translatePoint, scalePoint, reflectPointAcrossLine } from "../solvers/transformations";
+import {
+  rotatePoint,
+  translatePoint,
+  scalePoint,
+  reflectPointAcrossLine,
+} from "../solvers/transformations";
 
 export class GeometryEngine {
   private scene: InteractiveGeometryScene;
@@ -87,7 +92,11 @@ export class GeometryEngine {
     return circ;
   }
 
-  public addPolygon(pointIds: string[], color = "#f59e0b", fillColor = "rgba(245, 158, 11, 0.15)"): GeoPolygon | null {
+  public addPolygon(
+    pointIds: string[],
+    color = "#f59e0b",
+    fillColor = "rgba(245, 158, 11, 0.15)",
+  ): GeoPolygon | null {
     if (pointIds.length < 3) return null;
     const poly: GeoPolygon = {
       id: `poly-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -140,7 +149,7 @@ export class GeometryEngine {
   public addMeasurement(
     type: GeoMeasurement["type"],
     targetIds: string[],
-    unit = "mm"
+    unit = "mm",
   ): GeoMeasurement | null {
     const val = this.calculateMeasurementValue(type, targetIds);
     if (val === null) return null;
@@ -164,7 +173,10 @@ export class GeometryEngine {
     return measurement;
   }
 
-  public calculateMeasurementValue(type: GeoMeasurement["type"], targetIds: string[]): number | null {
+  public calculateMeasurementValue(
+    type: GeoMeasurement["type"],
+    targetIds: string[],
+  ): number | null {
     const pointMap = new Map<string, GeoPoint>(this.scene.points.map((p) => [p.id, p]));
 
     if (type === "distance" && targetIds.length >= 2) {

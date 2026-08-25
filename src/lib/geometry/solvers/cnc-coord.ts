@@ -23,7 +23,7 @@ export function processCncCoordinates(
   rawPoints: RawCncPoint[],
   isIncrementalInput = false,
   originX = 0,
-  originY = 0
+  originY = 0,
 ): CncCoordinateRow[] {
   const rows: CncCoordinateRow[] = [];
   let currentAbsX = originX;
@@ -99,7 +99,7 @@ export function cartesianToPolar(x: number, y: number): { r: number; thetaDeg: n
  */
 export function vectorBetween(
   p1: Point2D,
-  p2: Point2D
+  p2: Point2D,
 ): { dx: number; dy: number; distance: number; angleDeg: number } {
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
