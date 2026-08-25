@@ -7,7 +7,14 @@
 import type { TriangleResult } from "../types";
 import { toDegrees, toRadians, cleanTrigValue } from "../../shared/math-utils";
 
-function buildResult(a: number, b: number, c: number, alphaDeg: number, betaDeg: number, gammaDeg: number): TriangleResult {
+function buildResult(
+  a: number,
+  b: number,
+  c: number,
+  alphaDeg: number,
+  betaDeg: number,
+  gammaDeg: number,
+): TriangleResult {
   const p = a + b + c;
   const s = p / 2;
   const area = Math.sqrt(Math.max(0, s * (s - a) * (s - b) * (s - c)));
@@ -23,7 +30,10 @@ function buildResult(a: number, b: number, c: number, alphaDeg: number, betaDeg:
   const inradius = s > 0 ? area / s : 0;
   const circumradius = area > 0 ? (a * b * c) / (4 * area) : 0;
 
-  const isRight = Math.abs(alphaDeg - 90) < 1e-4 || Math.abs(betaDeg - 90) < 1e-4 || Math.abs(gammaDeg - 90) < 1e-4;
+  const isRight =
+    Math.abs(alphaDeg - 90) < 1e-4 ||
+    Math.abs(betaDeg - 90) < 1e-4 ||
+    Math.abs(gammaDeg - 90) < 1e-4;
   const isEquilateral = Math.abs(a - b) < 1e-4 && Math.abs(b - c) < 1e-4;
   const isIsosceles = Math.abs(a - b) < 1e-4 || Math.abs(b - c) < 1e-4 || Math.abs(a - c) < 1e-4;
 

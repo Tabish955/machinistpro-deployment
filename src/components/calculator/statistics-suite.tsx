@@ -51,7 +51,9 @@ const primary =
 const panel = "rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 sm:p-4";
 
 export function StatisticsSuite() {
-  const [activeTab, setActiveTab] = useState<"descriptive" | "regression" | "distributions" | "hypothesis">("descriptive");
+  const [activeTab, setActiveTab] = useState<
+    "descriptive" | "regression" | "distributions" | "hypothesis"
+  >("descriptive");
 
   // ----------------------------------------------------------------
   // Tab 1: Descriptive Statistics
@@ -77,7 +79,9 @@ export function StatisticsSuite() {
   // ----------------------------------------------------------------
   // Tab 2: Regression
   // ----------------------------------------------------------------
-  const [pairsText, setPairsText] = useState("1, 2.1\n2, 3.9\n3, 6.2\n4, 8.0\n5, 10.3\n6, 12.1\n7, 14.2");
+  const [pairsText, setPairsText] = useState(
+    "1, 2.1\n2, 3.9\n3, 6.2\n4, 8.0\n5, 10.3\n6, 12.1\n7, 14.2",
+  );
   const [regressionType, setRegressionType] = useState<RegressionModelType>("linear");
   const [predictX, setPredictX] = useState<string>("8");
 
@@ -174,7 +178,13 @@ export function StatisticsSuite() {
       const s = Number(sampleS);
       const n = Number(sampleN);
       const a = Number(alpha);
-      if (!Number.isFinite(mu0) || !Number.isFinite(xbar) || !Number.isFinite(s) || !Number.isFinite(n) || n <= 1)
+      if (
+        !Number.isFinite(mu0) ||
+        !Number.isFinite(xbar) ||
+        !Number.isFinite(s) ||
+        !Number.isFinite(n) ||
+        n <= 1
+      )
         return null;
 
       if (testType === "1t") {
@@ -297,73 +307,127 @@ export function StatisticsSuite() {
               {stats1Var ? (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Sample Mean (x̄)</span>
-                    <p className="font-mono text-base font-bold text-white mt-0.5">{stats1Var.mean.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Sample Mean (x̄)
+                    </span>
+                    <p className="font-mono text-base font-bold text-white mt-0.5">
+                      {stats1Var.mean.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Median (Q2)</span>
-                    <p className="font-mono text-base font-bold text-accent-cyan mt-0.5">{stats1Var.median.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Median (Q2)
+                    </span>
+                    <p className="font-mono text-base font-bold text-accent-cyan mt-0.5">
+                      {stats1Var.median.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Sample Std Dev (s)</span>
-                    <p className="font-mono text-base font-bold text-white mt-0.5">{stats1Var.sampleStdDev.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Sample Std Dev (s)
+                    </span>
+                    <p className="font-mono text-base font-bold text-white mt-0.5">
+                      {stats1Var.sampleStdDev.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Std Error (SE)</span>
-                    <p className="font-mono text-base font-bold text-gray-300 mt-0.5">{stats1Var.standardError.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Std Error (SE)
+                    </span>
+                    <p className="font-mono text-base font-bold text-gray-300 mt-0.5">
+                      {stats1Var.standardError.toFixed(4)}
+                    </p>
                   </div>
 
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Sample Variance (s²)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">{stats1Var.sampleVariance.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Sample Variance (s²)
+                    </span>
+                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
+                      {stats1Var.sampleVariance.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">IQR (Q3 − Q1)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">{stats1Var.iqr.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      IQR (Q3 − Q1)
+                    </span>
+                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
+                      {stats1Var.iqr.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Min / Max</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Min / Max
+                    </span>
                     <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
                       {stats1Var.min.toFixed(2)} / {stats1Var.max.toFixed(2)}
                     </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Range</span>
-                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">{stats1Var.range.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Range
+                    </span>
+                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
+                      {stats1Var.range.toFixed(4)}
+                    </p>
                   </div>
 
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Q1 (25th %)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">{stats1Var.q1.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Q1 (25th %)
+                    </span>
+                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                      {stats1Var.q1.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Q3 (75th %)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">{stats1Var.q3.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Q3 (75th %)
+                    </span>
+                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                      {stats1Var.q3.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Skewness</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">{stats1Var.skewness.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Skewness
+                    </span>
+                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                      {stats1Var.skewness.toFixed(4)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Excess Kurtosis</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">{stats1Var.kurtosis.toFixed(4)}</p>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Excess Kurtosis
+                    </span>
+                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                      {stats1Var.kurtosis.toFixed(4)}
+                    </p>
                   </div>
 
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5 col-span-2">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Sum (Σx) & Sum of Squares (Σx²)</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Sum (Σx) & Sum of Squares (Σx²)
+                    </span>
                     <p className="font-mono text-xs text-gray-300 mt-0.5">
                       Σx = {stats1Var.sum.toFixed(2)} | Σx² = {stats1Var.sumSquares.toFixed(2)}
                     </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5 col-span-2">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Modes</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Modes
+                    </span>
                     <p className="font-mono text-xs text-gray-300 mt-0.5">
-                      {stats1Var.modes.length > 0 ? stats1Var.modes.join(", ") : "No repeated modes"}
+                      {stats1Var.modes.length > 0
+                        ? stats1Var.modes.join(", ")
+                        : "No repeated modes"}
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">Enter numbers above to view descriptive statistics.</p>
+                <p className="text-xs text-gray-500">
+                  Enter numbers above to view descriptive statistics.
+                </p>
               )}
             </div>
           </div>
@@ -383,10 +447,10 @@ export function StatisticsSuite() {
                     {/* Bars */}
                     {(() => {
                       const maxFreq = Math.max(...histogramBins.map((b) => b.count), 1);
-                      const barWidth = (340 / histogramBins.length) - 4;
+                      const barWidth = 340 / histogramBins.length - 4;
                       return histogramBins.map((bin, idx) => {
                         const barHeight = (bin.count / maxFreq) * 140;
-                        const x = 45 + idx * ((340 / histogramBins.length));
+                        const x = 45 + idx * (340 / histogramBins.length);
                         const y = 170 - barHeight;
                         return (
                           <g key={idx} className="transition-all hover:opacity-80">
@@ -447,12 +511,42 @@ export function StatisticsSuite() {
                       return (
                         <g>
                           {/* Whisker lines */}
-                          <line x1={minX} y1="100" x2={q1X} y2="100" stroke="#94a3b8" strokeWidth="2" strokeDasharray="4 4" />
-                          <line x1={q3X} y1="100" x2={maxX} y2="100" stroke="#94a3b8" strokeWidth="2" strokeDasharray="4 4" />
+                          <line
+                            x1={minX}
+                            y1="100"
+                            x2={q1X}
+                            y2="100"
+                            stroke="#94a3b8"
+                            strokeWidth="2"
+                            strokeDasharray="4 4"
+                          />
+                          <line
+                            x1={q3X}
+                            y1="100"
+                            x2={maxX}
+                            y2="100"
+                            stroke="#94a3b8"
+                            strokeWidth="2"
+                            strokeDasharray="4 4"
+                          />
 
                           {/* Whisker caps */}
-                          <line x1={minX} y1="80" x2={minX} y2="120" stroke="#94a3b8" strokeWidth="2" />
-                          <line x1={maxX} y1="80" x2={maxX} y2="120" stroke="#94a3b8" strokeWidth="2" />
+                          <line
+                            x1={minX}
+                            y1="80"
+                            x2={minX}
+                            y2="120"
+                            stroke="#94a3b8"
+                            strokeWidth="2"
+                          />
+                          <line
+                            x1={maxX}
+                            y1="80"
+                            x2={maxX}
+                            y2="120"
+                            stroke="#94a3b8"
+                            strokeWidth="2"
+                          />
 
                           {/* Interquartile Box */}
                           <rect
@@ -468,16 +562,44 @@ export function StatisticsSuite() {
                           />
 
                           {/* Median Line */}
-                          <line x1={q2X} y1="65" x2={q2X} y2="135" stroke="#22d3ee" strokeWidth="3" />
+                          <line
+                            x1={q2X}
+                            y1="65"
+                            x2={q2X}
+                            y2="135"
+                            stroke="#22d3ee"
+                            strokeWidth="3"
+                          />
 
                           {/* Axis labels */}
-                          <text x={minX} y="155" fill="#64748b" fontSize="10" textAnchor="middle" fontFamily="monospace">
+                          <text
+                            x={minX}
+                            y="155"
+                            fill="#64748b"
+                            fontSize="10"
+                            textAnchor="middle"
+                            fontFamily="monospace"
+                          >
                             Min: {stats1Var.min.toFixed(1)}
                           </text>
-                          <text x={q2X} y="50" fill="#22d3ee" fontSize="10" textAnchor="middle" fontFamily="monospace">
+                          <text
+                            x={q2X}
+                            y="50"
+                            fill="#22d3ee"
+                            fontSize="10"
+                            textAnchor="middle"
+                            fontFamily="monospace"
+                          >
                             Median: {stats1Var.q2.toFixed(1)}
                           </text>
-                          <text x={maxX} y="155" fill="#64748b" fontSize="10" textAnchor="middle" fontFamily="monospace">
+                          <text
+                            x={maxX}
+                            y="155"
+                            fill="#64748b"
+                            fontSize="10"
+                            textAnchor="middle"
+                            fontFamily="monospace"
+                          >
                             Max: {stats1Var.max.toFixed(1)}
                           </text>
                         </g>
@@ -511,9 +633,19 @@ export function StatisticsSuite() {
               />
 
               <div className="space-y-1">
-                <label className="text-[10px] text-gray-400 font-semibold uppercase">Regression Model</label>
+                <label className="text-[10px] text-gray-400 font-semibold uppercase">
+                  Regression Model
+                </label>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {(["linear", "quadratic", "exponential", "power", "logarithmic"] as RegressionModelType[]).map((type) => (
+                  {(
+                    [
+                      "linear",
+                      "quadratic",
+                      "exponential",
+                      "power",
+                      "logarithmic",
+                    ] as RegressionModelType[]
+                  ).map((type) => (
                     <button
                       key={type}
                       onClick={() => setRegressionType(type)}
@@ -549,36 +681,62 @@ export function StatisticsSuite() {
 
             {/* Regression Results & Scatter Plot */}
             <div className={`${panel} lg:col-span-2 space-y-3`}>
-              <h3 className="text-xs font-semibold text-gray-300">Fitted Model & Goodness of Fit</h3>
+              <h3 className="text-xs font-semibold text-gray-300">
+                Fitted Model & Goodness of Fit
+              </h3>
               {regressionResult ? (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 p-3 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] font-semibold text-accent-cyan uppercase tracking-wider">Fitted Equation</span>
-                      <p className="font-mono text-lg font-bold text-white">{regressionResult.equation}</p>
+                      <span className="text-[10px] font-semibold text-accent-cyan uppercase tracking-wider">
+                        Fitted Equation
+                      </span>
+                      <p className="font-mono text-lg font-bold text-white">
+                        {regressionResult.equation}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] text-gray-400 uppercase tracking-wider">R² Coefficient</span>
-                      <p className="font-mono text-lg font-bold text-accent-purple">{regressionResult.r2.toFixed(4)}</p>
+                      <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                        R² Coefficient
+                      </span>
+                      <p className="font-mono text-lg font-bold text-accent-purple">
+                        {regressionResult.r2.toFixed(4)}
+                      </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Pearson r</span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">{regressionResult.r.toFixed(4)}</p>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                        Pearson r
+                      </span>
+                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                        {regressionResult.r.toFixed(4)}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Spearman Rank</span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">{regressionResult.spearmanRankCorrelation.toFixed(4)}</p>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                        Spearman Rank
+                      </span>
+                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                        {regressionResult.spearmanRankCorrelation.toFixed(4)}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">RMSE</span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">{regressionResult.rmse.toFixed(4)}</p>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                        RMSE
+                      </span>
+                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                        {regressionResult.rmse.toFixed(4)}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Covariance</span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">{regressionResult.covariance.toFixed(4)}</p>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                        Covariance
+                      </span>
+                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                        {regressionResult.covariance.toFixed(4)}
+                      </p>
                     </div>
                   </div>
 
@@ -614,8 +772,22 @@ export function StatisticsSuite() {
                         return (
                           <g>
                             {/* Axes */}
-                            <line x1="40" y1="20" x2="40" y2="180" stroke="#334155" strokeWidth="1" />
-                            <line x1="40" y1="180" x2="410" y2="180" stroke="#334155" strokeWidth="1" />
+                            <line
+                              x1="40"
+                              y1="20"
+                              x2="40"
+                              y2="180"
+                              stroke="#334155"
+                              strokeWidth="1"
+                            />
+                            <line
+                              x1="40"
+                              y1="180"
+                              x2="410"
+                              y2="180"
+                              stroke="#334155"
+                              strokeWidth="1"
+                            />
 
                             {/* Regression line */}
                             {curvePoints.length > 1 && (
@@ -646,7 +818,9 @@ export function StatisticsSuite() {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">Enter at least 2 points to compute regression.</p>
+                <p className="text-xs text-gray-500">
+                  Enter at least 2 points to compute regression.
+                </p>
               )}
             </div>
           </div>
@@ -711,15 +885,21 @@ export function StatisticsSuite() {
                   <div className="grid grid-cols-3 gap-2 pt-2">
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                       <span className="text-[10px] text-gray-500 uppercase">P(X ≤ x)</span>
-                      <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">{normProb.cdf.toFixed(5)}</p>
+                      <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">
+                        {normProb.cdf.toFixed(5)}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                       <span className="text-[10px] text-gray-500 uppercase">P(X &gt; x)</span>
-                      <p className="font-mono text-sm font-bold text-white mt-0.5">{normProb.upper.toFixed(5)}</p>
+                      <p className="font-mono text-sm font-bold text-white mt-0.5">
+                        {normProb.upper.toFixed(5)}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                       <span className="text-[10px] text-gray-500 uppercase">PDF f(x)</span>
-                      <p className="font-mono text-sm font-bold text-gray-300 mt-0.5">{normProb.pdf.toFixed(5)}</p>
+                      <p className="font-mono text-sm font-bold text-gray-300 mt-0.5">
+                        {normProb.pdf.toFixed(5)}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -727,7 +907,9 @@ export function StatisticsSuite() {
 
               {/* Shaded Bell Curve SVG */}
               <div className={`${panel} space-y-2`}>
-                <h4 className="text-xs font-semibold text-gray-300">Probability Density Function (PDF)</h4>
+                <h4 className="text-xs font-semibold text-gray-300">
+                  Probability Density Function (PDF)
+                </h4>
                 <div className="h-52 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center">
                   <svg viewBox="0 0 400 180" className="w-full h-full">
                     {(() => {
@@ -763,7 +945,12 @@ export function StatisticsSuite() {
                           <polygon points={shadedPoints.join(" ")} fill="#06b6d4" opacity="0.35" />
 
                           {/* Normal Curve */}
-                          <polyline points={curvePoints.join(" ")} fill="none" stroke="#22d3ee" strokeWidth="2.5" />
+                          <polyline
+                            points={curvePoints.join(" ")}
+                            fill="none"
+                            stroke="#22d3ee"
+                            strokeWidth="2.5"
+                          />
 
                           {/* X marker line */}
                           <line
@@ -775,7 +962,14 @@ export function StatisticsSuite() {
                             strokeWidth="1.5"
                             strokeDasharray="3 3"
                           />
-                          <line x1="30" y1="150" x2="370" y2="150" stroke="#334155" strokeWidth="1" />
+                          <line
+                            x1="30"
+                            y1="150"
+                            x2="370"
+                            y2="150"
+                            stroke="#334155"
+                            strokeWidth="1"
+                          />
                         </g>
                       );
                     })()}
@@ -824,19 +1018,27 @@ export function StatisticsSuite() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                     <span className="text-[10px] text-gray-500 uppercase">P(X = k)</span>
-                    <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">{binomProb.pmf.toFixed(5)}</p>
+                    <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">
+                      {binomProb.pmf.toFixed(5)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                     <span className="text-[10px] text-gray-500 uppercase">P(X ≤ k)</span>
-                    <p className="font-mono text-sm font-bold text-white mt-0.5">{binomProb.cdf.toFixed(5)}</p>
+                    <p className="font-mono text-sm font-bold text-white mt-0.5">
+                      {binomProb.cdf.toFixed(5)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                     <span className="text-[10px] text-gray-500 uppercase">Mean E(X)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">{binomProb.mean.toFixed(2)}</p>
+                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                      {binomProb.mean.toFixed(2)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                     <span className="text-[10px] text-gray-500 uppercase">Variance Var(X)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">{binomProb.variance.toFixed(2)}</p>
+                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                      {binomProb.variance.toFixed(2)}
+                    </p>
                   </div>
                 </div>
               )}
@@ -873,11 +1075,15 @@ export function StatisticsSuite() {
                 <div className="grid grid-cols-2 gap-2 pt-2">
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                     <span className="text-[10px] text-gray-500 uppercase">P(X = k)</span>
-                    <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">{poisProb.pmf.toFixed(5)}</p>
+                    <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">
+                      {poisProb.pmf.toFixed(5)}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                     <span className="text-[10px] text-gray-500 uppercase">P(X ≤ k)</span>
-                    <p className="font-mono text-sm font-bold text-white mt-0.5">{poisProb.cdf.toFixed(5)}</p>
+                    <p className="font-mono text-sm font-bold text-white mt-0.5">
+                      {poisProb.cdf.toFixed(5)}
+                    </p>
                   </div>
                 </div>
               )}
@@ -977,7 +1183,9 @@ export function StatisticsSuite() {
                     }`}
                   >
                     <span className="text-xs uppercase font-bold tracking-wider">
-                      {hypResult.rejectNull ? "Reject Null Hypothesis (H₀)" : "Fail to Reject Null Hypothesis (H₀)"}
+                      {hypResult.rejectNull
+                        ? "Reject Null Hypothesis (H₀)"
+                        : "Fail to Reject Null Hypothesis (H₀)"}
                     </span>
                     <p className="text-sm font-semibold mt-1 text-white">{hypResult.conclusion}</p>
                   </div>
@@ -986,16 +1194,22 @@ export function StatisticsSuite() {
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                       <span className="text-[10px] text-gray-500 uppercase">Test Statistic</span>
                       <p className="font-mono text-base font-bold text-accent-cyan mt-0.5">
-                        {testType === "1t" ? `t = ${hypResult.testStatistic.toFixed(4)}` : `z = ${hypResult.testStatistic.toFixed(4)}`}
+                        {testType === "1t"
+                          ? `t = ${hypResult.testStatistic.toFixed(4)}`
+                          : `z = ${hypResult.testStatistic.toFixed(4)}`}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
                       <span className="text-[10px] text-gray-500 uppercase">p-Value</span>
-                      <p className="font-mono text-base font-bold text-white mt-0.5">{hypResult.pValue.toFixed(5)}</p>
+                      <p className="font-mono text-base font-bold text-white mt-0.5">
+                        {hypResult.pValue.toFixed(5)}
+                      </p>
                     </div>
                     {hypResult.degreesOfFreedom !== undefined && (
                       <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                        <span className="text-[10px] text-gray-500 uppercase">Degrees of Freedom</span>
+                        <span className="text-[10px] text-gray-500 uppercase">
+                          Degrees of Freedom
+                        </span>
                         <p className="font-mono text-base font-bold text-gray-300 mt-0.5">
                           df = {hypResult.degreesOfFreedom.toFixed(0)}
                         </p>
@@ -1005,15 +1219,19 @@ export function StatisticsSuite() {
 
                   <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
                     <span className="text-[10px] text-gray-400 uppercase tracking-wider">
-                      {(hypResult.confidenceInterval.level * 100).toFixed(0)}% Confidence Interval for μ
+                      {(hypResult.confidenceInterval.level * 100).toFixed(0)}% Confidence Interval
+                      for μ
                     </span>
                     <p className="font-mono text-base font-bold text-accent-purple mt-0.5">
-                      [{hypResult.confidenceInterval.lower.toFixed(4)}, {hypResult.confidenceInterval.upper.toFixed(4)}]
+                      [{hypResult.confidenceInterval.lower.toFixed(4)},{" "}
+                      {hypResult.confidenceInterval.upper.toFixed(4)}]
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">Fill in the parameters above to perform hypothesis testing.</p>
+                <p className="text-xs text-gray-500">
+                  Fill in the parameters above to perform hypothesis testing.
+                </p>
               )}
             </div>
           </div>

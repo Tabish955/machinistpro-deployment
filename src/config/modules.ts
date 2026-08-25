@@ -20,7 +20,14 @@ import {
 } from "lucide-react";
 
 export type ModuleColor =
-  "cyan" | "blue" | "purple" | "green" | "amber" | "red" | "pink" | "orange";
+  | "cyan"
+  | "blue"
+  | "purple"
+  | "green"
+  | "amber"
+  | "red"
+  | "pink"
+  | "orange";
 export type ModuleStatus = "available" | "coming-soon" | "locked" | "beta";
 export type ModuleCategory = "calculators" | "tools" | "reference" | "system";
 

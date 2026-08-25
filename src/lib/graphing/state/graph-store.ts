@@ -266,7 +266,7 @@ export const useGraphStore = create<GraphStoreState>((set, get) => {
     updateSliderValue: (id, value) => {
       set((state) => ({
         items: state.items.map((it) =>
-          it.id === id && it.type === "slider" ? { ...it, value } : it
+          it.id === id && it.type === "slider" ? { ...it, value } : it,
         ),
       }));
     },
@@ -274,7 +274,7 @@ export const useGraphStore = create<GraphStoreState>((set, get) => {
     toggleSliderPlay: (id) => {
       set((state) => ({
         items: state.items.map((it) =>
-          it.id === id && it.type === "slider" ? { ...it, isPlaying: !it.isPlaying } : it
+          it.id === id && it.type === "slider" ? { ...it, isPlaying: !it.isPlaying } : it,
         ),
       }));
     },

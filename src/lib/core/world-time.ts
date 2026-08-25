@@ -58,7 +58,9 @@ export async function syncWorldTime(): Promise<WorldTimeState> {
 
     if (res.ok) {
       const data = await res.json();
-      const trueEpochMs = data.unixtime ? data.unixtime * 1000 : new Date(data.utc_datetime || data.datetime).getTime();
+      const trueEpochMs = data.unixtime
+        ? data.unixtime * 1000
+        : new Date(data.utc_datetime || data.datetime).getTime();
       const endPerf = performance.now();
       const roundTrip = endPerf - startPerf;
       const accurateEpoch = trueEpochMs + roundTrip / 2;
@@ -83,10 +85,13 @@ export async function syncWorldTime(): Promise<WorldTimeState> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-    const res = await fetch(`https://timeapi.io/api/time/current/zone?timeZone=${encodeURIComponent(localTz)}`, {
-      signal: controller.signal,
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `https://timeapi.io/api/time/current/zone?timeZone=${encodeURIComponent(localTz)}`,
+      {
+        signal: controller.signal,
+        cache: "no-store",
+      },
+    );
     clearTimeout(timeoutId);
 
     if (res.ok) {

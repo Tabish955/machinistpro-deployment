@@ -16,13 +16,7 @@ export interface BoltCircleParams {
 }
 
 export function calculateBoltCircle(params: BoltCircleParams): BoltCircleResult {
-  const {
-    pcd,
-    holeCount,
-    startAngleDeg = 0,
-    centerX = 0,
-    centerY = 0,
-  } = params;
+  const { pcd, holeCount, startAngleDeg = 0, centerX = 0, centerY = 0 } = params;
 
   if (pcd <= 0) throw new Error("PCD (Pitch Circle Diameter) must be positive.");
   if (!Number.isInteger(holeCount) || holeCount < 2 || holeCount > 500) {
@@ -81,7 +75,7 @@ export function generateBoltCircleGCode(
   retractR = 2,
   feedrate = 150,
   cycle: "G81" | "G83" = "G81",
-  qPeck = 3
+  qPeck = 3,
 ): string {
   const lines: string[] = [
     `( BOLT CIRCLE: PCD ${result.pcd}mm, ${result.holeCount} HOLES )`,

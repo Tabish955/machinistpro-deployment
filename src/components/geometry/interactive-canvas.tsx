@@ -3,7 +3,12 @@ import { GeometryEngine } from "@/lib/geometry/interactive/engine";
 import { renderInteractiveGeometry } from "@/lib/geometry/interactive/renderer";
 import { findSnapTarget } from "@/lib/geometry/interactive/snapping";
 import { toWorldX, toWorldY, toScreenX, toScreenY } from "@/lib/graphing/renderer/canvas2d";
-import type { ConstructionTool, GeoPoint, SnapTarget, InteractiveGeometryScene } from "@/lib/geometry/types";
+import type {
+  ConstructionTool,
+  GeoPoint,
+  SnapTarget,
+  InteractiveGeometryScene,
+} from "@/lib/geometry/types";
 import type { Viewport } from "@/lib/graphing/types";
 
 interface InteractiveCanvasProps {
@@ -12,11 +17,7 @@ interface InteractiveCanvasProps {
   onSceneChange: (scene: InteractiveGeometryScene) => void;
 }
 
-export function InteractiveCanvas({
-  engine,
-  activeTool,
-  onSceneChange,
-}: InteractiveCanvasProps) {
+export function InteractiveCanvas({ engine, activeTool, onSceneChange }: InteractiveCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -130,8 +131,14 @@ export function InteractiveCanvas({
       lines: scene.lines,
       circles: scene.circles,
       gridSize: 5,
-      screenToWorld: (px, py) => ({ x: toWorldX(px, viewport, rect.width), y: toWorldY(py, viewport, rect.height) }),
-      worldToScreen: (wx, wy) => ({ x: toScreenX(wx, viewport, rect.width), y: toScreenY(wy, viewport, rect.height) }),
+      screenToWorld: (px, py) => ({
+        x: toWorldX(px, viewport, rect.width),
+        y: toWorldY(py, viewport, rect.height),
+      }),
+      worldToScreen: (wx, wy) => ({
+        x: toScreenX(wx, viewport, rect.width),
+        y: toScreenY(wy, viewport, rect.height),
+      }),
     });
 
     const targetPt = clickedPt || engine.addPoint(snap.x, snap.y);
@@ -246,8 +253,14 @@ export function InteractiveCanvas({
       lines: scene.lines,
       circles: scene.circles,
       gridSize: 5,
-      screenToWorld: (px, py) => ({ x: toWorldX(px, viewport, rect.width), y: toWorldY(py, viewport, rect.height) }),
-      worldToScreen: (wx, wy) => ({ x: toScreenX(wx, viewport, rect.width), y: toScreenY(wy, viewport, rect.height) }),
+      screenToWorld: (px, py) => ({
+        x: toWorldX(px, viewport, rect.width),
+        y: toWorldY(py, viewport, rect.height),
+      }),
+      worldToScreen: (wx, wy) => ({
+        x: toScreenX(wx, viewport, rect.width),
+        y: toScreenY(wy, viewport, rect.height),
+      }),
     });
     setSnapTarget(snap);
   };

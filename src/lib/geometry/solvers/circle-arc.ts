@@ -15,7 +15,13 @@ export interface ArcInputParams {
   arcLength?: number;
 }
 
-function buildArcResult(radius: number, chord: number, sagitta: number, includedAngleDeg: number, arcLength: number): ArcGeometryResult {
+function buildArcResult(
+  radius: number,
+  chord: number,
+  sagitta: number,
+  includedAngleDeg: number,
+  arcLength: number,
+): ArcGeometryResult {
   const thetaRad = toRadians(includedAngleDeg);
   const diameter = radius * 2;
   const sectorArea = 0.5 * radius * radius * thetaRad;
@@ -63,7 +69,8 @@ export function solveArcGeometry(params: ArcInputParams): ArcGeometryResult {
 
   // Case 3: Radius and Included Angle
   if (R !== undefined && A !== undefined) {
-    if (R <= 0 || A <= 0 || A >= 360) throw new Error("Radius must be positive, Angle must be 0° < A < 360°.");
+    if (R <= 0 || A <= 0 || A >= 360)
+      throw new Error("Radius must be positive, Angle must be 0° < A < 360°.");
     const halfAngle = toRadians(A / 2);
     const C_calc = 2 * R * Math.sin(halfAngle);
     const H_calc = R * (1 - Math.cos(halfAngle));
@@ -93,7 +100,8 @@ export function solveArcGeometry(params: ArcInputParams): ArcGeometryResult {
 
   // Case 6: Chord and Included Angle
   if (C !== undefined && A !== undefined) {
-    if (C <= 0 || A <= 0 || A >= 360) throw new Error("Chord must be positive, Angle must be 0° < A < 360°.");
+    if (C <= 0 || A <= 0 || A >= 360)
+      throw new Error("Chord must be positive, Angle must be 0° < A < 360°.");
     const halfAngle = toRadians(A / 2);
     const R_calc = C / (2 * Math.sin(halfAngle));
     const H_calc = R_calc * (1 - Math.cos(halfAngle));
@@ -103,7 +111,8 @@ export function solveArcGeometry(params: ArcInputParams): ArcGeometryResult {
 
   // Case 7: Sagitta and Included Angle
   if (H !== undefined && A !== undefined) {
-    if (H <= 0 || A <= 0 || A >= 360) throw new Error("Sagitta must be positive, Angle must be 0° < A < 360°.");
+    if (H <= 0 || A <= 0 || A >= 360)
+      throw new Error("Sagitta must be positive, Angle must be 0° < A < 360°.");
     const halfAngle = toRadians(A / 2);
     const R_calc = H / (1 - Math.cos(halfAngle));
     const C_calc = 2 * R_calc * Math.sin(halfAngle);
@@ -111,5 +120,7 @@ export function solveArcGeometry(params: ArcInputParams): ArcGeometryResult {
     return buildArcResult(R_calc, C_calc, H, A, S_calc);
   }
 
-  throw new Error("Please specify at least 2 known arc dimensions (e.g. Chord + Sagitta, or Radius + Angle).");
+  throw new Error(
+    "Please specify at least 2 known arc dimensions (e.g. Chord + Sagitta, or Radius + Angle).",
+  );
 }

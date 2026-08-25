@@ -3,9 +3,15 @@ import { sampleFunctionY, isWithinDomain } from "../engine/sampler";
 
 describe("Adaptive Curve Sampler", () => {
   it("enforces domain boundaries", () => {
-    expect(isWithinDomain(3, { variable: "x", min: 0, max: 5, minInclusive: true, maxInclusive: true })).toBe(true);
-    expect(isWithinDomain(-1, { variable: "x", min: 0, max: 5, minInclusive: true, maxInclusive: true })).toBe(false);
-    expect(isWithinDomain(6, { variable: "x", min: 0, max: 5, minInclusive: true, maxInclusive: true })).toBe(false);
+    expect(
+      isWithinDomain(3, { variable: "x", min: 0, max: 5, minInclusive: true, maxInclusive: true }),
+    ).toBe(true);
+    expect(
+      isWithinDomain(-1, { variable: "x", min: 0, max: 5, minInclusive: true, maxInclusive: true }),
+    ).toBe(false);
+    expect(
+      isWithinDomain(6, { variable: "x", min: 0, max: 5, minInclusive: true, maxInclusive: true }),
+    ).toBe(false);
   });
 
   it("samples smooth polynomial and detects roots and turning points", () => {

@@ -7,15 +7,15 @@ import { compile, parse, MathNode } from "mathjs";
 import type { AngleMode } from "../types";
 
 export type ParsedExpressionKind =
-  | "function_y"      // y = f(x)
-  | "function_x"      // x = f(y)
-  | "implicit"        // f(x, y) = g(x, y)
-  | "inequality"      // y > f(x), f(x, y) <= 0
-  | "parametric"      // (f(t), g(t))
-  | "polar"           // r = f(theta)
-  | "variable_def"    // a = 5
-  | "function_def"    // f(x) = sin(x)
-  | "evaluation";     // f(2) or 2 + 3
+  | "function_y" // y = f(x)
+  | "function_x" // x = f(y)
+  | "implicit" // f(x, y) = g(x, y)
+  | "inequality" // y > f(x), f(x, y) <= 0
+  | "parametric" // (f(t), g(t))
+  | "polar" // r = f(theta)
+  | "variable_def" // a = 5
+  | "function_def" // f(x) = sin(x)
+  | "evaluation"; // f(2) or 2 + 3
 
 export interface DomainRestriction {
   variable: "x" | "y" | "t" | "theta";
@@ -73,9 +73,33 @@ export function normalizeMathExpression(expr: string): string {
 
   // 3. Variable followed by parenthesis where variable is not a function name (e.g. x(x+1) -> x*(x+1))
   const knownFuncs = new Set([
-    "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
-    "log", "log10", "log2", "ln", "exp", "sqrt", "cbrt", "abs", "floor",
-    "ceil", "round", "sign", "min", "max", "sec", "csc", "cot", "gamma"
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "log",
+    "log10",
+    "log2",
+    "ln",
+    "exp",
+    "sqrt",
+    "cbrt",
+    "abs",
+    "floor",
+    "ceil",
+    "round",
+    "sign",
+    "min",
+    "max",
+    "sec",
+    "csc",
+    "cot",
+    "gamma",
   ]);
 
   clean = clean.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g, (match, name) => {
@@ -89,7 +113,10 @@ export function normalizeMathExpression(expr: string): string {
 /**
  * Extract domain restrictions from expression, e.g. "y = x^2 { -2 < x <= 5 }"
  */
-export function extractDomainRestriction(raw: string): { expression: string; domain: DomainRestriction | null } {
+export function extractDomainRestriction(raw: string): {
+  expression: string;
+  domain: DomainRestriction | null;
+} {
   const match = raw.match(/^(.*?)\s*\{\s*([^}]+)\s*\}\s*$/);
   if (!match) return { expression: raw.trim(), domain: null };
 
@@ -97,7 +124,9 @@ export function extractDomainRestriction(raw: string): { expression: string; dom
   const cond = match[2].trim();
 
   // Pattern 1: -5 < x < 5 or 0 <= x <= 10
-  const rangeMatch = cond.match(/^(-?\d*\.?\d+)\s*(<=?|<)\s*([a-zA-Z_]+)\s*(<=?|<)\s*(-?\d*\.?\d+)$/);
+  const rangeMatch = cond.match(
+    /^(-?\d*\.?\d+)\s*(<=?|<)\s*([a-zA-Z_]+)\s*(<=?|<)\s*(-?\d*\.?\d+)$/,
+  );
   if (rangeMatch) {
     const minVal = parseFloat(rangeMatch[1]);
     const minInc = rangeMatch[2] === "<=";
@@ -391,7 +420,9 @@ export function buildEvaluationScope(
         def.args.forEach((arg, idx) => {
           argMap[arg] = argValues[idx] ?? 0;
         });
-        return Number(compiled.evaluate({ ...constants, ...baseMath, ...variables, ...functions, ...argMap }));
+        return Number(
+          compiled.evaluate({ ...constants, ...baseMath, ...variables, ...functions, ...argMap }),
+        );
       };
     } catch {
       // Ignore function compilation error
@@ -408,7 +439,7 @@ export function compileFunction(
   expression: string,
   variables: string[],
   scope: CompiledScope,
-  angleMode: AngleMode = "rad"
+  angleMode: AngleMode = "rad",
 ): (...args: number[]) => number {
   const norm = normalizeMathExpression(expression);
   const compiled = compile(norm);

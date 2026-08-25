@@ -34,8 +34,11 @@ export function VariableManagerModal({ isOpen, onClose }: VariableManagerModalPr
     if (!fnName.trim() || !fnExpr.trim()) return;
     setFunction(
       fnName.trim(),
-      fnArgs.split(",").map((s) => s.trim()).filter(Boolean),
-      fnExpr.trim()
+      fnArgs
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      fnExpr.trim(),
     );
     setFnName("");
     setFnExpr("");

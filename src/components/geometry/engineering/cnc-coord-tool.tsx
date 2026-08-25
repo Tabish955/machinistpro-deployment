@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { Compass, ArrowRightLeft, Table, Copy, Check } from "lucide-react";
-import { processCncCoordinates, vectorBetween, cartesianToPolar, polarToCartesian } from "@/lib/geometry/solvers/cnc-coord";
+import {
+  processCncCoordinates,
+  vectorBetween,
+  cartesianToPolar,
+  polarToCartesian,
+} from "@/lib/geometry/solvers/cnc-coord";
 import { formatNumber } from "@/lib/shared/math-utils";
 import { useCopy } from "@/hooks/use-copy";
 
@@ -30,7 +35,10 @@ export function CncCoordTool() {
     const lines = rawText.trim().split(/\r?\n/);
     const pts = lines
       .map((line) => {
-        const parts = line.split(/[,\s\t]+/).filter(Boolean).map(Number);
+        const parts = line
+          .split(/[,\s\t]+/)
+          .filter(Boolean)
+          .map(Number);
         return parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])
           ? { x: parts[0], y: parts[1] }
           : null;
@@ -47,7 +55,12 @@ export function CncCoordTool() {
     const y1 = parseFloat(vY1);
     const x2 = parseFloat(vX2);
     const y2 = parseFloat(vY2);
-    if (!Number.isFinite(x1) || !Number.isFinite(y1) || !Number.isFinite(x2) || !Number.isFinite(y2)) {
+    if (
+      !Number.isFinite(x1) ||
+      !Number.isFinite(y1) ||
+      !Number.isFinite(x2) ||
+      !Number.isFinite(y2)
+    ) {
       return null;
     }
     return vectorBetween({ x: x1, y: y1 }, { x: x2, y: y2 });
@@ -135,10 +148,17 @@ export function CncCoordTool() {
                 </thead>
                 <tbody>
                   {coordRows.map((r) => (
-                    <tr key={r.index} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+                    <tr
+                      key={r.index}
+                      className="border-b border-white/[0.04] hover:bg-white/[0.02]"
+                    >
                       <td className="py-2 text-accent-cyan font-bold">{r.index}</td>
-                      <td className="py-2 text-white">({r.xAbs.toFixed(3)}, {r.yAbs.toFixed(3)})</td>
-                      <td className="py-2 text-accent-amber">({r.xInc.toFixed(3)}, {r.yInc.toFixed(3)})</td>
+                      <td className="py-2 text-white">
+                        ({r.xAbs.toFixed(3)}, {r.yAbs.toFixed(3)})
+                      </td>
+                      <td className="py-2 text-accent-amber">
+                        ({r.xInc.toFixed(3)}, {r.yInc.toFixed(3)})
+                      </td>
                       <td className="py-2 text-gray-300">{r.distanceFromPrev.toFixed(3)} mm</td>
                       <td className="py-2 text-accent-green font-medium">
                         {r.radius.toFixed(3)} @ {r.angleDeg.toFixed(2)}°
@@ -162,7 +182,9 @@ export function CncCoordTool() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] uppercase text-gray-500 block mb-1">Point 1 (X₁)</label>
+                <label className="text-[10px] uppercase text-gray-500 block mb-1">
+                  Point 1 (X₁)
+                </label>
                 <input
                   type="number"
                   value={vX1}
@@ -171,7 +193,9 @@ export function CncCoordTool() {
                 />
               </div>
               <div>
-                <label className="text-[10px] uppercase text-gray-500 block mb-1">Point 1 (Y₁)</label>
+                <label className="text-[10px] uppercase text-gray-500 block mb-1">
+                  Point 1 (Y₁)
+                </label>
                 <input
                   type="number"
                   value={vY1}
@@ -180,7 +204,9 @@ export function CncCoordTool() {
                 />
               </div>
               <div>
-                <label className="text-[10px] uppercase text-gray-500 block mb-1">Point 2 (X₂)</label>
+                <label className="text-[10px] uppercase text-gray-500 block mb-1">
+                  Point 2 (X₂)
+                </label>
                 <input
                   type="number"
                   value={vX2}
@@ -189,7 +215,9 @@ export function CncCoordTool() {
                 />
               </div>
               <div>
-                <label className="text-[10px] uppercase text-gray-500 block mb-1">Point 2 (Y₂)</label>
+                <label className="text-[10px] uppercase text-gray-500 block mb-1">
+                  Point 2 (Y₂)
+                </label>
                 <input
                   type="number"
                   value={vY2}
@@ -209,11 +237,15 @@ export function CncCoordTool() {
               <div className="space-y-2.5 font-mono text-xs">
                 <div className="flex justify-between border-b border-white/[0.06] pb-2">
                   <span className="text-gray-400">Total Direct Distance:</span>
-                  <span className="text-sm font-bold text-accent-cyan">{vectorResult.distance.toFixed(4)} mm</span>
+                  <span className="text-sm font-bold text-accent-cyan">
+                    {vectorResult.distance.toFixed(4)} mm
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.06] pb-2">
                   <span className="text-gray-400">Angle from Horizontal (+X):</span>
-                  <span className="text-sm font-bold text-accent-amber">{vectorResult.angleDeg.toFixed(4)}°</span>
+                  <span className="text-sm font-bold text-accent-amber">
+                    {vectorResult.angleDeg.toFixed(4)}°
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.06] pb-2">
                   <span className="text-gray-400">Delta X (dX):</span>
@@ -259,8 +291,13 @@ export function CncCoordTool() {
 
             {polarResult && (
               <div className="mt-3 rounded-xl bg-dark-800/60 p-3 font-mono text-xs space-y-1">
-                <div className="text-gray-400">Radius (R): <strong className="text-white">{polarResult.r.toFixed(4)}</strong></div>
-                <div className="text-gray-400">Angle (θ): <strong className="text-accent-amber">{polarResult.thetaDeg.toFixed(4)}°</strong></div>
+                <div className="text-gray-400">
+                  Radius (R): <strong className="text-white">{polarResult.r.toFixed(4)}</strong>
+                </div>
+                <div className="text-gray-400">
+                  Angle (θ):{" "}
+                  <strong className="text-accent-amber">{polarResult.thetaDeg.toFixed(4)}°</strong>
+                </div>
               </div>
             )}
           </div>

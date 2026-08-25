@@ -96,7 +96,9 @@ export function ConstantBrowserModal({
             >
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-serif font-bold text-accent-amber text-base">{c.symbol}</span>
+                  <span className="font-serif font-bold text-accent-amber text-base">
+                    {c.symbol}
+                  </span>
                   <span className="text-xs font-semibold text-white group-hover:text-accent-cyan">
                     {c.name}
                   </span>

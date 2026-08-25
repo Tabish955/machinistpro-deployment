@@ -144,6 +144,6 @@ export const useVariablesStore = create<VariablesState>()(
     }),
     {
       name: "machinistpro_variables_store",
-    }
-  )
+    },
+  ),
 );

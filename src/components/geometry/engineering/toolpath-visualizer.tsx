@@ -41,7 +41,10 @@ export function ToolpathVisualizer() {
     let curType: "G00" | "G01" | "G02" | "G03" = "G00";
 
     for (const rawLine of lines) {
-      const line = rawLine.replace(/\(.*?\)/g, "").trim().toUpperCase();
+      const line = rawLine
+        .replace(/\(.*?\)/g, "")
+        .trim()
+        .toUpperCase();
       if (!line || line.startsWith("%")) continue;
 
       if (line.includes("G00") || line.includes("G0 ")) curType = "G00";
@@ -117,7 +120,10 @@ export function ToolpathVisualizer() {
   // Viewport bounds for SVG
   const bounds = useMemo(() => {
     if (moves.length === 0) return { minX: 0, maxX: 100, minY: 0, maxY: 100 };
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
     for (const m of moves) {
       if (m.x < minX) minX = m.x;
       if (m.x > maxX) maxX = m.x;
@@ -161,7 +167,9 @@ export function ToolpathVisualizer() {
 
           <div className="mt-2 flex items-center justify-between text-xs font-mono text-gray-400">
             <span>{moves.length} Motion Blocks</span>
-            <span>Path: <strong className="text-white">{formatNumber(totalLength, 3)} mm</strong></span>
+            <span>
+              Path: <strong className="text-white">{formatNumber(totalLength, 3)} mm</strong>
+            </span>
           </div>
         </div>
       </div>
@@ -204,8 +212,22 @@ export function ToolpathVisualizer() {
           <div className="flex justify-center bg-[#0c0d14] rounded-xl p-3">
             <svg viewBox="0 0 300 300" className="w-full max-w-[340px] h-[300px]">
               {/* Origin Grid axes */}
-              <line x1={sx(0)} y1="0" x2={sx(0)} y2="300" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-              <line x1="0" y1={sy(0)} x2="300" y2={sy(0)} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+              <line
+                x1={sx(0)}
+                y1="0"
+                x2={sx(0)}
+                y2="300"
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="1"
+              />
+              <line
+                x1="0"
+                y1={sy(0)}
+                x2="300"
+                y2={sy(0)}
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="1"
+              />
               <circle cx={sx(0)} cy={sy(0)} r="4" fill="#ffffff" />
 
               {/* Toolpath lines */}
@@ -251,20 +273,29 @@ export function ToolpathVisualizer() {
               })}
 
               {/* Active Cutter Position Marker */}
-              {moves.length > 0 && (
+              {moves.length > 0 &&
                 (() => {
-                  const activeIdx = Math.min(moves.length - 1, Math.floor(progress * (moves.length - 1)));
+                  const activeIdx = Math.min(
+                    moves.length - 1,
+                    Math.floor(progress * (moves.length - 1)),
+                  );
                   const curMove = moves[activeIdx];
                   if (!curMove) return null;
 
                   return (
                     <g>
-                      <circle cx={sx(curMove.x)} cy={sy(curMove.y)} r="7" fill="none" stroke="#f59e0b" strokeWidth="2" />
+                      <circle
+                        cx={sx(curMove.x)}
+                        cy={sy(curMove.y)}
+                        r="7"
+                        fill="none"
+                        stroke="#f59e0b"
+                        strokeWidth="2"
+                      />
                       <circle cx={sx(curMove.x)} cy={sy(curMove.y)} r="2" fill="#f59e0b" />
                     </g>
                   );
-                })()
-              )}
+                })()}
             </svg>
           </div>
 

@@ -26,7 +26,7 @@ export function StandardKeypad() {
     label: React.ReactNode,
     onClick: () => void,
     variant: "num" | "op" | "fn" | "equal" | "clear" | "mem" = "num",
-    className = ""
+    className = "",
   ) => {
     let styles = "bg-dark-800 text-white hover:bg-dark-700 border-white/[0.06]";
     if (variant === "op") {
@@ -34,7 +34,8 @@ export function StandardKeypad() {
     } else if (variant === "fn") {
       styles = "bg-dark-800/60 text-gray-300 hover:bg-dark-700 border-white/[0.05]";
     } else if (variant === "equal") {
-      styles = "bg-gradient-to-r from-accent-cyan to-accent-blue text-dark-950 font-bold shadow-lg shadow-accent-cyan/20 border-transparent hover:opacity-95";
+      styles =
+        "bg-gradient-to-r from-accent-cyan to-accent-blue text-dark-950 font-bold shadow-lg shadow-accent-cyan/20 border-transparent hover:opacity-95";
     } else if (variant === "clear") {
       styles = "bg-accent-red/20 text-accent-red hover:bg-accent-red/30 border-accent-red/30";
     } else if (variant === "mem") {
@@ -56,8 +57,18 @@ export function StandardKeypad() {
     <div className="space-y-2 select-none">
       {/* Top Memory & Quick Unary Row */}
       <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-        {renderKey("MC", memoryClear, "mem", hasMemory ? "text-accent-amber" : "opacity-40 cursor-not-allowed")}
-        {renderKey("MR", memoryRecall, "mem", hasMemory ? "text-accent-amber font-bold" : "opacity-40 cursor-not-allowed")}
+        {renderKey(
+          "MC",
+          memoryClear,
+          "mem",
+          hasMemory ? "text-accent-amber" : "opacity-40 cursor-not-allowed",
+        )}
+        {renderKey(
+          "MR",
+          memoryRecall,
+          "mem",
+          hasMemory ? "text-accent-amber font-bold" : "opacity-40 cursor-not-allowed",
+        )}
         {renderKey("M+", memoryAdd, "mem")}
         {renderKey("M−", memorySubtract, "mem")}
         {renderKey("%", percentage, "fn")}

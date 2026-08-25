@@ -14,7 +14,7 @@ import { normalizeMathExpression } from "./compiler";
  */
 export function computeDerivative(
   rawExpr: string,
-  variable = "x"
+  variable = "x",
 ): {
   symbolicExpression: string;
   isSymbolic: boolean;
@@ -35,7 +35,9 @@ export function computeDerivative(
       evaluateAt: (x: number) => {
         try {
           const res = Number(compiled.evaluate({ [variable]: x }));
-          return Number.isFinite(res) ? res : numericalDerivative((v) => Number(node.compile().evaluate({ [variable]: v })), x);
+          return Number.isFinite(res)
+            ? res
+            : numericalDerivative((v) => Number(node.compile().evaluate({ [variable]: v })), x);
         } catch {
           return numericalDerivative((v) => Number(node.compile().evaluate({ [variable]: v })), x);
         }
@@ -93,7 +95,7 @@ export function computeDefiniteIntegral(
   fn: (x: number) => number,
   a: number,
   b: number,
-  intervals = 300
+  intervals = 300,
 ): {
   value: number;
   shadedPolygon: Point2D[];
@@ -136,7 +138,7 @@ export function computeAreaBetweenCurves(
   g: (x: number) => number,
   a: number,
   b: number,
-  intervals = 300
+  intervals = 300,
 ): {
   value: number;
   shadedPolygon: Point2D[];
@@ -183,7 +185,7 @@ export function computeArcLength(
   fn: (x: number) => number,
   a: number,
   b: number,
-  intervals = 200
+  intervals = 200,
 ): number {
   const integrand = (x: number) => {
     const deriv = numericalDerivative(fn, x);
@@ -198,7 +200,7 @@ export function computeArcLength(
  */
 export function getTangentAndNormal(
   fn: (x: number) => number,
-  x0: number
+  x0: number,
 ): {
   y0: number;
   slope: number;
@@ -215,7 +217,8 @@ export function getTangentAndNormal(
   const normalFn = (x: number) => y0 + normalSlope * (x - x0);
 
   const formatSlope = (m: number) => (Math.abs(m) < 1e-5 ? "0" : m.toFixed(4));
-  const formatOffset = (c: number) => (c >= 0 ? `+ ${c.toFixed(4)}` : `- ${Math.abs(c).toFixed(4)}`);
+  const formatOffset = (c: number) =>
+    c >= 0 ? `+ ${c.toFixed(4)}` : `- ${Math.abs(c).toFixed(4)}`;
 
   const tC = y0 - slope * x0;
   const nC = y0 - normalSlope * x0;

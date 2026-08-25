@@ -1,6 +1,12 @@
 import React, { useRef } from "react";
 import { Eye, EyeOff, Copy, Trash2, AlertCircle, Sparkles } from "lucide-react";
-import type { FunctionItem, ImplicitItem, InequalityItem, ParametricItem, PolarItem } from "@/lib/graphing/types";
+import type {
+  FunctionItem,
+  ImplicitItem,
+  InequalityItem,
+  ParametricItem,
+  PolarItem,
+} from "@/lib/graphing/types";
 import { DEFAULT_COLORS } from "@/lib/graphing/state/graph-store";
 
 import { DesmosMathInput } from "./desmos-math-input";
@@ -154,18 +160,20 @@ export function ExpressionRow({
       {/* Quick math symbol drawer when selected */}
       {isSelected && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-white/[0.06] pt-2">
-          {["x^2", "sqrt(", "sin(", "cos(", "tan(", "ln(", "pi", "theta", "abs(", "<=", ">="].map((sym) => (
-            <button
-              key={sym}
-              onClick={(e) => {
-                e.stopPropagation();
-                insertSymbol(sym);
-              }}
-              className="rounded-md border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-gray-300 hover:bg-white/[0.08] hover:text-accent-cyan"
-            >
-              {sym}
-            </button>
-          ))}
+          {["x^2", "sqrt(", "sin(", "cos(", "tan(", "ln(", "pi", "theta", "abs(", "<=", ">="].map(
+            (sym) => (
+              <button
+                key={sym}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  insertSymbol(sym);
+                }}
+                className="rounded-md border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-gray-300 hover:bg-white/[0.08] hover:text-accent-cyan"
+              >
+                {sym}
+              </button>
+            ),
+          )}
         </div>
       )}
 

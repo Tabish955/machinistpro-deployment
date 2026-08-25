@@ -84,7 +84,10 @@ export function renderSingleNode(node: MathNode, key: string): React.ReactNode {
 
     case "fraction":
       return (
-        <span key={key} className="inline-flex flex-col items-center justify-center align-middle mx-1 text-[0.88em]">
+        <span
+          key={key}
+          className="inline-flex flex-col items-center justify-center align-middle mx-1 text-[0.88em]"
+        >
           <span className="border-b border-white/40 px-1 text-center w-full pb-0.5">
             {renderNodeList(node.numerator)}
           </span>

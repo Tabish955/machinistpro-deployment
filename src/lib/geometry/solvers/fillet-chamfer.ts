@@ -55,7 +55,7 @@ export function calculateFillet(cornerAngleDeg: number, radius: number): FilletR
 export function calculateChamfer(
   setbackX?: number,
   setbackY?: number,
-  angleDeg?: number
+  angleDeg?: number,
 ): ChamferResult {
   let cx = setbackX;
   let cy = setbackY;
@@ -65,10 +65,12 @@ export function calculateChamfer(
     if (cx <= 0 || cy <= 0) throw new Error("Setbacks must be positive.");
     angle = toDegrees(Math.atan2(cy, cx));
   } else if (cx !== undefined && angle !== undefined) {
-    if (cx <= 0 || angle <= 0 || angle >= 90) throw new Error("Setback > 0 and 0° < Angle < 90° required.");
+    if (cx <= 0 || angle <= 0 || angle >= 90)
+      throw new Error("Setback > 0 and 0° < Angle < 90° required.");
     cy = cx * Math.tan(toRadians(angle));
   } else if (cy !== undefined && angle !== undefined) {
-    if (cy <= 0 || angle <= 0 || angle >= 90) throw new Error("Setback > 0 and 0° < Angle < 90° required.");
+    if (cy <= 0 || angle <= 0 || angle >= 90)
+      throw new Error("Setback > 0 and 0° < Angle < 90° required.");
     cx = cy / Math.tan(toRadians(angle));
   } else {
     throw new Error("Specify either both setbacks (X, Y) or a setback and an angle.");

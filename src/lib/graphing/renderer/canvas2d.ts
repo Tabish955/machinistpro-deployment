@@ -74,7 +74,11 @@ export function toWorldY(sy: number, vp: Viewport, height: number): number {
 /**
  * Calculate adaptive tick step using 1, 2, 5 * 10^k intervals
  */
-export function getAdaptiveTickStep(min: number, max: number, targetTicks = 10): { major: number; minor: number } {
+export function getAdaptiveTickStep(
+  min: number,
+  max: number,
+  targetTicks = 10,
+): { major: number; minor: number } {
   const range = max - min;
   if (range <= 0 || !Number.isFinite(range)) return { major: 1, minor: 0.2 };
 
@@ -99,9 +103,18 @@ export function formatPiTick(val: number): string {
   if (Math.abs(val) < 1e-6) return "0";
   const piMultiple = val / Math.PI;
   const fractions: Array<{ num: number; den: number }> = [
-    { num: 1, den: 6 }, { num: 1, den: 4 }, { num: 1, den: 3 }, { num: 1, den: 2 },
-    { num: 2, den: 3 }, { num: 3, den: 4 }, { num: 5, den: 6 }, { num: 1, den: 1 },
-    { num: 3, den: 2 }, { num: 2, den: 1 }, { num: 5, den: 2 }, { num: 3, den: 1 },
+    { num: 1, den: 6 },
+    { num: 1, den: 4 },
+    { num: 1, den: 3 },
+    { num: 1, den: 2 },
+    { num: 2, den: 3 },
+    { num: 3, den: 4 },
+    { num: 5, den: 6 },
+    { num: 1, den: 1 },
+    { num: 3, den: 2 },
+    { num: 2, den: 1 },
+    { num: 5, den: 2 },
+    { num: 3, den: 1 },
     { num: 4, den: 1 },
   ];
 
@@ -144,8 +157,16 @@ export function renderGraphScene(options: RenderGraphOptions) {
   ctx.fillStyle = "#0c0d14";
   ctx.fillRect(0, 0, width, height);
 
-  const { major: xMajor, minor: xMinor } = getAdaptiveTickStep(vp.xMin, vp.xMax, width < 500 ? 6 : 10);
-  const { major: yMajor, minor: yMinor } = getAdaptiveTickStep(vp.yMin, vp.yMax, height < 400 ? 5 : 8);
+  const { major: xMajor, minor: xMinor } = getAdaptiveTickStep(
+    vp.xMin,
+    vp.xMax,
+    width < 500 ? 6 : 10,
+  );
+  const { major: yMajor, minor: yMinor } = getAdaptiveTickStep(
+    vp.yMin,
+    vp.yMax,
+    height < 400 ? 5 : 8,
+  );
 
   const originX = toScreenX(0, vp, width);
   const originY = toScreenY(0, vp, height);
@@ -156,7 +177,7 @@ export function renderGraphScene(options: RenderGraphOptions) {
       Math.hypot(vp.xMin, vp.yMin),
       Math.hypot(vp.xMax, vp.yMax),
       Math.hypot(vp.xMin, vp.yMax),
-      Math.hypot(vp.xMax, vp.yMin)
+      Math.hypot(vp.xMax, vp.yMin),
     );
     const rStep = xMajor;
 
@@ -266,7 +287,8 @@ export function renderGraphScene(options: RenderGraphOptions) {
     for (let x = xStartMajor; x <= vp.xMax; x += xMajor) {
       if (Math.abs(x) < 1e-9) continue;
       const sx = toScreenX(x, vp, width);
-      const text = settings.angleMode === "rad" && Math.abs(x) >= 1 ? formatPiTick(x) : formatNumber(x, 4);
+      const text =
+        settings.angleMode === "rad" && Math.abs(x) >= 1 ? formatPiTick(x) : formatNumber(x, 4);
       ctx.fillText(text, sx, labelY);
     }
 
@@ -356,9 +378,15 @@ export function renderGraphScene(options: RenderGraphOptions) {
       ctx.strokeStyle = series.color;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(toScreenX(series.points[0].x, vp, width), toScreenY(series.points[0].y, vp, height));
+      ctx.moveTo(
+        toScreenX(series.points[0].x, vp, width),
+        toScreenY(series.points[0].y, vp, height),
+      );
       for (let i = 1; i < series.points.length; i++) {
-        ctx.lineTo(toScreenX(series.points[i].x, vp, width), toScreenY(series.points[i].y, vp, height));
+        ctx.lineTo(
+          toScreenX(series.points[i].x, vp, width),
+          toScreenY(series.points[i].y, vp, height),
+        );
       }
       ctx.stroke();
     }
@@ -383,7 +411,9 @@ export function renderGraphScene(options: RenderGraphOptions) {
 
     ctx.beginPath();
     ctx.arc(sx, sy, 5, 0, Math.PI * 2);
-    ctx.fillStyle = m.color || (m.kind === "root" ? "#10b981" : m.kind === "intersection" ? "#ec4899" : "#f59e0b");
+    ctx.fillStyle =
+      m.color ||
+      (m.kind === "root" ? "#10b981" : m.kind === "intersection" ? "#ec4899" : "#f59e0b");
     ctx.fill();
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1.5;

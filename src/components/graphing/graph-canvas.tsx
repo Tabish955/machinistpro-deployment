@@ -1,12 +1,27 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from "react";
 import { useGraphStore } from "@/lib/graphing/state/graph-store";
-import { renderGraphScene, toWorldX, toWorldY, toScreenX, toScreenY } from "@/lib/graphing/renderer/canvas2d";
-import { sampleFunctionY, sampleFunctionX, samplePolar, sampleParametric } from "@/lib/graphing/engine/sampler";
+import {
+  renderGraphScene,
+  toWorldX,
+  toWorldY,
+  toScreenX,
+  toScreenY,
+} from "@/lib/graphing/renderer/canvas2d";
+import {
+  sampleFunctionY,
+  sampleFunctionX,
+  samplePolar,
+  sampleParametric,
+} from "@/lib/graphing/engine/sampler";
 import { solveImplicitCurve, sampleInequalityRegion } from "@/lib/graphing/engine/implicit";
 import { getTangentAndNormal } from "@/lib/graphing/engine/calculus";
 import { fitRegression } from "@/lib/graphing/engine/regression";
 import { findCurveIntersections } from "@/lib/graphing/engine/intersections";
-import { parseExpression, compileFunction, buildEvaluationScope } from "@/lib/graphing/engine/compiler";
+import {
+  parseExpression,
+  compileFunction,
+  buildEvaluationScope,
+} from "@/lib/graphing/engine/compiler";
 import type { Point2D, SliderItem, FunctionItem, TableItem } from "@/lib/graphing/types";
 
 export function GraphCanvas() {
@@ -38,11 +53,23 @@ export function GraphCanvas() {
 
   // 2. Evaluate all visible graph items into curves, implicit contours, shaded areas, and markers
   const sceneData = useMemo(() => {
-    const curves: Array<{ points: (Point2D | null)[]; color: string; lineWidth?: number; dash?: number[] }> = [];
+    const curves: Array<{
+      points: (Point2D | null)[];
+      color: string;
+      lineWidth?: number;
+      dash?: number[];
+    }> = [];
     const implicitSegments: Array<{ segments: [Point2D, Point2D][]; color: string }> = [];
     const shadedPolygons: Array<{ points: Point2D[]; fillColor: string }> = [];
     const scatterSeries: Array<{ points: Point2D[]; color: string; joined?: boolean }> = [];
-    const markers: Array<{ x: number; y: number; label?: string; kind: "root" | "min" | "max" | "intersection" | "point"; color?: string; isPinned?: boolean }> = [];
+    const markers: Array<{
+      x: number;
+      y: number;
+      label?: string;
+      kind: "root" | "min" | "max" | "intersection" | "point";
+      color?: string;
+      isPinned?: boolean;
+    }> = [];
 
     const compiledFunctions: Array<{ id: string; fn: (x: number) => number; color: string }> = [];
 
@@ -63,14 +90,28 @@ export function GraphCanvas() {
             curves.push({ points: sample.points, color: item.color });
 
             // Add roots and extrema markers
-            sample.roots.forEach((r) => markers.push({ x: r.x, y: r.y, kind: "root", color: "#10b981" }));
-            sample.extrema.forEach((e) => markers.push({ x: e.x, y: e.y, kind: e.kind, color: e.kind === "max" ? "#f59e0b" : "#3b82f6" }));
+            sample.roots.forEach((r) =>
+              markers.push({ x: r.x, y: r.y, kind: "root", color: "#10b981" }),
+            );
+            sample.extrema.forEach((e) =>
+              markers.push({
+                x: e.x,
+                y: e.y,
+                kind: e.kind,
+                color: e.kind === "max" ? "#f59e0b" : "#3b82f6",
+              }),
+            );
           } else if (parsed.kind === "function_x") {
             const fn = compileFunction(parsed.rightExpr || "0", ["y"], scope, settings.angleMode);
             const sample = sampleFunctionX(fn, vp.yMin, vp.yMax, parsed.domain);
             curves.push({ points: sample.points, color: item.color });
           } else if (parsed.kind === "polar") {
-            const fn = compileFunction(parsed.rightExpr || "0", ["theta", "t"], scope, settings.angleMode);
+            const fn = compileFunction(
+              parsed.rightExpr || "0",
+              ["theta", "t"],
+              scope,
+              settings.angleMode,
+            );
             const sample = samplePolar(fn, 0, Math.PI * 2, settings.angleMode);
             curves.push({ points: sample.points, color: item.color });
           } else if (parsed.kind === "parametric") {
@@ -79,12 +120,29 @@ export function GraphCanvas() {
             const sample = sampleParametric(fnX, fnY, 0, Math.PI * 2);
             curves.push({ points: sample.points, color: item.color });
           } else if (parsed.kind === "implicit") {
-            const fn = compileFunction(`(${parsed.leftExpr || "0"}) - (${parsed.rightExpr || "0"})`, ["x", "y"], scope, settings.angleMode);
+            const fn = compileFunction(
+              `(${parsed.leftExpr || "0"}) - (${parsed.rightExpr || "0"})`,
+              ["x", "y"],
+              scope,
+              settings.angleMode,
+            );
             const contour = solveImplicitCurve(fn, vp.xMin, vp.xMax, vp.yMin, vp.yMax);
             implicitSegments.push({ segments: contour.segments, color: item.color });
           } else if (parsed.kind === "inequality") {
-            const fn = compileFunction(`(${parsed.leftExpr || "0"}) - (${parsed.rightExpr || "0"})`, ["x", "y"], scope, settings.angleMode);
-            const ineq = sampleInequalityRegion(fn, parsed.inequalityOp || "<", vp.xMin, vp.xMax, vp.yMin, vp.yMax);
+            const fn = compileFunction(
+              `(${parsed.leftExpr || "0"}) - (${parsed.rightExpr || "0"})`,
+              ["x", "y"],
+              scope,
+              settings.angleMode,
+            );
+            const ineq = sampleInequalityRegion(
+              fn,
+              parsed.inequalityOp || "<",
+              vp.xMin,
+              vp.xMax,
+              vp.yMin,
+              vp.yMax,
+            );
             if (ineq.boundary.length > 0) {
               curves.push({ points: ineq.boundary, color: item.color, dash: [4, 4] });
             }
@@ -109,11 +167,25 @@ export function GraphCanvas() {
           });
 
           const tItem = item as TableItem;
-          if (tItem.showRegressionLine && tItem.regressionModel && tItem.regressionModel !== "none" && validPoints.length >= 2) {
+          if (
+            tItem.showRegressionLine &&
+            tItem.regressionModel &&
+            tItem.regressionModel !== "none" &&
+            validPoints.length >= 2
+          ) {
             try {
-              const reg = fitRegression(validPoints, tItem.regressionModel, tItem.polynomialDegree || 2);
+              const reg = fitRegression(
+                validPoints,
+                tItem.regressionModel,
+                tItem.polynomialDegree || 2,
+              );
               const regSample = sampleFunctionY(reg.predict, vp.xMin, vp.xMax, vp.yMin, vp.yMax);
-              curves.push({ points: regSample.points, color: item.color, lineWidth: 1.5, dash: [6, 4] });
+              curves.push({
+                points: regSample.points,
+                color: item.color,
+                lineWidth: 1.5,
+                dash: [6, 4],
+              });
             } catch {
               // Ignore regression fit error
             }
@@ -232,7 +304,9 @@ export function GraphCanvas() {
 
     if (clickedMarker) {
       setPinnedPoints((prev) => {
-        const idx = prev.findIndex((p) => Math.hypot(p.x - clickedMarker.x, p.y - clickedMarker.y) < 1e-3);
+        const idx = prev.findIndex(
+          (p) => Math.hypot(p.x - clickedMarker.x, p.y - clickedMarker.y) < 1e-3,
+        );
         if (idx >= 0) return prev.filter((_, i) => i !== idx);
         return [...prev, { x: clickedMarker.x, y: clickedMarker.y }];
       });
@@ -269,7 +343,9 @@ export function GraphCanvas() {
     const worldX = toWorldX(sx, vp, rect.width);
     const worldY = toWorldY(sy, vp, rect.height);
 
-    const activeFns = items.filter((it): it is FunctionItem => it.type === "function" && it.visible && Boolean(it.rawExpression));
+    const activeFns = items.filter(
+      (it): it is FunctionItem => it.type === "function" && it.visible && Boolean(it.rawExpression),
+    );
     if (activeFns.length > 0) {
       try {
         const parsed = parseExpression(activeFns[0].rawExpression);

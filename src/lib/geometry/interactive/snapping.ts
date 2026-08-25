@@ -24,7 +24,7 @@ export function lineIntersection(
   p1: Point2D,
   p2: Point2D,
   p3: Point2D,
-  p4: Point2D
+  p4: Point2D,
 ): Point2D | null {
   const denom = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
   if (Math.abs(denom) < 1e-10) return null; // Parallel or collinear
@@ -39,10 +39,7 @@ export function lineIntersection(
 /**
  * Find nearest snap target for a given cursor world position (x, y)
  */
-export function findSnapTarget(
-  cursorWorld: Point2D,
-  ctx: SnappingContext
-): SnapTarget {
+export function findSnapTarget(cursorWorld: Point2D, ctx: SnappingContext): SnapTarget {
   const { points, segments, circles, snapRadiusScreen = 12, worldToScreen } = ctx;
   const cursorScreen = worldToScreen(cursorWorld.x, cursorWorld.y);
 

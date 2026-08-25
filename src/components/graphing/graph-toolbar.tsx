@@ -27,7 +27,11 @@ import {
   parseSessionJSON,
 } from "@/lib/graphing/renderer/export";
 import { sampleFunctionY } from "@/lib/graphing/engine/sampler";
-import { parseExpression, compileFunction, buildEvaluationScope } from "@/lib/graphing/engine/compiler";
+import {
+  parseExpression,
+  compileFunction,
+  buildEvaluationScope,
+} from "@/lib/graphing/engine/compiler";
 import type { TableItem, FunctionItem, SliderItem } from "@/lib/graphing/types";
 
 interface GraphToolbarProps {
@@ -88,7 +92,13 @@ export function GraphToolbar({
           const parsed = parseExpression(item.rawExpression);
           if (parsed.kind === "function_y") {
             const fn = compileFunction(parsed.rightExpr || "0", ["x"], scope, settings.angleMode);
-            const sample = sampleFunctionY(fn, viewport.xMin, viewport.xMax, viewport.yMin, viewport.yMax);
+            const sample = sampleFunctionY(
+              fn,
+              viewport.xMin,
+              viewport.xMax,
+              viewport.yMin,
+              viewport.yMax,
+            );
             curves.push({ points: sample.points, color: item.color });
             sample.roots.forEach((r) => markers.push({ x: r.x, y: r.y, color: "#10b981" }));
           }

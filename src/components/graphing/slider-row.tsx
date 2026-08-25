@@ -48,7 +48,15 @@ export function SliderRow({ item, onChange, onDelete }: SliderRowProps) {
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [item.isPlaying, item.min, item.max, item.animationSpeed, item.playDirection, item.value, onChange]);
+  }, [
+    item.isPlaying,
+    item.min,
+    item.max,
+    item.animationSpeed,
+    item.playDirection,
+    item.value,
+    onChange,
+  ]);
 
   return (
     <div className="rounded-xl border border-white/[0.08] bg-dark-900/80 p-3 text-white transition hover:border-white/[0.15]">
@@ -113,7 +121,9 @@ export function SliderRow({ item, onChange, onDelete }: SliderRowProps) {
       {showConfig && (
         <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3 text-xs">
           <div>
-            <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500">Min</label>
+            <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500">
+              Min
+            </label>
             <input
               type="number"
               value={item.min}
@@ -122,7 +132,9 @@ export function SliderRow({ item, onChange, onDelete }: SliderRowProps) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500">Max</label>
+            <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500">
+              Max
+            </label>
             <input
               type="number"
               value={item.max}
@@ -131,7 +143,9 @@ export function SliderRow({ item, onChange, onDelete }: SliderRowProps) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500">Step</label>
+            <label className="mb-1 block text-[10px] uppercase tracking-wider text-gray-500">
+              Step
+            </label>
             <input
               type="number"
               value={item.step}

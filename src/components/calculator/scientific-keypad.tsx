@@ -7,10 +7,7 @@ interface ScientificKeypadProps {
   onOpenVariables: () => void;
 }
 
-export function ScientificKeypad({
-  onOpenConstants,
-  onOpenVariables,
-}: ScientificKeypadProps) {
+export function ScientificKeypad({ onOpenConstants, onOpenVariables }: ScientificKeypadProps) {
   const {
     isSecondFunction,
     toggleSecondFunction,
@@ -40,15 +37,19 @@ export function ScientificKeypad({
     label: React.ReactNode,
     onClick: () => void,
     variant: "num" | "op" | "fn" | "equal" | "clear" | "mem" | "shift" = "fn",
-    className = ""
+    className = "",
   ) => {
-    let styles = "bg-dark-800 text-gray-200 hover:bg-dark-700 border-white/[0.05] text-xs sm:text-sm";
+    let styles =
+      "bg-dark-800 text-gray-200 hover:bg-dark-700 border-white/[0.05] text-xs sm:text-sm";
     if (variant === "num") {
-      styles = "bg-dark-850 text-white hover:bg-dark-800 border-white/[0.06] font-bold text-sm sm:text-base";
+      styles =
+        "bg-dark-850 text-white hover:bg-dark-800 border-white/[0.06] font-bold text-sm sm:text-base";
     } else if (variant === "op") {
-      styles = "bg-dark-700 text-accent-cyan hover:bg-dark-600 border-accent-cyan/20 font-bold text-sm sm:text-base";
+      styles =
+        "bg-dark-700 text-accent-cyan hover:bg-dark-600 border-accent-cyan/20 font-bold text-sm sm:text-base";
     } else if (variant === "equal") {
-      styles = "bg-gradient-to-r from-accent-cyan to-accent-blue text-dark-950 font-bold border-transparent hover:opacity-95 text-base";
+      styles =
+        "bg-gradient-to-r from-accent-cyan to-accent-blue text-dark-950 font-bold border-transparent hover:opacity-95 text-base";
     } else if (variant === "clear") {
       styles = "bg-accent-red/20 text-accent-red hover:bg-accent-red/30 border-accent-red/30";
     } else if (variant === "shift") {
@@ -91,42 +92,46 @@ export function ScientificKeypad({
           <Variable size={13} />
           <span>f(x)</span>
         </button>
-        {renderKey("MC", memoryClear, "fn", hasMemory ? "text-accent-amber" : "opacity-40 cursor-not-allowed")}
-        {renderKey("MR", memoryRecall, "fn", hasMemory ? "text-accent-amber font-bold" : "opacity-40 cursor-not-allowed")}
+        {renderKey(
+          "MC",
+          memoryClear,
+          "fn",
+          hasMemory ? "text-accent-amber" : "opacity-40 cursor-not-allowed",
+        )}
+        {renderKey(
+          "MR",
+          memoryRecall,
+          "fn",
+          hasMemory ? "text-accent-amber font-bold" : "opacity-40 cursor-not-allowed",
+        )}
         {renderKey("M+", memoryAdd, "fn")}
       </div>
 
       {/* Main Scientific Functions + Numeric Matrix */}
       <div className="grid grid-cols-5 sm:grid-cols-6 gap-1.5">
         {/* Row 1 */}
-        {renderKey(
-          isSecondFunction ? "sin⁻¹" : "sin",
-          () => inputFunction(isSecondFunction ? "asin" : "sin")
+        {renderKey(isSecondFunction ? "sin⁻¹" : "sin", () =>
+          inputFunction(isSecondFunction ? "asin" : "sin"),
         )}
-        {renderKey(
-          isSecondFunction ? "cos⁻¹" : "cos",
-          () => inputFunction(isSecondFunction ? "acos" : "cos")
+        {renderKey(isSecondFunction ? "cos⁻¹" : "cos", () =>
+          inputFunction(isSecondFunction ? "acos" : "cos"),
         )}
-        {renderKey(
-          isSecondFunction ? "tan⁻¹" : "tan",
-          () => inputFunction(isSecondFunction ? "atan" : "tan")
+        {renderKey(isSecondFunction ? "tan⁻¹" : "tan", () =>
+          inputFunction(isSecondFunction ? "atan" : "tan"),
         )}
         {renderKey("C", clear, "clear")}
         {renderKey("(", () => inputParenthesis("("))}
         {renderKey(")", () => inputParenthesis(")"))}
 
         {/* Row 2 */}
-        {renderKey(
-          isSecondFunction ? "sinh⁻¹" : "sinh",
-          () => inputFunction(isSecondFunction ? "asinh" : "sinh")
+        {renderKey(isSecondFunction ? "sinh⁻¹" : "sinh", () =>
+          inputFunction(isSecondFunction ? "asinh" : "sinh"),
         )}
-        {renderKey(
-          isSecondFunction ? "cosh⁻¹" : "cosh",
-          () => inputFunction(isSecondFunction ? "acosh" : "cosh")
+        {renderKey(isSecondFunction ? "cosh⁻¹" : "cosh", () =>
+          inputFunction(isSecondFunction ? "acosh" : "cosh"),
         )}
-        {renderKey(
-          isSecondFunction ? "tanh⁻¹" : "tanh",
-          () => inputFunction(isSecondFunction ? "atanh" : "tanh")
+        {renderKey(isSecondFunction ? "tanh⁻¹" : "tanh", () =>
+          inputFunction(isSecondFunction ? "atanh" : "tanh"),
         )}
         {renderKey("7", () => inputDigit("7"), "num")}
         {renderKey("8", () => inputDigit("8"), "num")}
@@ -134,13 +139,13 @@ export function ScientificKeypad({
 
         {/* Row 3 */}
         {renderKey(isSecondFunction ? "eˣ" : "ln", () =>
-          isSecondFunction ? inputFunction("exp") : inputFunction("ln")
+          isSecondFunction ? inputFunction("exp") : inputFunction("ln"),
         )}
         {renderKey(isSecondFunction ? "10ˣ" : "log", () =>
-          isSecondFunction ? inputOperator("^") : inputFunction("log10")
+          isSecondFunction ? inputOperator("^") : inputFunction("log10"),
         )}
         {renderKey(isSecondFunction ? "∛x" : "√x", () =>
-          inputFunction(isSecondFunction ? "cbrt" : "sqrt")
+          inputFunction(isSecondFunction ? "cbrt" : "sqrt"),
         )}
         {renderKey("4", () => inputDigit("4"), "num")}
         {renderKey("5", () => inputDigit("5"), "num")}

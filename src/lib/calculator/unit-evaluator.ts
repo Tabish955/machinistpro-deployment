@@ -26,7 +26,7 @@ export function isUnitExpression(expr: string): boolean {
   if (/\bto\b/i.test(expr) || /\bin\b/i.test(expr)) return true;
   // Match common unit keywords
   return /\b(mm|cm|m|km|in|inch|ft|feet|yd|yd|mil|thou|kg|g|mg|lb|oz|N|kN|lbf|psi|bar|Pa|kPa|MPa|GPa|degC|degF|K|rad|deg|rpm|m\/s|km\/h|in\/min|mm\/min|mm\/rev)\b/i.test(
-    expr
+    expr,
   );
 }
 

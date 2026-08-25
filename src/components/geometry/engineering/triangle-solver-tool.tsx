@@ -1,12 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Triangle, Copy, Check, Info } from "lucide-react";
-import {
-  solveSSS,
-  solveSAS,
-  solveASA,
-  solveAAS,
-  solveSSA,
-} from "@/lib/geometry/solvers/triangle";
+import { solveSSS, solveSAS, solveASA, solveAAS, solveSSA } from "@/lib/geometry/solvers/triangle";
 import type { TriangleResult } from "@/lib/geometry/types";
 import { formatNumber } from "@/lib/shared/math-utils";
 import { useCopy } from "@/hooks/use-copy";
@@ -35,10 +29,13 @@ export function TriangleSolverTool() {
     try {
       let list: TriangleResult[] = [];
       if (method === "SSS") list = [solveSSS(v1, v2, v3)];
-      else if (method === "SAS") list = [solveSAS(v1, v2, v3)]; // a, gamma, b
-      else if (method === "ASA") list = [solveASA(v1, v2, v3)]; // alpha, c, beta
-      else if (method === "AAS") list = [solveAAS(v1, v2, v3)]; // alpha, beta, a
-      else if (method === "SSA") list = solveSSA(v1, v2, v3);    // a, b, alpha
+      else if (method === "SAS")
+        list = [solveSAS(v1, v2, v3)]; // a, gamma, b
+      else if (method === "ASA")
+        list = [solveASA(v1, v2, v3)]; // alpha, c, beta
+      else if (method === "AAS")
+        list = [solveAAS(v1, v2, v3)]; // alpha, beta, a
+      else if (method === "SSA") list = solveSSA(v1, v2, v3); // a, b, alpha
 
       return { results: list, error: null };
     } catch (err: any) {
@@ -91,11 +88,27 @@ export function TriangleSolverTool() {
                 key={m}
                 onClick={() => {
                   setMethod(m);
-                  if (m === "SSS") { setVal1("3"); setVal2("4"); setVal3("5"); }
-                  else if (m === "SAS") { setVal1("5"); setVal2("90"); setVal3("5"); }
-                  else if (m === "ASA") { setVal1("45"); setVal2("10"); setVal3("45"); }
-                  else if (m === "AAS") { setVal1("30"); setVal2("60"); setVal3("10"); }
-                  else if (m === "SSA") { setVal1("8"); setVal2("10"); setVal3("40"); }
+                  if (m === "SSS") {
+                    setVal1("3");
+                    setVal2("4");
+                    setVal3("5");
+                  } else if (m === "SAS") {
+                    setVal1("5");
+                    setVal2("90");
+                    setVal3("5");
+                  } else if (m === "ASA") {
+                    setVal1("45");
+                    setVal2("10");
+                    setVal3("45");
+                  } else if (m === "AAS") {
+                    setVal1("30");
+                    setVal2("60");
+                    setVal3("10");
+                  } else if (m === "SSA") {
+                    setVal1("8");
+                    setVal2("10");
+                    setVal3("40");
+                  }
                 }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                   method === m
@@ -195,9 +208,22 @@ export function TriangleSolverTool() {
                     <circle cx={pB.x} cy={pB.y} r="4" fill="#00d4ff" />
                     <circle cx={pC.x} cy={pC.y} r="4" fill="#00d4ff" />
 
-                    <text x={pA.x - 10} y={pA.y + 10} fill="#ffffff" fontSize="9" fontWeight="bold">A (α)</text>
-                    <text x={pB.x + 5} y={pB.y + 10} fill="#ffffff" fontSize="9" fontWeight="bold">B (β)</text>
-                    <text x={pC.x} y={pC.y - 8} fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">C (γ)</text>
+                    <text x={pA.x - 10} y={pA.y + 10} fill="#ffffff" fontSize="9" fontWeight="bold">
+                      A (α)
+                    </text>
+                    <text x={pB.x + 5} y={pB.y + 10} fill="#ffffff" fontSize="9" fontWeight="bold">
+                      B (β)
+                    </text>
+                    <text
+                      x={pC.x}
+                      y={pC.y - 8}
+                      fill="#ffffff"
+                      fontSize="9"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      C (γ)
+                    </text>
                   </svg>
                 );
               })()}
@@ -226,30 +252,40 @@ export function TriangleSolverTool() {
                 <div className="flex justify-between border-b border-white/[0.04] pb-1">
                   <span className="text-gray-400">Sides (a, b, c):</span>
                   <span className="font-bold text-white">
-                    {formatNumber(activeRes.a, 4)}, {formatNumber(activeRes.b, 4)}, {formatNumber(activeRes.c, 4)}
+                    {formatNumber(activeRes.a, 4)}, {formatNumber(activeRes.b, 4)},{" "}
+                    {formatNumber(activeRes.c, 4)}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1">
                   <span className="text-gray-400">Angles (α, β, γ):</span>
                   <span className="font-bold text-accent-cyan">
-                    {formatNumber(activeRes.alphaDeg, 2)}°, {formatNumber(activeRes.betaDeg, 2)}°, {formatNumber(activeRes.gammaDeg, 2)}°
+                    {formatNumber(activeRes.alphaDeg, 2)}°, {formatNumber(activeRes.betaDeg, 2)}°,{" "}
+                    {formatNumber(activeRes.gammaDeg, 2)}°
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1">
                   <span className="text-gray-400">Area:</span>
-                  <span className="font-bold text-accent-green">{formatNumber(activeRes.area, 4)}</span>
+                  <span className="font-bold text-accent-green">
+                    {formatNumber(activeRes.area, 4)}
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1">
                   <span className="text-gray-400">Perimeter:</span>
-                  <span className="font-bold text-white">{formatNumber(activeRes.perimeter, 4)}</span>
+                  <span className="font-bold text-white">
+                    {formatNumber(activeRes.perimeter, 4)}
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1">
                   <span className="text-gray-400">Inradius (r):</span>
-                  <span className="font-bold text-white">{formatNumber(activeRes.inradius, 4)}</span>
+                  <span className="font-bold text-white">
+                    {formatNumber(activeRes.inradius, 4)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Circumradius (R):</span>
-                  <span className="font-bold text-white">{formatNumber(activeRes.circumradius, 4)}</span>
+                  <span className="font-bold text-white">
+                    {formatNumber(activeRes.circumradius, 4)}
+                  </span>
                 </div>
               </div>
             </div>

@@ -363,10 +363,11 @@ export const FUNCTIONS: Record<string, MathFunction> = {
   lcm: {
     name: "lcm",
     fn: ([a, b]) => {
-      let x = Math.abs(Math.round(a));
-      let y = Math.abs(Math.round(b));
+      const x = Math.abs(Math.round(a));
+      const y = Math.abs(Math.round(b));
       if (x === 0 || y === 0) return 0;
-      let gA = x, gB = y;
+      let gA = x,
+        gB = y;
       while (gB !== 0) {
         const t = gB;
         gB = gA % gB;

@@ -57,7 +57,8 @@ export function ArcSolverTool() {
           </div>
 
           <p className="text-[11px] text-gray-400 mb-3">
-            Specify any <strong className="text-white">2 known parameters</strong>. The remaining dimensions will be automatically calculated.
+            Specify any <strong className="text-white">2 known parameters</strong>. The remaining
+            dimensions will be automatically calculated.
           </p>
 
           <div className="space-y-2.5">
@@ -73,7 +74,9 @@ export function ArcSolverTool() {
                   placeholder="e.g. 60"
                   className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white focus:border-accent-cyan/40 focus:outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">mm</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  mm
+                </span>
               </div>
             </div>
 
@@ -89,7 +92,9 @@ export function ArcSolverTool() {
                   placeholder="e.g. 10"
                   className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white focus:border-accent-cyan/40 focus:outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">mm</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  mm
+                </span>
               </div>
             </div>
 
@@ -105,7 +110,9 @@ export function ArcSolverTool() {
                   placeholder="e.g. 50"
                   className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white focus:border-accent-cyan/40 focus:outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">mm</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  mm
+                </span>
               </div>
             </div>
 
@@ -122,7 +129,9 @@ export function ArcSolverTool() {
                     placeholder="e.g. 60"
                     className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white focus:border-accent-cyan/40 focus:outline-none"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">°</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                    °
+                  </span>
                 </div>
               </div>
 
@@ -138,7 +147,9 @@ export function ArcSolverTool() {
                     placeholder="e.g. 52.36"
                     className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white focus:border-accent-cyan/40 focus:outline-none"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">mm</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                    mm
+                  </span>
                 </div>
               </div>
             </div>
@@ -172,15 +183,9 @@ export function ArcSolverTool() {
               </span>
               <svg viewBox="-100 -40 200 140" className="w-56 h-48">
                 {/* Sector fill */}
-                <path
-                  d="M -70 40 A 85 85 0 0 1 70 40 L 0 90 Z"
-                  fill="rgba(0, 212, 255, 0.08)"
-                />
+                <path d="M -70 40 A 85 85 0 0 1 70 40 L 0 90 Z" fill="rgba(0, 212, 255, 0.08)" />
                 {/* Segment fill */}
-                <path
-                  d="M -70 40 A 85 85 0 0 1 70 40 Z"
-                  fill="rgba(245, 158, 11, 0.2)"
-                />
+                <path d="M -70 40 A 85 85 0 0 1 70 40 Z" fill="rgba(245, 158, 11, 0.2)" />
                 {/* Arc stroke */}
                 <path
                   d="M -70 40 A 85 85 0 0 1 70 40"
@@ -189,22 +194,58 @@ export function ArcSolverTool() {
                   strokeWidth="2.5"
                 />
                 {/* Chord stroke */}
-                <line x1="-70" y1="40" x2="70" y2="40" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3,2" />
+                <line
+                  x1="-70"
+                  y1="40"
+                  x2="70"
+                  y2="40"
+                  stroke="#f59e0b"
+                  strokeWidth="2"
+                  strokeDasharray="3,2"
+                />
                 {/* Sagitta height line */}
                 <line x1="0" y1="40" x2="0" y2="5" stroke="#ec4899" strokeWidth="2" />
                 {/* Center point and radius rays */}
                 <circle cx="0" cy="90" r="3" fill="#ffffff" />
-                <line x1="0" y1="90" x2="-70" y2="40" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-                <line x1="0" y1="90" x2="70" y2="40" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                <line
+                  x1="0"
+                  y1="90"
+                  x2="-70"
+                  y2="40"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="1"
+                />
+                <line
+                  x1="0"
+                  y1="90"
+                  x2="70"
+                  y2="40"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="1"
+                />
 
                 {/* Labels */}
-                <text x="0" y="52" fill="#f59e0b" fontSize="8" fontFamily="monospace" textAnchor="middle">
+                <text
+                  x="0"
+                  y="52"
+                  fill="#f59e0b"
+                  fontSize="8"
+                  fontFamily="monospace"
+                  textAnchor="middle"
+                >
                   Chord: {result.data.chord}
                 </text>
                 <text x="8" y="25" fill="#ec4899" fontSize="8" fontFamily="monospace">
                   h: {result.data.sagitta}
                 </text>
-                <text x="0" y="-12" fill="#00d4ff" fontSize="8" fontFamily="monospace" textAnchor="middle">
+                <text
+                  x="0"
+                  y="-12"
+                  fill="#00d4ff"
+                  fontSize="8"
+                  fontFamily="monospace"
+                  textAnchor="middle"
+                >
                   Arc Length: {result.data.arcLength}
                 </text>
               </svg>
@@ -236,7 +277,9 @@ export function ArcSolverTool() {
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1.5">
                   <span className="text-gray-400">Included Angle (θ):</span>
-                  <span className="font-bold text-accent-cyan">{result.data.includedAngleDeg}°</span>
+                  <span className="font-bold text-accent-cyan">
+                    {result.data.includedAngleDeg}°
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1.5">
                   <span className="text-gray-400">Arc Length (s):</span>

@@ -10,10 +10,10 @@ import type { RegressionModel, RegressionResult, Point2D } from "../types";
 export function fitRegression(
   points: Point2D[],
   model: RegressionModel = "linear",
-  polynomialDegree = 2
+  polynomialDegree = 2,
 ): RegressionResult {
   const validPoints = points.filter(
-    (p) => Number.isFinite(p.x) && Number.isFinite(p.y) && !Number.isNaN(p.x) && !Number.isNaN(p.y)
+    (p) => Number.isFinite(p.x) && Number.isFinite(p.y) && !Number.isNaN(p.x) && !Number.isNaN(p.y),
   );
 
   if (validPoints.length < 2) {
@@ -29,7 +29,10 @@ export function fitRegression(
   switch (model) {
     case "linear": {
       // y = m*x + b
-      let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+      let sumX = 0,
+        sumY = 0,
+        sumXY = 0,
+        sumX2 = 0;
       for (const p of validPoints) {
         sumX += p.x;
         sumY += p.y;
@@ -50,7 +53,8 @@ export function fitRegression(
 
     case "quadratic":
     case "polynomial": {
-      const degree = model === "quadratic" ? 2 : Math.min(Math.max(1, polynomialDegree), Math.min(n - 1, 6));
+      const degree =
+        model === "quadratic" ? 2 : Math.min(Math.max(1, polynomialDegree), Math.min(n - 1, 6));
       // Build Vandermonde matrix X of size [n, degree + 1]
       const X_data: number[][] = [];
       const Y_data: number[][] = [];
@@ -72,7 +76,9 @@ export function fitRegression(
 
       // Solve (X^T * X) * A = X^T * Y
       const coeffsMatrix = lusolve(XtX, XtY);
-      const coeffs = ((coeffsMatrix as unknown as { toArray: () => number[][] }).toArray()).map((r) => r[0]);
+      const coeffs = (coeffsMatrix as unknown as { toArray: () => number[][] })
+        .toArray()
+        .map((r) => r[0]);
 
       coeffs.forEach((c, idx) => {
         params[`a${idx}`] = c;
@@ -107,7 +113,10 @@ export function fitRegression(
       const positivePoints = validPoints.filter((p) => p.y > 0);
       if (positivePoints.length < 2) throw new Error("Exponential fit requires positive y values.");
 
-      let sumX = 0, sumLnY = 0, sumXLnY = 0, sumX2 = 0;
+      let sumX = 0,
+        sumLnY = 0,
+        sumXLnY = 0,
+        sumX2 = 0;
       const mCount = positivePoints.length;
       for (const p of positivePoints) {
         const lnY = Math.log(p.y);
@@ -134,7 +143,10 @@ export function fitRegression(
       const positivePoints = validPoints.filter((p) => p.x > 0);
       if (positivePoints.length < 2) throw new Error("Logarithmic fit requires positive x values.");
 
-      let sumLnX = 0, sumY = 0, sumLnXY = 0, sumLnX2 = 0;
+      let sumLnX = 0,
+        sumY = 0,
+        sumLnXY = 0,
+        sumLnX2 = 0;
       const mCount = positivePoints.length;
       for (const p of positivePoints) {
         const lnX = Math.log(p.x);
@@ -160,7 +172,10 @@ export function fitRegression(
       const validPower = validPoints.filter((p) => p.x > 0 && p.y > 0);
       if (validPower.length < 2) throw new Error("Power fit requires positive x and y values.");
 
-      let sumLnX = 0, sumLnY = 0, sumLnXLnY = 0, sumLnX2 = 0;
+      let sumLnX = 0,
+        sumLnY = 0,
+        sumLnXLnY = 0,
+        sumLnX2 = 0;
       const mCount = validPower.length;
       for (const p of validPower) {
         const lnX = Math.log(p.x);

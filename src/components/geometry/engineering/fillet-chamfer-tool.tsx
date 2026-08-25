@@ -96,7 +96,9 @@ export function FilletChamferTool() {
                   placeholder="e.g. 90"
                   className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">°</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  °
+                </span>
               </div>
             </div>
 
@@ -112,7 +114,9 @@ export function FilletChamferTool() {
                   placeholder="e.g. 10"
                   className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">mm</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  mm
+                </span>
               </div>
             </div>
           </div>
@@ -126,7 +130,9 @@ export function FilletChamferTool() {
               <div className="space-y-2">
                 <div className="flex justify-between border-b border-white/[0.04] pb-1.5">
                   <span className="text-gray-400">Tangent Setback (T):</span>
-                  <span className="font-bold text-accent-cyan">{filletResult.tangentSetback} mm</span>
+                  <span className="font-bold text-accent-cyan">
+                    {filletResult.tangentSetback} mm
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1.5">
                   <span className="text-gray-400">Arc Center Offset (D):</span>
@@ -164,7 +170,9 @@ export function FilletChamferTool() {
                 <button
                   onClick={() => setChamferMode("xy")}
                   className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                    chamferMode === "xy" ? "bg-accent-amber/20 text-accent-amber" : "bg-dark-800 text-gray-400"
+                    chamferMode === "xy"
+                      ? "bg-accent-amber/20 text-accent-amber"
+                      : "bg-dark-800 text-gray-400"
                   }`}
                 >
                   Setback X/Y
@@ -172,7 +180,9 @@ export function FilletChamferTool() {
                 <button
                   onClick={() => setChamferMode("x_ang")}
                   className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                    chamferMode === "x_ang" ? "bg-accent-amber/20 text-accent-amber" : "bg-dark-800 text-gray-400"
+                    chamferMode === "x_ang"
+                      ? "bg-accent-amber/20 text-accent-amber"
+                      : "bg-dark-800 text-gray-400"
                   }`}
                 >
                   Setback + Angle
@@ -240,7 +250,9 @@ export function FilletChamferTool() {
                 </div>
                 <div className="flex justify-between border-b border-white/[0.04] pb-1.5">
                   <span className="text-gray-400">Hypotenuse Cut Length:</span>
-                  <span className="font-bold text-accent-cyan">{chamferResult.hypotenuseLength} mm</span>
+                  <span className="font-bold text-accent-cyan">
+                    {chamferResult.hypotenuseLength} mm
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Chamfer Cut Area:</span>

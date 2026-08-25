@@ -75,7 +75,9 @@ export function BoltCircleTool() {
                   onChange={(e) => setPcd(e.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2.5 font-mono text-sm text-white focus:border-accent-amber/40 focus:outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">mm</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  mm
+                </span>
               </div>
             </div>
 
@@ -105,7 +107,9 @@ export function BoltCircleTool() {
                     onChange={(e) => setStartAngle(e.target.value)}
                     className="w-full rounded-xl border border-white/10 bg-dark-800 px-3 py-2 font-mono text-sm text-white focus:border-accent-amber/40 focus:outline-none"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">°</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                    °
+                  </span>
                 </div>
               </div>
             </div>
@@ -193,11 +197,35 @@ export function BoltCircleTool() {
               </span>
               <svg viewBox="-120 -120 240 240" className="w-64 h-64 sm:w-72 sm:h-72">
                 {/* Crosshairs */}
-                <line x1="-110" y1="0" x2="110" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3,3" />
-                <line x1="0" y1="-110" x2="0" y2="110" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3,3" />
+                <line
+                  x1="-110"
+                  y1="0"
+                  x2="110"
+                  y2="0"
+                  stroke="rgba(255,255,255,0.15)"
+                  strokeWidth="1"
+                  strokeDasharray="3,3"
+                />
+                <line
+                  x1="0"
+                  y1="-110"
+                  x2="0"
+                  y2="110"
+                  stroke="rgba(255,255,255,0.15)"
+                  strokeWidth="1"
+                  strokeDasharray="3,3"
+                />
 
                 {/* PCD Circle */}
-                <circle cx="0" cy="0" r="80" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="5,3" />
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="80"
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="1.5"
+                  strokeDasharray="5,3"
+                />
                 <circle cx="0" cy="0" r="3" fill="#ffffff" />
 
                 {/* Holes */}
@@ -208,7 +236,14 @@ export function BoltCircleTool() {
 
                   return (
                     <g key={h.index}>
-                      <circle cx={hx} cy={hy} r="7" fill="rgba(0, 212, 255, 0.2)" stroke="#00d4ff" strokeWidth="2" />
+                      <circle
+                        cx={hx}
+                        cy={hy}
+                        r="7"
+                        fill="rgba(0, 212, 255, 0.2)"
+                        stroke="#00d4ff"
+                        strokeWidth="2"
+                      />
                       <text
                         x={hx}
                         y={hy + 3.5}
@@ -252,7 +287,10 @@ export function BoltCircleTool() {
                   </thead>
                   <tbody>
                     {result.holes.map((h) => (
-                      <tr key={h.index} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+                      <tr
+                        key={h.index}
+                        className="border-b border-white/[0.04] hover:bg-white/[0.02]"
+                      >
                         <td className="py-1.5 font-bold text-accent-cyan">{h.index}</td>
                         <td className="py-1.5 text-gray-400">{h.angleDeg}°</td>
                         <td className="py-1.5 text-white font-semibold">{h.x.toFixed(3)}</td>

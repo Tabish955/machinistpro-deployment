@@ -66,8 +66,8 @@ export interface ParametricItem extends BaseGraphItem {
   type: "parametric";
   xExpr: string; // e.g. "cos(t)"
   yExpr: string; // e.g. "sin(t)"
-  tMin: string;  // e.g. "0"
-  tMax: string;  // e.g. "2*pi"
+  tMin: string; // e.g. "0"
+  tMax: string; // e.g. "2*pi"
   tStep?: string;
 }
 
@@ -114,7 +114,14 @@ export interface TableItem extends BaseGraphItem {
   rows: { x: number | null; y: number | null }[];
   showScatter: boolean;
   joinPoints: boolean;
-  regressionModel?: "none" | "linear" | "quadratic" | "polynomial" | "exponential" | "logarithmic" | "power";
+  regressionModel?:
+    | "none"
+    | "linear"
+    | "quadratic"
+    | "polynomial"
+    | "exponential"
+    | "logarithmic"
+    | "power";
   polynomialDegree?: number;
   showRegressionLine?: boolean;
 }

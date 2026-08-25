@@ -27,10 +27,11 @@ export function exportGraphToSVG(
   markers: Array<{ x: number; y: number; label?: string; color?: string }>,
   width = 1200,
   height = 800,
-  filename = "machinistpro-graph.svg"
+  filename = "machinistpro-graph.svg",
 ) {
   const toSvgX = (x: number) => ((x - viewport.xMin) / (viewport.xMax - viewport.xMin)) * width;
-  const toSvgY = (y: number) => height - ((y - viewport.yMin) / (viewport.yMax - viewport.yMin)) * height;
+  const toSvgY = (y: number) =>
+    height - ((y - viewport.yMin) / (viewport.yMax - viewport.yMin)) * height;
 
   const paths: string[] = [];
 
@@ -64,7 +65,9 @@ export function exportGraphToSVG(
       }
     }
     if (d) {
-      paths.push(`<path d="${d}" fill="none" stroke="${curve.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`);
+      paths.push(
+        `<path d="${d}" fill="none" stroke="${curve.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`,
+      );
     }
   }
 
@@ -103,7 +106,7 @@ export function exportTableToCSV(
   rows: { x: number | null; y: number | null }[],
   xLabel = "x",
   yLabel = "y",
-  filename = "machinistpro-data.csv"
+  filename = "machinistpro-data.csv",
 ) {
   const lines = [`${xLabel},${yLabel}`];
   for (const row of rows) {
@@ -127,7 +130,7 @@ export function exportSessionToJSON(
   items: GraphItem[],
   viewport: Viewport,
   settings: GraphSettings,
-  filename = "machinistpro-graph-session.json"
+  filename = "machinistpro-graph-session.json",
 ) {
   const session: SessionData = {
     version: "2.0",

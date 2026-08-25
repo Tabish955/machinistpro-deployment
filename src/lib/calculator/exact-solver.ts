@@ -51,15 +51,21 @@ export function simplifySquareRoot(n: number): { k: number; m: number; str: stri
 /**
  * Convert a decimal number to an exact irreducible fraction using Farey/Continued Fractions
  */
-export function toExactFraction(val: number, tolerance = 1e-7, maxDenominator = 10000): { num: number; den: number; str: string } | null {
+export function toExactFraction(
+  val: number,
+  tolerance = 1e-7,
+  maxDenominator = 10000,
+): { num: number; den: number; str: string } | null {
   if (!Number.isFinite(val)) return null;
   if (Number.isInteger(val)) return { num: val, den: 1, str: String(val) };
 
   const sign = val < 0 ? -1 : 1;
   const target = Math.abs(val);
 
-  let h1 = 1, h2 = 0;
-  let k1 = 0, k2 = 1;
+  let h1 = 1,
+    h2 = 0;
+  let k1 = 0,
+    k2 = 1;
   let b = target;
 
   do {
@@ -73,9 +79,17 @@ export function toExactFraction(val: number, tolerance = 1e-7, maxDenominator = 
     k2 = aux;
 
     b = 1 / (b - a);
-  } while (Math.abs(target - h1 / k1) > target * tolerance && k1 <= maxDenominator && Number.isFinite(b));
+  } while (
+    Math.abs(target - h1 / k1) > target * tolerance &&
+    k1 <= maxDenominator &&
+    Number.isFinite(b)
+  );
 
-  if (k1 > 1 && k1 <= maxDenominator && Math.abs(target - h1 / k1) <= Math.max(1e-5, target * 1e-4)) {
+  if (
+    k1 > 1 &&
+    k1 <= maxDenominator &&
+    Math.abs(target - h1 / k1) <= Math.max(1e-5, target * 1e-4)
+  ) {
     const num = sign * h1;
     return {
       num,
@@ -92,7 +106,7 @@ export function toExactFraction(val: number, tolerance = 1e-7, maxDenominator = 
  */
 export function exactTrig(
   fn: "sin" | "cos" | "tan",
-  angleDeg: number
+  angleDeg: number,
 ): { exact: string; approx: number } | null {
   // Normalize angle to [0, 360)
   let norm = Math.round(angleDeg) % 360;
@@ -132,7 +146,7 @@ export function exactTrig(
  */
 export function solveExactAndApproximate(
   numericValue: number,
-  rawExpression?: string
+  rawExpression?: string,
 ): ExactResult {
   const approxStr = Number.isInteger(numericValue)
     ? String(numericValue)

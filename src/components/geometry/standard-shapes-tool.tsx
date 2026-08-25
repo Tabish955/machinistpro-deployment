@@ -103,7 +103,9 @@ export function StandardShapesTool() {
             className="rounded-lg bg-dark-800 border border-white/10 px-2 py-1 text-xs text-white [color-scheme:dark]"
           >
             {LENGTH_UNITS.map((u) => (
-              <option key={u.id} value={u.id}>{u.label}</option>
+              <option key={u.id} value={u.id}>
+                {u.label}
+              </option>
             ))}
           </select>
 
@@ -114,7 +116,9 @@ export function StandardShapesTool() {
             className="rounded-lg bg-dark-800 border border-white/10 px-2 py-1 text-xs text-white [color-scheme:dark]"
           >
             {LENGTH_UNITS.map((u) => (
-              <option key={u.id} value={u.id}>{u.label}</option>
+              <option key={u.id} value={u.id}>
+                {u.label}
+              </option>
             ))}
           </select>
         </div>

@@ -17,9 +17,7 @@ export function StatisticsView() {
   const tableValues = useMemo(() => {
     const tables = items.filter((it): it is TableItem => it.type === "table");
     if (tables.length > 0) {
-      return tables[0].rows
-        .filter((r) => r.y !== null)
-        .map((r) => r.y as number);
+      return tables[0].rows.filter((r) => r.y !== null).map((r) => r.y as number);
     }
     return manualInput
       .split(/[,\s]+/)
@@ -58,19 +56,27 @@ export function StatisticsView() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
         <div className="rounded-xl bg-dark-800/60 p-2.5">
           <div className="text-[10px] uppercase text-gray-500">Mean (x̄)</div>
-          <div className="mt-1 text-sm font-bold text-accent-cyan">{formatNumber(stats.mean, 4)}</div>
+          <div className="mt-1 text-sm font-bold text-accent-cyan">
+            {formatNumber(stats.mean, 4)}
+          </div>
         </div>
         <div className="rounded-xl bg-dark-800/60 p-2.5">
           <div className="text-[10px] uppercase text-gray-500">Median (Q2)</div>
-          <div className="mt-1 text-sm font-bold text-accent-green">{formatNumber(stats.median, 4)}</div>
+          <div className="mt-1 text-sm font-bold text-accent-green">
+            {formatNumber(stats.median, 4)}
+          </div>
         </div>
         <div className="rounded-xl bg-dark-800/60 p-2.5">
           <div className="text-[10px] uppercase text-gray-500">Std Dev (s)</div>
-          <div className="mt-1 text-sm font-bold text-accent-amber">{formatNumber(stats.stdDev, 4)}</div>
+          <div className="mt-1 text-sm font-bold text-accent-amber">
+            {formatNumber(stats.stdDev, 4)}
+          </div>
         </div>
         <div className="rounded-xl bg-dark-800/60 p-2.5">
           <div className="text-[10px] uppercase text-gray-500">Variance (s²)</div>
-          <div className="mt-1 text-sm font-bold text-accent-purple">{formatNumber(stats.variance, 4)}</div>
+          <div className="mt-1 text-sm font-bold text-accent-purple">
+            {formatNumber(stats.variance, 4)}
+          </div>
         </div>
       </div>
 
@@ -111,9 +117,7 @@ export function StatisticsView() {
                     style={{ height: `${Math.max(4, heightPct)}%` }}
                     className="w-full rounded-t-md bg-accent-amber/70 transition hover:bg-accent-amber"
                   />
-                  <div className="mt-1 text-[9px] font-mono text-gray-500">
-                    {bin.x0.toFixed(0)}
-                  </div>
+                  <div className="mt-1 text-[9px] font-mono text-gray-500">{bin.x0.toFixed(0)}</div>
                   {/* Tooltip */}
                   <div className="absolute -top-7 z-20 hidden rounded bg-dark-900 px-1.5 py-0.5 text-[9px] font-mono text-accent-amber shadow group-hover:block">
                     Count: {bin.count}
@@ -133,7 +137,8 @@ export function StatisticsView() {
             {/* Range mapping helper */}
             {(() => {
               const range = boxPlot.max - boxPlot.min || 1;
-              const toPct = (v: number) => `${Math.max(0, Math.min(100, ((v - boxPlot.min) / range) * 100))}%`;
+              const toPct = (v: number) =>
+                `${Math.max(0, Math.min(100, ((v - boxPlot.min) / range) * 100))}%`;
 
               return (
                 <div className="relative w-full h-6">
@@ -142,7 +147,7 @@ export function StatisticsView() {
                     className="absolute top-1/2 h-0.5 -translate-y-1/2 bg-gray-500"
                     style={{
                       left: toPct(boxPlot.lowerWhisker),
-                      width: `${Math.max(2, (((boxPlot.upperWhisker - boxPlot.lowerWhisker) / range) * 100))}%`,
+                      width: `${Math.max(2, ((boxPlot.upperWhisker - boxPlot.lowerWhisker) / range) * 100)}%`,
                     }}
                   />
                   {/* IQR Box */}
@@ -150,7 +155,7 @@ export function StatisticsView() {
                     className="absolute top-0 h-full rounded border border-accent-cyan/80 bg-accent-cyan/20"
                     style={{
                       left: toPct(boxPlot.q1),
-                      width: `${Math.max(4, (((boxPlot.q3 - boxPlot.q1) / range) * 100))}%`,
+                      width: `${Math.max(4, ((boxPlot.q3 - boxPlot.q1) / range) * 100)}%`,
                     }}
                   />
                   {/* Median Line */}

@@ -139,7 +139,7 @@ export interface TriangleResult {
   b: number;
   c: number;
   alphaDeg: number; // Angle opposite to a
-  betaDeg: number;  // Angle opposite to b
+  betaDeg: number; // Angle opposite to b
   gammaDeg: number; // Angle opposite to c
   area: number;
   perimeter: number;
