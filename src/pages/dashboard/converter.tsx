@@ -26,8 +26,10 @@ import {
   ArrowDownUp,
   ChevronDown,
   X,
+  Coins,
 } from "lucide-react";
 import { useCopy } from "@/hooks/use-copy";
+import { CurrencySuite } from "@/components/currency/currency-suite";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Category grid (selection screen)
@@ -470,6 +472,10 @@ function ConversionView({ category, onBack }: { category: CategoryDef; onBack: (
    ═══════════════════════════════════════════════════════════════════════════ */
 
 export default function ConverterPage() {
+  const [activeTab, setActiveTab] = usePersistentState<"units" | "currency">(
+    "converter.ConverterPage.activeTab",
+    "units"
+  );
   const [selectedCatId, setSelectedCatId] = usePersistentState<string | null>(
     "converter.ConverterPage.selectedCatId",
     null,
@@ -480,62 +486,106 @@ export default function ConverterPage() {
 
   return (
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
-      <PageHeader
-        title="Unit Converter"
-        description="Convert between hundreds of engineering units instantly"
-        icon={<ArrowRightLeft size={22} className="text-accent-blue" />}
-        iconColor="blue"
-        status="available"
-      />
+      {/* Mode Switcher Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+        <div className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-dark-800/80 p-1">
+          <button
+            onClick={() => setActiveTab("units")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold transition ${
+              activeTab === "units"
+                ? "bg-accent-blue/20 text-accent-blue border border-accent-blue/30 shadow-sm"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <ArrowRightLeft size={16} />
+            <span>Engineering Units</span>
+          </button>
 
-      {!selectedCat ? (
-        <>
-          {/* Recent conversions */}
-          {recentConversions.length > 0 && (
-            <div>
-              <SectionHeader
-                title="Recent Conversions"
-                action={{ label: "Clear", onClick: clearRecent }}
-              />
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {recentConversions.slice(0, 8).map((r) => {
-                  const cat = CATEGORY_MAP.get(r.category);
-                  return (
-                    <button
-                      key={r.id}
-                      onClick={() => {
-                        if (cat) setSelectedCatId(cat.id);
-                      }}
-                      className="shrink-0 p-3 rounded-xl bg-dark-800/60 border border-dark-700 hover:border-dark-500 transition-all text-left min-w-[180px] cursor-pointer"
-                    >
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Badge color="gray" className="text-[8px]">
-                          {cat?.name ?? r.category}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-white font-mono">
-                        {formatValue(r.fromValue)}{" "}
-                        <span className="text-gray-500">{r.fromUnit.symbol}</span>
-                        {" → "}
-                        <span className="text-accent-cyan">{formatValue(r.toValue)}</span>{" "}
-                        <span className="text-gray-500">{r.toUnit.symbol}</span>
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <button
+            onClick={() => setActiveTab("currency")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold transition ${
+              activeTab === "currency"
+                ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30 shadow-sm"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Coins size={16} />
+            <span>Currency & Forex Rates (OANDA)</span>
+          </button>
+        </div>
+      </div>
 
-          <SectionHeader title="Choose a Category" />
-          <CategoryGrid onSelect={(cat) => setSelectedCatId(cat.id)} />
-        </>
+      {activeTab === "currency" ? (
+        <div className="space-y-6">
+          <PageHeader
+            title="Currency & Forex Exchange Rates"
+            description="Real-time multi-currency converter, interactive historical trends, and OANDA-style live rates"
+            icon={<Coins size={22} className="text-accent-cyan" />}
+            iconColor="cyan"
+            status="available"
+          />
+          <CurrencySuite />
+        </div>
       ) : (
-        <ConversionView
-          key={selectedCat.id}
-          category={selectedCat}
-          onBack={() => setSelectedCatId(null)}
-        />
+        <>
+          <PageHeader
+            title="Unit Converter"
+            description="Convert between hundreds of engineering units instantly"
+            icon={<ArrowRightLeft size={22} className="text-accent-blue" />}
+            iconColor="blue"
+            status="available"
+          />
+
+          {!selectedCat ? (
+            <>
+              {/* Recent conversions */}
+              {recentConversions.length > 0 && (
+                <div>
+                  <SectionHeader
+                    title="Recent Conversions"
+                    action={{ label: "Clear", onClick: clearRecent }}
+                  />
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                    {recentConversions.slice(0, 8).map((r) => {
+                      const cat = CATEGORY_MAP.get(r.category);
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => {
+                            if (cat) setSelectedCatId(cat.id);
+                          }}
+                          className="shrink-0 p-3 rounded-xl bg-dark-800/60 border border-dark-700 hover:border-dark-500 transition-all text-left min-w-[180px] cursor-pointer"
+                        >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Badge color="gray" className="text-[8px]">
+                              {cat?.name ?? r.category}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-white font-mono">
+                            {formatValue(r.fromValue)}{" "}
+                            <span className="text-gray-500">{r.fromUnit.symbol}</span>
+                            {" → "}
+                            <span className="text-accent-cyan">{formatValue(r.toValue)}</span>{" "}
+                            <span className="text-gray-500">{r.toUnit.symbol}</span>
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <SectionHeader title="Choose a Category" />
+              <CategoryGrid onSelect={(cat) => setSelectedCatId(cat.id)} />
+            </>
+          ) : (
+            <ConversionView
+              key={selectedCat.id}
+              category={selectedCat}
+              onBack={() => setSelectedCatId(null)}
+            />
+          )}
+        </>
       )}
     </div>
   );
