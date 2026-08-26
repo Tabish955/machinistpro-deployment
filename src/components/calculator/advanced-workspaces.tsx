@@ -4,6 +4,7 @@ import { GraphingCalculator } from "@/components/graphing/graphing-calculator";
 import { StatisticsSuite } from "./statistics-suite";
 import { ComplexSuite } from "./complex-suite";
 import { EquationSuite } from "./equation-suite";
+import { EquationWorkspace as ProfessionalEquationWorkspace } from "@/components/equation/equation-workspace";
 import {
   cartesianToPolar,
   complexDetails,
@@ -861,7 +862,7 @@ function MatrixWorkspace() {
 }
 
 function EquationWorkspace() {
-  return <EquationSuite />;
+  return <ProfessionalEquationWorkspace />;
 }
 
 const colors = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#fb7185", "#60a5fa"];
