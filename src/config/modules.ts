@@ -125,7 +125,7 @@ export const calculatorModules: ModuleConfig[] = [
     name: "Currency & Forex Rates",
     shortName: "Currency",
     description:
-      "Live multi-currency converter, interactive historical trends, and OANDA-style forex cross-rates (Fiat, Crypto, Precious Metals)",
+      "Live multi-currency converter, interactive historical trends, and institutional forex cross-rates (Fiat, Crypto, Precious Metals)",
     icon: Coins,
     href: "/dashboard/currency",
     color: "amber",
@@ -136,7 +136,8 @@ export const calculatorModules: ModuleConfig[] = [
       "forex",
       "exchange rate",
       "converter",
-      "oanda",
+      "interbank",
+      "kwd",
       "usd",
       "eur",
       "pkr",

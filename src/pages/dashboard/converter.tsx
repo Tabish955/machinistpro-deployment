@@ -510,7 +510,7 @@ export default function ConverterPage() {
             }`}
           >
             <Coins size={16} />
-            <span>Currency & Forex Rates (OANDA)</span>
+            <span>Currency & Forex Rates</span>
           </button>
         </div>
       </div>
@@ -519,7 +519,7 @@ export default function ConverterPage() {
         <div className="space-y-6">
           <PageHeader
             title="Currency & Forex Exchange Rates"
-            description="Real-time multi-currency converter, interactive historical trends, and OANDA-style live rates"
+            description="Real-time multi-currency converter, interactive historical trends, and institutional live market rates"
             icon={<Coins size={22} className="text-accent-cyan" />}
             iconColor="cyan"
             status="available"

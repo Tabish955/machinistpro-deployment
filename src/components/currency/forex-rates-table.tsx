@@ -44,10 +44,10 @@ export function ForexRatesTable({ ratesRelativeUSD, onSelectPair }: ForexRatesTa
         <div>
           <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
             <TableIcon size={16} className="text-accent-cyan" />
-            <span>OANDA-Style Live Forex Market Rates</span>
+            <span>Institutional Live Forex Market Rates</span>
           </h3>
           <p className="text-xs text-gray-400">
-            Real-time institutional bid/ask quotes, spreads, and cross-rate matrix
+            Real-time interbank bid/ask quotes, spreads, and multi-currency cross-rate matrix
           </p>
         </div>
 
@@ -158,7 +158,7 @@ export function ForexRatesTable({ ratesRelativeUSD, onSelectPair }: ForexRatesTa
         </div>
       )}
 
-      {/* View 2: OANDA-Style N x N Cross Rate Matrix */}
+      {/* View 2: Global Institutional N x N Cross Rate Matrix */}
       {viewMode === "matrix" && (
         <div className="overflow-x-auto rounded-xl border border-white/[0.06] bg-dark-950 p-2">
           <table className="w-full text-center text-xs">

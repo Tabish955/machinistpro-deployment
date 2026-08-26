@@ -8,7 +8,7 @@ export default function CurrencyPage() {
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
       <PageHeader
         title="Currency & Forex Exchange Rates"
-        description="Real-time multi-currency converter, interactive historical trends, and OANDA-style institutional market rates"
+        description="Real-time multi-currency converter, interactive historical trends, and institutional interbank market rates"
         icon={<Coins size={22} className="text-accent-amber" />}
         iconColor="amber"
         status="available"

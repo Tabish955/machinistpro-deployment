@@ -37,7 +37,7 @@ export function CurrencySuite() {
         <ExchangeRateChart baseCurrency={activeBase} targetCurrency={activeTarget} />
       </div>
 
-      {/* Bottom Section: OANDA Live Forex Table & Cross Matrix */}
+      {/* Bottom Section: Institutional Live Forex Table & Cross Matrix */}
       <ForexRatesTable
         ratesRelativeUSD={ratesUSD}
         onSelectPair={handleSelectFromTable}

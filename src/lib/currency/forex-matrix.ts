@@ -1,5 +1,5 @@
 /**
- * OANDA-Style Multi-Currency Cross-Rates Matrix & Market Pairs Engine
+ * Institutional Multi-Currency Cross-Rates Matrix & Market Pairs Engine
  */
 
 export interface CrossRateCell {

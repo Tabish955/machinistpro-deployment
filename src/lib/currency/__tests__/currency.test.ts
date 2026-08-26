@@ -65,7 +65,7 @@ describe("Currency Engine & Catalog", () => {
     expect(formatRelativeTime(now - 3600000 * 2)).toBe("2 hours ago");
   });
 
-  it("builds OANDA-style cross rate matrix", () => {
+  it("builds institutional cross rate matrix", () => {
     const currencies = ["USD", "EUR", "GBP"];
     const ratesRelativeUSD = {
       USD: 1.0,
