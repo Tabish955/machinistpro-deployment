@@ -3,6 +3,7 @@ import { evaluate } from "mathjs";
 import { GraphingCalculator } from "@/components/graphing/graphing-calculator";
 import { StatisticsSuite } from "./statistics-suite";
 import { ComplexSuite } from "./complex-suite";
+import { EquationSuite } from "./equation-suite";
 import {
   cartesianToPolar,
   complexDetails,
@@ -860,78 +861,7 @@ function MatrixWorkspace() {
 }
 
 function EquationWorkspace() {
-  const [coefficients, setCoefficients] = useState("1, -6, 11, -6");
-  const [matrixA, setMatrixA] = useState("2 1; 1 -1");
-  const [vectorB, setVectorB] = useState("5; 1");
-  const [result, setResult] = useState<unknown>(null);
-  const [error, setError] = useState("");
-  const polynomial = () => {
-    try {
-      setResult(
-        solvePolynomial(
-          coefficients
-            .split(/[\s,]+/)
-            .filter(Boolean)
-            .map(Number),
-        ),
-      );
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Invalid coefficients.");
-    }
-  };
-  const system = () => {
-    try {
-      setResult(matrixOperation(matrixA, "solve", vectorB));
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Invalid system.");
-    }
-  };
-  return (
-    <Workspace title="Equation" subtitle="Linear, quadratic, cubic and simultaneous equations">
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className={panel}>
-          <label className="text-xs text-gray-400">
-            Polynomial coefficients (highest degree first)
-          </label>
-          <input
-            className={`${field} mt-2`}
-            value={coefficients}
-            onChange={(e) => setCoefficients(e.target.value)}
-          />
-          <button className={`${primary} mt-2`} onClick={polynomial}>
-            Solve polynomial
-          </button>
-        </div>
-        <div className={panel}>
-          <label className="text-xs text-gray-400">System A and vector b</label>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <textarea
-              className={`${field} min-h-20 font-mono`}
-              value={matrixA}
-              onChange={(e) => setMatrixA(e.target.value)}
-            />
-            <textarea
-              className={`${field} min-h-20 font-mono`}
-              value={vectorB}
-              onChange={(e) => setVectorB(e.target.value)}
-            />
-          </div>
-          <button className={`${primary} mt-2`} onClick={system}>
-            Solve system
-          </button>
-        </div>
-      </div>
-      <Result error={error}>
-        {result !== null && (
-          <pre className="whitespace-pre-wrap font-mono text-sm text-white">
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        )}
-      </Result>
-    </Workspace>
-  );
+  return <EquationSuite />;
 }
 
 const colors = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#fb7185", "#60a5fa"];
