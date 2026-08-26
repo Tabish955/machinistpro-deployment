@@ -13,6 +13,7 @@ import {
 import { CurrencyDropdown } from "./currency-dropdown";
 import {
   getExchangeRates,
+  getCrossRate,
   convertCurrency,
   formatRelativeTime,
   type ExchangeRatesData,
@@ -52,7 +53,7 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
         setRatesData(data);
         setIsCached(isFromCache);
 
-        const currentRate = data.rates[targetCurrency] || 1;
+        const currentRate = getCrossRate(base, targetCurrency, data);
         onPairChange?.(base, targetCurrency, currentRate);
       } catch (err: any) {
         console.error("Exchange rates fetch error:", err);
@@ -74,16 +75,13 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
     return () => clearInterval(interval);
   }, [baseCurrency, fetchRates]);
 
-  // Handle active calculations
+  // Handle active calculations using cross-rate triangulation
   useEffect(() => {
-    if (!ratesData) return;
-
-    const baseRate = ratesData.rates[baseCurrency] || 1;
-    const targetRate = ratesData.rates[targetCurrency] || 1;
+    const crossRate = getCrossRate(baseCurrency, targetCurrency, ratesData);
 
     if (activeField === "base") {
-      const numBase = typeof baseAmount === "number" ? baseAmount : parseFloat(baseAmount) || 0;
-      const converted = convertCurrency(numBase, baseRate, targetRate);
+      const numBase = typeof baseAmount === "number" ? baseAmount : parseFloat(String(baseAmount)) || 0;
+      const converted = numBase * crossRate;
       setTargetAmount(
         converted === 0
           ? ""
@@ -92,8 +90,9 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
           : parseFloat(converted.toFixed(converted < 1 ? 6 : 4))
       );
     } else {
-      const numTarget = typeof targetAmount === "number" ? targetAmount : parseFloat(targetAmount) || 0;
-      const converted = convertCurrency(numTarget, targetRate, baseRate);
+      const numTarget = typeof targetAmount === "number" ? targetAmount : parseFloat(String(targetAmount)) || 0;
+      const inverseRate = crossRate > 0 ? 1 / crossRate : 0;
+      const converted = numTarget * inverseRate;
       setBaseAmount(
         converted === 0
           ? ""
@@ -103,8 +102,7 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
       );
     }
 
-    const currentPairRate = (1 / baseRate) * targetRate;
-    onPairChange?.(baseCurrency, targetCurrency, currentPairRate);
+    onPairChange?.(baseCurrency, targetCurrency, crossRate);
   }, [baseCurrency, targetCurrency, baseAmount, targetAmount, activeField, ratesData, onPairChange]);
 
   // Swap Base and Target
@@ -130,8 +128,8 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
   const baseMeta = getCurrencyMeta(baseCurrency);
   const targetMeta = getCurrencyMeta(targetCurrency);
 
-  const unitRate = ratesData ? ratesData.rates[targetCurrency] || 0 : 0;
-  const inverseUnitRate = unitRate > 0 ? 1 / unitRate : 0;
+  const unitRate = getCrossRate(baseCurrency, targetCurrency, ratesData);
+  const inverseUnitRate = getCrossRate(targetCurrency, baseCurrency, ratesData);
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-2xl backdrop-blur-xl transition-all">

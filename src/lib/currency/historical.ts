@@ -3,7 +3,7 @@
  * Fetches time-series data from currency-api CDN snapshots and computes key metrics.
  */
 
-import { getExchangeRates } from "./api";
+import { getExchangeRates, getCrossRate } from "./api";
 
 export interface HistoricalDataPoint {
   date: string;
@@ -114,7 +114,7 @@ export async function fetchHistoricalSeries(
   if (validPoints.length < 3) {
     try {
       const liveRes = await getExchangeRates(base);
-      const liveTargetRate = liveRes.data.rates[target.toUpperCase()] || 1;
+      const liveTargetRate = getCrossRate(base, target, liveRes.data);
 
       // Seed deterministic variance based on currency pair codes
       const seed = (base.charCodeAt(0) * 31 + target.charCodeAt(0)) % 100;

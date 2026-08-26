@@ -4,7 +4,7 @@ import {
   getCurrencyMeta,
   searchCurrencies,
 } from "../database";
-import { convertCurrency, formatRelativeTime } from "../api";
+import { convertCurrency, formatRelativeTime, getCrossRate } from "../api";
 import { buildCrossRateMatrix, calculatePairQuotes } from "../forex-matrix";
 import { getPastDateString } from "../historical";
 
@@ -48,14 +48,20 @@ describe("Currency Engine & Catalog", () => {
     expect(metalOnly.some((c) => c.code === "XAG")).toBe(true);
   });
 
-  it("converts amounts correctly given base and target rate ratios", () => {
-    // 100 USD (rate 1.0) to EUR (rate 0.9) -> 90 EUR
-    const res = convertCurrency(100, 1.0, 0.9);
-    expect(res).toBeCloseTo(90, 4);
+  it("accurately calculates cross rates for IRR to PKR without 1:1 USD fallback bugs", () => {
+    // IRR to PKR rate: 1 USD = 42105 IRR, 1 USD = 278.5 PKR -> 1 IRR ~ 0.0066 PKR
+    const irrToPkr = getCrossRate("IRR", "PKR");
+    expect(irrToPkr).toBeLessThan(0.01);
+    expect(irrToPkr).toBeGreaterThan(0.0001);
 
-    // 90 EUR (rate 0.9) to USD (rate 1.0) -> 100 USD
-    const back = convertCurrency(90, 0.9, 1.0);
-    expect(back).toBeCloseTo(100, 4);
+    // KWD to PKR rate: 1 USD = 0.306 KWD, 1 USD = 278.5 PKR -> 1 KWD ~ 910 PKR
+    const kwdToPkr = getCrossRate("KWD", "PKR");
+    expect(kwdToPkr).toBeGreaterThan(800);
+    expect(kwdToPkr).toBeLessThan(1000);
+
+    // 100 USD to EUR
+    const res = convertCurrency(100, "USD", "EUR");
+    expect(res).toBeCloseTo(92, 1);
   });
 
   it("formats relative timestamps correctly", () => {

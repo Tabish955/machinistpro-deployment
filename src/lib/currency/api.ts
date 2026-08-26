@@ -1,6 +1,6 @@
 /**
- * High-Speed Resilient Currency Exchange Rate Service
- * Supports multi-source CDN failovers, client-side caching, exponential backoff, and offline fallback snapshots.
+ * High-Speed Resilient Currency Exchange Rate Service & Cross-Rate Engine
+ * Supports multi-source CDN failovers, client-side caching, exponential backoff, and full baseline rates.
  */
 
 export interface ExchangeRatesData {
@@ -16,8 +16,8 @@ const CACHE_TTL_MS = 60 * 1000; // 1 minute fresh rate refresh interval
 // In-memory cache
 const memoryCache = new Map<string, { data: ExchangeRatesData; expiry: number }>();
 
-// Built-in baseline rates (relative to USD) to guarantee instant fallback
-const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
+// Built-in baseline rates (relative to 1 USD) covering all world currencies, precious metals & crypto
+export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   USD: 1.0,
   EUR: 0.92,
   GBP: 0.79,
@@ -26,14 +26,23 @@ const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   AUD: 1.52,
   CHF: 0.91,
   CNY: 7.24,
+  CNH: 7.25,
   INR: 83.5,
   PKR: 278.5,
-  AED: 3.67,
+  AED: 3.6725,
   SAR: 3.75,
-  KWD: 0.31,
+  KWD: 0.306,
   QAR: 3.64,
-  BHD: 0.38,
-  OMR: 0.38,
+  BHD: 0.377,
+  OMR: 0.385,
+  JOD: 0.709,
+  IQD: 1310.0,
+  LBP: 89500.0,
+  SYP: 13000.0,
+  YER: 250.0,
+  IRR: 42105.0, // Official interbank baseline ~ 42,105 IRR / USD
+  ILS: 3.72,
+  TRY: 32.5,
   SGD: 1.35,
   HKD: 7.82,
   NZD: 1.66,
@@ -42,22 +51,224 @@ const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   NOK: 10.8,
   DKK: 6.87,
   PLN: 3.96,
-  TRY: 32.5,
   BRL: 5.15,
   MXN: 16.8,
   ZAR: 18.5,
   RUB: 91.0,
+  IDR: 16200.0,
+  MYR: 4.71,
+  THB: 36.8,
+  PHP: 58.2,
+  VND: 25450.0,
+  BDT: 117.5,
+  LKR: 302.0,
+  NPR: 133.5,
+  AFN: 71.5,
+  EGP: 47.8,
+  NGN: 1450.0,
+  KES: 132.0,
+  GHS: 14.5,
+  MAD: 10.1,
+  DZD: 134.5,
+  TND: 3.12,
+  ARS: 885.0,
+  CLP: 935.0,
+  COP: 3900.0,
+  PEN: 3.74,
+  CZK: 23.2,
+  HUF: 365.0,
+  RON: 4.62,
+  BGN: 1.80,
+  HRK: 7.02,
+  RSD: 108.5,
+  UAH: 40.5,
+  KZT: 445.0,
+  UZS: 12650.0,
+  AZN: 1.70,
+  GEL: 2.75,
+  ALL: 93.5,
+  AMD: 388.0,
+  ANG: 1.80,
+  AOA: 855.0,
+  AWG: 1.80,
+  BAM: 1.80,
+  BBD: 2.0,
+  BIF: 2875.0,
+  BMD: 1.0,
+  BND: 1.35,
+  BOB: 6.91,
+  BSD: 1.0,
+  BTN: 83.5,
+  BWP: 13.6,
+  BYN: 3.27,
+  BZD: 2.0,
+  CDF: 2800.0,
+  CRC: 520.0,
+  CUP: 24.0,
+  CVE: 102.5,
+  DJF: 178.0,
+  DOP: 59.0,
+  ERN: 15.0,
+  ETB: 57.5,
+  FJD: 2.25,
+  FKP: 0.79,
+  GIP: 0.79,
+  GMD: 68.0,
+  GNF: 8600.0,
+  GTQ: 7.78,
+  GYD: 209.0,
+  HNL: 24.7,
+  HTG: 132.5,
+  ISK: 139.0,
+  JMD: 156.0,
+  KGS: 87.5,
+  KHR: 4080.0,
+  KMF: 455.0,
+  KPW: 900.0,
+  KYD: 0.83,
+  LAK: 21500.0,
+  LRD: 194.0,
+  LSL: 18.5,
+  LYD: 4.88,
+  MDL: 17.7,
+  MGA: 4500.0,
+  MKD: 57.0,
+  MMK: 2100.0,
+  MNT: 3450.0,
+  MOP: 8.05,
+  MRU: 39.8,
+  MUR: 46.5,
+  MVR: 15.4,
+  MWK: 1735.0,
+  MZN: 63.8,
+  NAD: 18.5,
+  NIO: 36.8,
+  PAB: 1.0,
+  PGK: 3.85,
+  PYG: 7500.0,
+  RWF: 1300.0,
+  SBD: 8.5,
+  SCR: 13.6,
+  SDG: 600.0,
+  SHP: 0.79,
+  SLE: 22.5,
+  SOS: 571.0,
+  SRD: 32.5,
+  SSP: 130.0,
+  STN: 22.8,
+  SVC: 8.75,
+  SZL: 18.5,
+  TJS: 10.9,
+  TMT: 3.5,
+  TOP: 2.36,
+  TTD: 6.78,
+  TVD: 1.52,
+  TWD: 32.3,
+  TZS: 2600.0,
+  UGX: 3750.0,
+  UYU: 38.8,
+  VES: 36.5,
+  VUV: 120.0,
+  WST: 2.75,
+  XAF: 605.0,
+  XCD: 2.70,
+  XOF: 605.0,
+  XPF: 110.0,
+  ZMW: 26.5,
+  ZWG: 13.8,
   XAU: 0.00042, // Gold ~ $2,380/oz
   XAG: 0.034,   // Silver ~ $29/oz
   XPT: 0.00105, // Platinum ~ $950/oz
   XPD: 0.00102, // Palladium ~ $980/oz
+  XDR: 0.76,
+  XCG: 1.80,
   BTC: 0.000015, // Bitcoin ~ $66,000
   ETH: 0.00028,  // Ethereum ~ $3,500
   BNB: 0.0017,
   SOL: 0.0068,
+  XRP: 1.95,
+  DOGE: 6.8,
+  ADA: 2.2,
+  TRX: 8.3,
+  AVAX: 0.032,
+  DOT: 0.15,
+  MATIC: 1.4,
+  LTC: 0.012,
+  LINK: 0.065,
+  NEAR: 0.16,
+  UNI: 0.11,
+  XLM: 9.5,
   USDT: 1.0,
   USDC: 1.0,
 };
+
+/**
+ * Calculate accurate cross-exchange rate between any two currencies (From -> To)
+ * Eliminates single-base mismatch bugs (e.g. 1 IRR = 278 PKR)
+ */
+export function getCrossRate(
+  fromCode: string,
+  toCode: string,
+  ratesData?: ExchangeRatesData | null
+): number {
+  const from = fromCode.toUpperCase().trim();
+  const to = toCode.toUpperCase().trim();
+
+  if (!from || !to) return 1;
+  if (from === to) return 1;
+
+  // If live ratesData is available
+  if (ratesData && ratesData.rates) {
+    const base = ratesData.base.toUpperCase().trim();
+
+    // 1. Direct match: ratesData is already keyed to 'from'
+    if (base === from && typeof ratesData.rates[to] === "number" && ratesData.rates[to] > 0) {
+      return ratesData.rates[to];
+    }
+
+    // 2. Direct inverse: ratesData is keyed to 'to'
+    if (base === to && typeof ratesData.rates[from] === "number" && ratesData.rates[from] > 0) {
+      return 1 / ratesData.rates[from];
+    }
+
+    // 3. Triangulation via ratesData.base
+    const fromRateInBase = from === base ? 1 : ratesData.rates[from];
+    const toRateInBase = to === base ? 1 : ratesData.rates[to];
+
+    if (
+      typeof fromRateInBase === "number" &&
+      fromRateInBase > 0 &&
+      typeof toRateInBase === "number" &&
+      toRateInBase > 0
+    ) {
+      return toRateInBase / fromRateInBase;
+    }
+  }
+
+  // Fallback: Cross-triangulate using master USD baseline dictionary
+  const fromUSD = DEFAULT_BASELINE_USD_RATES[from] || 1;
+  const toUSD = DEFAULT_BASELINE_USD_RATES[to] || 1;
+
+  if (fromUSD > 0 && toUSD > 0) {
+    return toUSD / fromUSD;
+  }
+
+  return 1;
+}
+
+/**
+ * Convert an amount from one currency to another using exact cross triangulation
+ */
+export function convertCurrency(
+  amount: number,
+  fromCode: string,
+  toCode: string,
+  ratesData?: ExchangeRatesData | null
+): number {
+  if (amount <= 0 || isNaN(amount)) return 0;
+  const rate = getCrossRate(fromCode, toCode, ratesData);
+  return amount * rate;
+}
 
 /**
  * Retry a promise function with exponential backoff
@@ -92,7 +303,7 @@ async function fetchFromCloudflarePages(base: string): Promise<Record<string, nu
 
   const normalized: Record<string, number> = {};
   for (const [k, v] of Object.entries(ratesObj)) {
-    if (typeof v === "number" && !isNaN(v)) {
+    if (typeof v === "number" && !isNaN(v) && v > 0) {
       normalized[k.toUpperCase()] = v;
     }
   }
@@ -115,7 +326,7 @@ async function fetchFromJSDelivr(base: string): Promise<Record<string, number>> 
 
   const normalized: Record<string, number> = {};
   for (const [k, v] of Object.entries(ratesObj)) {
-    if (typeof v === "number" && !isNaN(v)) {
+    if (typeof v === "number" && !isNaN(v) && v > 0) {
       normalized[k.toUpperCase()] = v;
     }
   }
@@ -232,7 +443,7 @@ export async function getExchangeRates(
     }
   }
 
-  if (rates) {
+  if (rates && Object.keys(rates).length > 5) {
     rates[baseUpper] = 1;
 
     const freshData: ExchangeRatesData = {
@@ -249,11 +460,11 @@ export async function getExchangeRates(
   }
 
   // 4. Fallback to localStorage stored data if available
-  if (stored) {
+  if (stored && stored.rates && Object.keys(stored.rates).length > 5) {
     return { data: stored, isFromCache: true };
   }
 
-  // 5. Ultimate Fallback to built-in baseline rates (derived for baseUpper)
+  // 5. Ultimate Fallback to built-in baseline rates (triangulated for baseUpper)
   const baseRateUSD = DEFAULT_BASELINE_USD_RATES[baseUpper] || 1;
   const derivedRates: Record<string, number> = {};
   for (const [code, usdRate] of Object.entries(DEFAULT_BASELINE_USD_RATES)) {
@@ -269,18 +480,6 @@ export async function getExchangeRates(
   };
 
   return { data: fallbackData, isFromCache: true };
-}
-
-/**
- * Convert an amount from one currency to another using exchange rates table
- */
-export function convertCurrency(
-  amount: number,
-  baseRate: number,
-  targetRate: number
-): number {
-  if (baseRate <= 0 || targetRate <= 0) return 0;
-  return (amount / baseRate) * targetRate;
 }
 
 /**
