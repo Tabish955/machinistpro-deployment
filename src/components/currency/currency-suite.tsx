@@ -5,8 +5,8 @@ import { ForexRatesTable } from "./forex-rates-table";
 import { getExchangeRates, type ExchangeRatesData } from "@/lib/currency/api";
 
 export function CurrencySuite() {
-  const [activeBase, setActiveBase] = useState("USD");
-  const [activeTarget, setActiveTarget] = useState("EUR");
+  const [activeBase, setActiveBase] = useState("KWD");
+  const [activeTarget, setActiveTarget] = useState("PKR");
   const [currentRate, setCurrentRate] = useState(1);
   const [ratesUSD, setRatesUSD] = useState<Record<string, number>>({});
 

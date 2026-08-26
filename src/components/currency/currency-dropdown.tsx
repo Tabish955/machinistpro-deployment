@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Search, ChevronDown, Check } from "lucide-react";
+import { Search, ChevronDown, Check, X } from "lucide-react";
 import {
   searchCurrencies,
   getCurrencyMeta,
   type CurrencyCategory,
 } from "@/lib/currency/database";
 import { CurrencyFlag } from "./currency-flag";
+
+type FilterTab = "all" | "gulf" | "fiat" | "asia" | "europe" | "americas" | "crypto" | "metal";
 
 interface CurrencyDropdownProps {
   value: string;
@@ -22,7 +24,7 @@ export function CurrencyDropdown({
 }: CurrencyDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<CurrencyCategory | "all">("all");
+  const [category, setCategory] = useState<FilterTab>("all");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +56,7 @@ export function CurrencyDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-dark-800/90 px-3.5 py-2.5 text-left text-sm font-medium text-white shadow-sm transition hover:border-accent-cyan/40 hover:bg-dark-700/80 focus:border-accent-cyan/60 focus:outline-none"
+        className="flex w-full items-center justify-between gap-2.5 rounded-xl border border-white/[0.08] bg-dark-850 px-3.5 py-2.5 text-left text-sm font-medium text-white shadow-sm transition hover:border-accent-cyan/40 hover:bg-dark-800 focus:border-accent-cyan/60 focus:outline-none"
       >
         <div className="flex items-center gap-2.5 truncate">
           <CurrencyFlag code={selected.code} size="md" />
@@ -62,7 +64,7 @@ export function CurrencyDropdown({
             <div className="flex items-center gap-1.5">
               <span className="font-mono font-bold text-accent-cyan">{selected.code}</span>
               {selected.symbol && (
-                <span className="text-xs text-gray-400">({selected.symbol})</span>
+                <span className="text-xs text-gray-400 font-mono">({selected.symbol})</span>
               )}
             </div>
             <span className="truncate text-xs text-gray-400">{selected.name}</span>
@@ -76,7 +78,7 @@ export function CurrencyDropdown({
 
       {/* Popover Menu */}
       {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 w-72 sm:w-80 rounded-2xl border border-white/10 bg-dark-900/95 p-2 shadow-2xl backdrop-blur-xl animate-fade-in">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-80 sm:w-96 rounded-2xl border border-white/10 bg-dark-900/98 p-2.5 shadow-2xl backdrop-blur-2xl animate-fade-in">
           {/* Search Bar */}
           <div className="relative mb-2">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -85,24 +87,37 @@ export function CurrencyDropdown({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search code, country or name…"
-              className="w-full rounded-xl border border-white/10 bg-dark-800/90 py-2 pl-9 pr-3 text-xs text-white placeholder:text-gray-500 focus:border-accent-cyan/40 focus:outline-none"
+              placeholder="Search code, country or currency (e.g. KWD, PKR, Gold)…"
+              className="w-full rounded-xl border border-white/10 bg-dark-800/90 py-2 pl-9 pr-8 text-xs text-white placeholder:text-gray-500 focus:border-accent-cyan/50 focus:outline-none"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
           {/* Category Tabs */}
-          <div className="mb-2 flex gap-1 border-b border-white/[0.06] pb-2">
+          <div className="mb-2 flex flex-wrap gap-1 border-b border-white/[0.06] pb-2">
             {[
               { id: "all", label: "All" },
-              { id: "fiat", label: "Fiat" },
+              { id: "gulf", label: "Gulf / ME" },
+              { id: "fiat", label: "Top Fiat" },
+              { id: "asia", label: "Asia" },
+              { id: "europe", label: "Europe" },
+              { id: "americas", label: "Americas" },
               { id: "crypto", label: "Crypto" },
               { id: "metal", label: "Metals" },
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setCategory(tab.id as CurrencyCategory | "all")}
-                className={`flex-1 rounded-lg py-1 text-[11px] font-semibold transition ${
+                onClick={() => setCategory(tab.id as FilterTab)}
+                className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition ${
                   category === tab.id
                     ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
                     : "text-gray-400 hover:bg-white/5 hover:text-white"
@@ -114,10 +129,10 @@ export function CurrencyDropdown({
           </div>
 
           {/* Currency List */}
-          <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1 scrollbar-thin">
+          <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1 scrollbar-thin">
             {filteredCurrencies.length === 0 ? (
-              <div className="py-6 text-center text-xs text-gray-500">
-                No currencies matching "{search}"
+              <div className="py-8 text-center text-xs text-gray-500">
+                No currencies found matching "{search}"
               </div>
             ) : (
               filteredCurrencies.map((curr) => {
@@ -137,10 +152,13 @@ export function CurrencyDropdown({
                         : "text-gray-200 hover:bg-white/5"
                     }`}
                   >
-                    <div className="flex items-center gap-2 truncate">
+                    <div className="flex items-center gap-2.5 truncate">
                       <CurrencyFlag code={curr.code} size="sm" />
                       <div className="truncate">
                         <span className="font-mono font-bold text-white mr-1.5">{curr.code}</span>
+                        {curr.symbol && (
+                          <span className="text-[11px] text-gray-400 font-mono mr-1">({curr.symbol})</span>
+                        )}
                         <span className="text-gray-400 truncate">{curr.name}</span>
                       </div>
                     </div>

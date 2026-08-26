@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { ArrowDownUp, RefreshCw, Copy, Check, TrendingUp, AlertCircle, WifiOff } from "lucide-react";
+import {
+  ArrowDownUp,
+  RefreshCw,
+  Copy,
+  Check,
+  TrendingUp,
+  AlertCircle,
+  WifiOff,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
 import { CurrencyDropdown } from "./currency-dropdown";
 import {
   getExchangeRates,
+  convertCurrency,
   formatRelativeTime,
   type ExchangeRatesData,
 } from "@/lib/currency/api";
@@ -13,10 +24,12 @@ interface CurrencyConverterCardProps {
   onPairChange?: (base: string, target: string, currentRate: number) => void;
 }
 
+const QUICK_AMOUNTS = [1, 5, 10, 50, 100, 500, 1000, 5000];
+
 export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardProps) {
-  const [baseCurrency, setBaseCurrency] = useState("USD");
-  const [targetCurrency, setTargetCurrency] = useState("EUR");
-  const [baseAmount, setBaseAmount] = useState<number | string>(100);
+  const [baseCurrency, setBaseCurrency] = useState("KWD");
+  const [targetCurrency, setTargetCurrency] = useState("PKR");
+  const [baseAmount, setBaseAmount] = useState<number | string>(1);
   const [targetAmount, setTargetAmount] = useState<number | string>(0);
   const [activeField, setActiveField] = useState<"base" | "target">("base");
 
@@ -27,63 +40,84 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
   const [isCached, setIsCached] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Fetch exchange rates for baseCurrency
-  const fetchRates = useCallback(async (base: string, force = false) => {
-    try {
+  // Fetch rates
+  const fetchRates = useCallback(
+    async (base: string, force = false) => {
       if (force) setIsRefreshing(true);
       else setIsLoading(true);
       setError(null);
 
-      const res = await getExchangeRates(base, force);
-      setRatesData(res.data);
-      setIsCached(res.isFromCache);
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch live currency exchange rates");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+      try {
+        const { data, isFromCache } = await getExchangeRates(base, force);
+        setRatesData(data);
+        setIsCached(isFromCache);
+
+        const currentRate = data.rates[targetCurrency] || 1;
+        onPairChange?.(base, targetCurrency, currentRate);
+      } catch (err: any) {
+        console.error("Exchange rates fetch error:", err);
+        setError(err.message || "Unable to fetch live rates");
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [targetCurrency, onPairChange]
+  );
 
   useEffect(() => {
-    fetchRates(baseCurrency);
+    fetchRates(baseCurrency, false);
   }, [baseCurrency, fetchRates]);
 
-  // Compute conversion amounts whenever rates, baseAmount, or targetAmount change
-  const currentRate = ratesData?.rates[targetCurrency.toUpperCase()] || 0;
-  const inverseRate = currentRate > 0 ? 1 / currentRate : 0;
-
+  // Handle active calculations
   useEffect(() => {
-    if (onPairChange && currentRate > 0) {
-      onPairChange(baseCurrency, targetCurrency, currentRate);
-    }
-  }, [baseCurrency, targetCurrency, currentRate, onPairChange]);
+    if (!ratesData) return;
 
-  useEffect(() => {
-    if (!currentRate) return;
+    const baseRate = ratesData.rates[baseCurrency] || 1;
+    const targetRate = ratesData.rates[targetCurrency] || 1;
 
     if (activeField === "base") {
-      const num = typeof baseAmount === "string" ? parseFloat(baseAmount) || 0 : baseAmount;
-      const res = num * currentRate;
-      setTargetAmount(res > 0 ? parseFloat(res.toFixed(4)) : 0);
+      const numBase = typeof baseAmount === "number" ? baseAmount : parseFloat(baseAmount) || 0;
+      const converted = convertCurrency(numBase, baseRate, targetRate);
+      setTargetAmount(
+        converted === 0
+          ? ""
+          : converted < 0.0001
+          ? converted.toExponential(4)
+          : parseFloat(converted.toFixed(converted < 1 ? 6 : 4))
+      );
     } else {
-      const num = typeof targetAmount === "string" ? parseFloat(targetAmount) || 0 : targetAmount;
-      const res = currentRate > 0 ? num / currentRate : 0;
-      setBaseAmount(res > 0 ? parseFloat(res.toFixed(4)) : 0);
+      const numTarget = typeof targetAmount === "number" ? targetAmount : parseFloat(targetAmount) || 0;
+      const converted = convertCurrency(numTarget, targetRate, baseRate);
+      setBaseAmount(
+        converted === 0
+          ? ""
+          : converted < 0.0001
+          ? converted.toExponential(4)
+          : parseFloat(converted.toFixed(converted < 1 ? 6 : 4))
+      );
     }
-  }, [baseAmount, targetAmount, currentRate, activeField]);
 
-  // Swap currencies
+    const currentPairRate = (1 / baseRate) * targetRate;
+    onPairChange?.(baseCurrency, targetCurrency, currentPairRate);
+  }, [baseCurrency, targetCurrency, baseAmount, targetAmount, activeField, ratesData, onPairChange]);
+
+  // Swap Base and Target
   const handleSwap = () => {
-    const oldBase = baseCurrency;
-    const oldTarget = targetCurrency;
-    setBaseCurrency(oldTarget);
-    setTargetCurrency(oldBase);
+    const prevBase = baseCurrency;
+    const prevTarget = targetCurrency;
+    const prevTargetAmount = targetAmount;
+
+    setBaseCurrency(prevTarget);
+    setTargetCurrency(prevBase);
+    setBaseAmount(prevTargetAmount || 1);
+    setActiveField("base");
   };
 
+  // Copy to clipboard
   const handleCopy = () => {
-    const formatted = `${baseAmount} ${baseCurrency} = ${targetAmount} ${targetCurrency}`;
-    navigator.clipboard?.writeText(formatted);
+    const text = `${baseAmount} ${baseCurrency} = ${targetAmount} ${targetCurrency}`;
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -91,20 +125,25 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
   const baseMeta = getCurrencyMeta(baseCurrency);
   const targetMeta = getCurrencyMeta(targetCurrency);
 
+  const unitRate = ratesData ? ratesData.rates[targetCurrency] || 0 : 0;
+  const inverseUnitRate = unitRate > 0 ? 1 / unitRate : 0;
+
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
+    <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-2xl backdrop-blur-xl transition-all">
       {/* Header with live ticker & status */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-4 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-4 mb-4">
         <div>
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <span>Currency & Forex Converter</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400 border border-emerald-500/20">
+            <span className="bg-gradient-to-r from-accent-amber via-yellow-400 to-amber-200 bg-clip-text text-transparent">
+              Currency & Forex Converter
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 border border-emerald-500/20 shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Rates
+              Live Interbank
             </span>
           </h2>
-          <p className="text-xs text-gray-400">
-            Real-time interbank & institutional rates with 200+ fiat, crypto & precious metals
+          <p className="text-xs text-gray-400 mt-0.5">
+            Real-time institutional conversion rates across 340+ fiat, precious metals & crypto
           </p>
         </div>
 
@@ -125,10 +164,10 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
         </div>
       </div>
 
-      {/* Popular Pairs Chips */}
+      {/* Popular Pairs Quick Chips */}
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-gray-400 mr-1">Popular:</span>
-        {POPULAR_FOREX_PAIRS.slice(0, 8).map((p) => {
+        <span className="text-xs text-gray-400 mr-1 font-medium">Quick Pairs:</span>
+        {POPULAR_FOREX_PAIRS.slice(0, 7).map((p) => {
           const isActive = baseCurrency === p.base && targetCurrency === p.target;
           return (
             <button
@@ -136,10 +175,11 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
               onClick={() => {
                 setBaseCurrency(p.base);
                 setTargetCurrency(p.target);
+                setActiveField("base");
               }}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition ${
                 isActive
-                  ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40"
+                  ? "bg-accent-amber/20 text-accent-amber border border-accent-amber/40 shadow-sm"
                   : "bg-white/[0.04] text-gray-300 border border-white/[0.06] hover:bg-white/[0.08] hover:text-white"
               }`}
             >
@@ -153,16 +193,19 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
       {/* Main Dual Conversion Inputs */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] items-center gap-3">
         {/* Base Currency Box */}
-        <div className="rounded-2xl border border-white/[0.08] bg-dark-800/60 p-3.5 transition focus-within:border-accent-cyan/50 focus-within:bg-dark-800">
+        <div className="rounded-2xl border border-white/[0.08] bg-dark-800/70 p-3.5 transition focus-within:border-accent-cyan/60 focus-within:bg-dark-800">
           <CurrencyDropdown
             value={baseCurrency}
-            onChange={(c) => setBaseCurrency(c)}
-            label="From Currency"
+            onChange={(c) => {
+              setBaseCurrency(c);
+              setActiveField("base");
+            }}
+            label="From (Base Currency)"
           />
           <div className="mt-3">
             <label className="text-[11px] font-medium text-gray-400">Amount</label>
             <div className="relative mt-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-gray-400">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-sm text-gray-400">
                 {baseMeta.symbol || ""}
               </span>
               <input
@@ -170,42 +213,45 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
                 min="0"
                 step="any"
                 value={baseAmount}
-                onFocus={() => setActiveField("base")}
                 onChange={(e) => {
-                  setActiveField("base");
                   setBaseAmount(e.target.value);
+                  setActiveField("base");
                 }}
-                className={`w-full rounded-xl border border-white/10 bg-dark-900/90 py-2.5 font-mono text-base font-bold text-white placeholder:text-gray-600 focus:border-accent-cyan/60 focus:outline-none ${
-                  baseMeta.symbol ? "pl-9 pr-3" : "px-3"
+                placeholder="1"
+                className={`w-full rounded-xl border border-white/10 bg-dark-900/90 py-2.5 pr-3 font-mono text-lg font-bold text-white shadow-inner placeholder:text-gray-600 focus:border-accent-cyan/60 focus:outline-none ${
+                  baseMeta.symbol ? "pl-9" : "pl-3.5"
                 }`}
-                placeholder="0.00"
               />
             </div>
           </div>
         </div>
 
         {/* Swap Button */}
-        <div className="flex justify-center my-1 md:my-0">
+        <div className="flex justify-center md:my-0 my-1">
           <button
+            type="button"
             onClick={handleSwap}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-dark-800 text-gray-300 shadow-lg transition hover:scale-110 hover:border-accent-cyan/50 hover:bg-accent-cyan/10 hover:text-accent-cyan active:scale-95"
+            className="group flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-dark-800 text-gray-300 shadow-lg transition hover:border-accent-cyan hover:bg-accent-cyan/15 hover:text-accent-cyan hover:scale-105 active:scale-95"
             title="Swap Currencies"
           >
-            <ArrowDownUp size={18} />
+            <ArrowDownUp size={16} className="transition-transform group-hover:rotate-180 duration-300" />
           </button>
         </div>
 
         {/* Target Currency Box */}
-        <div className="rounded-2xl border border-white/[0.08] bg-dark-800/60 p-3.5 transition focus-within:border-accent-cyan/50 focus-within:bg-dark-800">
+        <div className="rounded-2xl border border-white/[0.08] bg-dark-800/70 p-3.5 transition focus-within:border-accent-cyan/60 focus-within:bg-dark-800">
           <CurrencyDropdown
             value={targetCurrency}
-            onChange={(c) => setTargetCurrency(c)}
-            label="To Currency"
+            onChange={(c) => {
+              setTargetCurrency(c);
+              setActiveField("base");
+            }}
+            label="To (Target Currency)"
           />
           <div className="mt-3">
             <label className="text-[11px] font-medium text-gray-400">Converted Amount</label>
             <div className="relative mt-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-gray-400">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-sm text-gray-400">
                 {targetMeta.symbol || ""}
               </span>
               <input
@@ -213,65 +259,91 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
                 min="0"
                 step="any"
                 value={targetAmount}
-                onFocus={() => setActiveField("target")}
                 onChange={(e) => {
-                  setActiveField("target");
                   setTargetAmount(e.target.value);
+                  setActiveField("target");
                 }}
-                className={`w-full rounded-xl border border-white/10 bg-dark-900/90 py-2.5 font-mono text-base font-bold text-accent-cyan placeholder:text-gray-600 focus:border-accent-cyan/60 focus:outline-none ${
-                  targetMeta.symbol ? "pl-9 pr-3" : "px-3"
-                }`}
                 placeholder="0.00"
+                className={`w-full rounded-xl border border-white/10 bg-dark-900/90 py-2.5 pr-3 font-mono text-lg font-bold text-white shadow-inner placeholder:text-gray-600 focus:border-accent-cyan/60 focus:outline-none ${
+                  targetMeta.symbol ? "pl-9" : "pl-3.5"
+                }`}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Exchange Rate Summary & Quick Actions */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-dark-800/40 p-3.5">
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs sm:text-sm font-semibold text-white">
-              1 {baseCurrency} = {currentRate > 0 ? currentRate.toFixed(6) : "—"} {targetCurrency}
-            </span>
-            <span className="text-gray-500">|</span>
-            <span className="font-mono text-xs text-gray-400">
-              1 {targetCurrency} = {inverseRate > 0 ? inverseRate.toFixed(6) : "—"} {baseCurrency}
-            </span>
-          </div>
-          <span className="text-[11px] text-gray-400">
-            Mid-market exchange rate · No commission markup
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
+      {/* Quick Amount Presets */}
+      <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] pt-3">
+        <span className="text-[11px] text-gray-400 mr-1 font-medium">Quick Amount ({baseCurrency}):</span>
+        {QUICK_AMOUNTS.map((amt) => (
           <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white"
+            key={amt}
+            type="button"
+            onClick={() => {
+              setBaseAmount(amt);
+              setActiveField("base");
+            }}
+            className={`rounded-lg px-2 py-0.5 text-xs font-mono font-medium transition ${
+              Number(baseAmount) === amt
+                ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40"
+                : "bg-white/[0.03] text-gray-400 hover:bg-white/[0.07] hover:text-white"
+            }`}
           >
-            {copied ? (
-              <>
-                <Check size={13} className="text-emerald-400" />
-                <span className="text-emerald-400">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy size={13} />
-                <span>Copy Result</span>
-              </>
-            )}
+            {amt}
           </button>
-        </div>
+        ))}
       </div>
 
-      {/* Error Banner */}
-      {error && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-accent-red/30 bg-accent-red/10 p-3 text-xs text-accent-red">
-          <AlertCircle size={14} className="shrink-0" />
-          <span>{error}</span>
+      {/* Live Conversion Summary Hero */}
+      <div className="mt-4 rounded-xl border border-white/[0.08] bg-dark-950/90 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-xs text-gray-400 font-medium">
+              {baseAmount || 0} {baseMeta.name} ({baseCurrency}) =
+            </p>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
+                {targetAmount || 0}
+              </span>
+              <span className="text-sm sm:text-base font-bold font-mono text-accent-cyan">
+                {targetCurrency}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:items-end gap-1.5">
+            {unitRate > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-lg bg-white/[0.04] px-2.5 py-1 text-xs font-mono text-gray-300 border border-white/[0.06]">
+                  1 {baseCurrency} = {unitRate < 1 ? unitRate.toFixed(6) : unitRate.toFixed(4)} {targetCurrency}
+                </span>
+                <span className="rounded-lg bg-white/[0.04] px-2.5 py-1 text-xs font-mono text-gray-300 border border-white/[0.06]">
+                  1 {targetCurrency} = {inverseUnitRate < 1 ? inverseUnitRate.toFixed(6) : inverseUnitRate.toFixed(4)} {baseCurrency}
+                </span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition font-medium"
+            >
+              {copied ? (
+                <>
+                  <Check size={13} className="text-emerald-400" />
+                  <span className="text-emerald-400 font-semibold">Copied result!</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={13} />
+                  <span>Copy conversion</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,16 @@ import { getPastDateString } from "../historical";
 
 describe("Currency Engine & Catalog", () => {
   it("resolves top fiat, crypto and precious metals metadata", () => {
+    const kwd = getCurrencyMeta("KWD");
+    expect(kwd.code).toBe("KWD");
+    expect(kwd.symbol).toBe("KD");
+    expect(kwd.countryCode).toBe("kw");
+
+    const pkr = getCurrencyMeta("PKR");
+    expect(pkr.code).toBe("PKR");
+    expect(pkr.symbol).toBe("₨");
+    expect(pkr.countryCode).toBe("pk");
+
     const usd = getCurrencyMeta("USD");
     expect(usd.code).toBe("USD");
     expect(usd.symbol).toBe("$");
