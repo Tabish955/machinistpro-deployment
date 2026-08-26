@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { evaluate } from "mathjs";
 import { GraphingCalculator } from "@/components/graphing/graphing-calculator";
 import { StatisticsSuite } from "./statistics-suite";
+import { ComplexSuite } from "./complex-suite";
 import {
   cartesianToPolar,
   complexDetails,
@@ -690,84 +691,7 @@ function StatisticsWorkspace() {
 }
 
 function ComplexWorkspace() {
-  const [expression, setExpression] = useState("(3 + 4i) × (2 − i)");
-  const [real, setReal] = useState(3);
-  const [imaginary, setImaginary] = useState(4);
-  const [result, setResult] = useState<Record<string, unknown> | string>("");
-  const [error, setError] = useState("");
-  const run = () => {
-    try {
-      setResult(evaluateComplex(toAsciiOps(expression)));
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Invalid complex expression.");
-    }
-  };
-  const details = () => {
-    try {
-      setResult(complexDetails(real, imaginary));
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Invalid complex value.");
-    }
-  };
-  return (
-    <Workspace title="Complex" subtitle="Rectangular and polar complex-number calculations">
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className={panel}>
-          <label className="text-xs text-gray-400">Expression using i</label>
-          <input
-            className={`${field} mt-2`}
-            value={expression}
-            onChange={(e) => setExpression(toDisplayOps(e.target.value))}
-          />
-          <button className={`${primary} mt-2`} onClick={run}>
-            Evaluate
-          </button>
-        </div>
-        <div className={panel}>
-          <label className="text-xs text-gray-400">Inspect a + bi</label>
-          <div className="mt-2 flex gap-2">
-            <input
-              className={field}
-              type="number"
-              value={real}
-              onChange={(e) => setReal(Number(e.target.value))}
-              aria-label="Real part"
-            />
-            <input
-              className={field}
-              type="number"
-              value={imaginary}
-              onChange={(e) => setImaginary(Number(e.target.value))}
-              aria-label="Imaginary part"
-            />
-          </div>
-          <button className={`${primary} mt-2`} onClick={details}>
-            Convert & inspect
-          </button>
-        </div>
-      </div>
-      <Result error={error}>
-        {typeof result === "string" ? (
-          <p className="font-mono text-lg text-white">{result}</p>
-        ) : (
-          result && (
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {Object.entries(result).map(([key, value]) => (
-                <div key={key}>
-                  <dt className="text-[10px] capitalize text-gray-600">
-                    {key.replace(/([A-Z])/g, " $1")}
-                  </dt>
-                  <dd className="font-mono text-sm text-white">{formatAdvanced(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          )
-        )}
-      </Result>
-    </Workspace>
-  );
+  return <ComplexSuite />;
 }
 
 function ProgrammerWorkspace() {

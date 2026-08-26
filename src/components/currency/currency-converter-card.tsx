@@ -67,6 +67,11 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
 
   useEffect(() => {
     fetchRates(baseCurrency, false);
+    // 60s auto-poll to guarantee fresh rates every minute
+    const interval = setInterval(() => {
+      fetchRates(baseCurrency, true);
+    }, 60000);
+    return () => clearInterval(interval);
   }, [baseCurrency, fetchRates]);
 
   // Handle active calculations

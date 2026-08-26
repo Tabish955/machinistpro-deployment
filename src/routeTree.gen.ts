@@ -21,6 +21,7 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
 import { Route as DashboardCncRouteImport } from './routes/dashboard/cnc'
+import { Route as DashboardComplexRouteImport } from './routes/dashboard/complex'
 import { Route as DashboardConverterRouteImport } from './routes/dashboard/converter'
 import { Route as DashboardCurrencyRouteImport } from './routes/dashboard/currency'
 import { Route as DashboardDxfConverterRouteImport } from './routes/dashboard/dxf-converter'
@@ -105,6 +106,11 @@ const DashboardAdminRoute = DashboardAdminRouteImport.update({
 const DashboardCncRoute = DashboardCncRouteImport.update({
   id: '/cnc',
   path: '/cnc',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardComplexRoute = DashboardComplexRouteImport.update({
+  id: '/complex',
+  path: '/complex',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardConverterRoute = DashboardConverterRouteImport.update({
@@ -245,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
+  '/dashboard/complex': typeof DashboardComplexRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/currency': typeof DashboardCurrencyRoute
   '/dashboard/dxf-converter': typeof DashboardDxfConverterRoute
@@ -283,6 +290,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
+  '/dashboard/complex': typeof DashboardComplexRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/currency': typeof DashboardCurrencyRoute
   '/dashboard/dxf-converter': typeof DashboardDxfConverterRoute
@@ -323,6 +331,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
+  '/dashboard/complex': typeof DashboardComplexRoute
   '/dashboard/converter': typeof DashboardConverterRoute
   '/dashboard/currency': typeof DashboardCurrencyRoute
   '/dashboard/dxf-converter': typeof DashboardDxfConverterRoute
@@ -364,6 +373,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/dashboard/admin'
     | '/dashboard/cnc'
+    | '/dashboard/complex'
     | '/dashboard/converter'
     | '/dashboard/currency'
     | '/dashboard/dxf-converter'
@@ -402,6 +412,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/dashboard/admin'
     | '/dashboard/cnc'
+    | '/dashboard/complex'
     | '/dashboard/converter'
     | '/dashboard/currency'
     | '/dashboard/dxf-converter'
@@ -441,6 +452,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/dashboard/admin'
     | '/dashboard/cnc'
+    | '/dashboard/complex'
     | '/dashboard/converter'
     | '/dashboard/currency'
     | '/dashboard/dxf-converter'
@@ -570,6 +582,13 @@ declare module '@tanstack/react-router' {
       path: '/cnc'
       fullPath: '/dashboard/cnc'
       preLoaderRoute: typeof DashboardCncRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/complex': {
+      id: '/dashboard/complex'
+      path: '/complex'
+      fullPath: '/dashboard/complex'
+      preLoaderRoute: typeof DashboardComplexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/converter': {
@@ -753,6 +772,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteRouteChildren {
   DashboardAdminRoute: typeof DashboardAdminRoute
   DashboardCncRoute: typeof DashboardCncRoute
+  DashboardComplexRoute: typeof DashboardComplexRoute
   DashboardConverterRoute: typeof DashboardConverterRoute
   DashboardCurrencyRoute: typeof DashboardCurrencyRoute
   DashboardDxfConverterRoute: typeof DashboardDxfConverterRoute
@@ -779,6 +799,7 @@ interface DashboardRouteRouteChildren {
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardAdminRoute: DashboardAdminRoute,
   DashboardCncRoute: DashboardCncRoute,
+  DashboardComplexRoute: DashboardComplexRoute,
   DashboardConverterRoute: DashboardConverterRoute,
   DashboardCurrencyRoute: DashboardCurrencyRoute,
   DashboardDxfConverterRoute: DashboardDxfConverterRoute,

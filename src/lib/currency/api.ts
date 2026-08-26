@@ -11,7 +11,7 @@ export interface ExchangeRatesData {
 }
 
 const CACHE_PREFIX = "machinistpro_rates_";
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 60 * 1000; // 1 minute fresh rate refresh interval
 
 // In-memory cache
 const memoryCache = new Map<string, { data: ExchangeRatesData; expiry: number }>();
