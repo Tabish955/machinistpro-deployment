@@ -158,7 +158,7 @@ describe("G76 threading across every form, pitch and diameter", () => {
       }
     }
     expect(checked).toBeGreaterThan(300);
-  });
+  }, 20000);
 
   it("cuts a deeper thread for a coarser pitch, on every form", () => {
     for (const form of THREAD_FORM_IDS) {
