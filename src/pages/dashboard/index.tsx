@@ -26,7 +26,15 @@ import {
 } from "lucide-react";
 import Link from "@/lib/next-compat";
 
-const QUICK_LINK_IDS = ["scientific", "converter", "weight", "machining", "geometry", "formulas"];
+const QUICK_LINK_IDS = [
+  "scientific",
+  "converter",
+  "currency",
+  "weight",
+  "machining",
+  "geometry",
+  "formulas",
+];
 
 const QUICK_LINKS = QUICK_LINK_IDS.map((id) => getModuleById(id)).filter(
   (m): m is NonNullable<typeof m> => !!m && m.status === "available",

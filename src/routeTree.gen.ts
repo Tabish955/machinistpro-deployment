@@ -22,6 +22,7 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
 import { Route as DashboardCncRouteImport } from './routes/dashboard/cnc'
 import { Route as DashboardConverterRouteImport } from './routes/dashboard/converter'
+import { Route as DashboardCurrencyRouteImport } from './routes/dashboard/currency'
 import { Route as DashboardDxfConverterRouteImport } from './routes/dashboard/dxf-converter'
 import { Route as DashboardElectricalRouteImport } from './routes/dashboard/electrical'
 import { Route as DashboardEngineeringRouteImport } from './routes/dashboard/engineering'
@@ -109,6 +110,11 @@ const DashboardCncRoute = DashboardCncRouteImport.update({
 const DashboardConverterRoute = DashboardConverterRouteImport.update({
   id: '/converter',
   path: '/converter',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardCurrencyRoute = DashboardCurrencyRouteImport.update({
+  id: '/currency',
+  path: '/currency',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardDxfConverterRoute = DashboardDxfConverterRouteImport.update({
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
   '/dashboard/converter': typeof DashboardConverterRoute
+  '/dashboard/currency': typeof DashboardCurrencyRoute
   '/dashboard/dxf-converter': typeof DashboardDxfConverterRoute
   '/dashboard/electrical': typeof DashboardElectricalRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByTo {
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
   '/dashboard/converter': typeof DashboardConverterRoute
+  '/dashboard/currency': typeof DashboardCurrencyRoute
   '/dashboard/dxf-converter': typeof DashboardDxfConverterRoute
   '/dashboard/electrical': typeof DashboardElectricalRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
@@ -316,6 +324,7 @@ export interface FileRoutesById {
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/cnc': typeof DashboardCncRoute
   '/dashboard/converter': typeof DashboardConverterRoute
+  '/dashboard/currency': typeof DashboardCurrencyRoute
   '/dashboard/dxf-converter': typeof DashboardDxfConverterRoute
   '/dashboard/electrical': typeof DashboardElectricalRoute
   '/dashboard/engineering': typeof DashboardEngineeringRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/cnc'
     | '/dashboard/converter'
+    | '/dashboard/currency'
     | '/dashboard/dxf-converter'
     | '/dashboard/electrical'
     | '/dashboard/engineering'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/cnc'
     | '/dashboard/converter'
+    | '/dashboard/currency'
     | '/dashboard/dxf-converter'
     | '/dashboard/electrical'
     | '/dashboard/engineering'
@@ -431,6 +442,7 @@ export interface FileRouteTypes {
     | '/dashboard/admin'
     | '/dashboard/cnc'
     | '/dashboard/converter'
+    | '/dashboard/currency'
     | '/dashboard/dxf-converter'
     | '/dashboard/electrical'
     | '/dashboard/engineering'
@@ -565,6 +577,13 @@ declare module '@tanstack/react-router' {
       path: '/converter'
       fullPath: '/dashboard/converter'
       preLoaderRoute: typeof DashboardConverterRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/currency': {
+      id: '/dashboard/currency'
+      path: '/currency'
+      fullPath: '/dashboard/currency'
+      preLoaderRoute: typeof DashboardCurrencyRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/dxf-converter': {
@@ -735,6 +754,7 @@ interface DashboardRouteRouteChildren {
   DashboardAdminRoute: typeof DashboardAdminRoute
   DashboardCncRoute: typeof DashboardCncRoute
   DashboardConverterRoute: typeof DashboardConverterRoute
+  DashboardCurrencyRoute: typeof DashboardCurrencyRoute
   DashboardDxfConverterRoute: typeof DashboardDxfConverterRoute
   DashboardElectricalRoute: typeof DashboardElectricalRoute
   DashboardEngineeringRoute: typeof DashboardEngineeringRoute
@@ -760,6 +780,7 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardAdminRoute: DashboardAdminRoute,
   DashboardCncRoute: DashboardCncRoute,
   DashboardConverterRoute: DashboardConverterRoute,
+  DashboardCurrencyRoute: DashboardCurrencyRoute,
   DashboardDxfConverterRoute: DashboardDxfConverterRoute,
   DashboardElectricalRoute: DashboardElectricalRoute,
   DashboardEngineeringRoute: DashboardEngineeringRoute,
