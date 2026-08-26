@@ -7,6 +7,7 @@ import {
   type ForexPairQuote,
 } from "@/lib/currency/forex-matrix";
 import { POPULAR_FOREX_PAIRS, getCurrencyMeta } from "@/lib/currency/database";
+import { CurrencyFlag } from "./currency-flag";
 
 interface ForexRatesTableProps {
   ratesRelativeUSD: Record<string, number>;
@@ -121,7 +122,7 @@ export function ForexRatesTable({ ratesRelativeUSD, onSelectPair }: ForexRatesTa
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-base">{baseMeta.flag || "🌐"}</span>
+                          <CurrencyFlag code={q.base} size="sm" />
                           <span className="font-bold text-white">{q.symbol}</span>
                         </div>
                       </td>

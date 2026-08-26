@@ -7,6 +7,7 @@ import {
   type ExchangeRatesData,
 } from "@/lib/currency/api";
 import { POPULAR_FOREX_PAIRS, getCurrencyMeta } from "@/lib/currency/database";
+import { CurrencyFlag } from "./currency-flag";
 
 interface CurrencyConverterCardProps {
   onPairChange?: (base: string, target: string, currentRate: number) => void;
@@ -136,13 +137,14 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
                 setBaseCurrency(p.base);
                 setTargetCurrency(p.target);
               }}
-              className={`rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition ${
                 isActive
                   ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40"
                   : "bg-white/[0.04] text-gray-300 border border-white/[0.06] hover:bg-white/[0.08] hover:text-white"
               }`}
             >
-              {p.label}
+              <CurrencyFlag code={p.base} size="sm" />
+              <span>{p.label}</span>
             </button>
           );
         })}

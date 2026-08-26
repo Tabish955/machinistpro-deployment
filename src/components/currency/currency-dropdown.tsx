@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Search, ChevronDown, Check, Coins } from "lucide-react";
+import { Search, ChevronDown, Check } from "lucide-react";
 import {
-  CURRENCIES_MAP,
   searchCurrencies,
   getCurrencyMeta,
   type CurrencyCategory,
-  type CurrencyMeta,
 } from "@/lib/currency/database";
+import { CurrencyFlag } from "./currency-flag";
 
 interface CurrencyDropdownProps {
   value: string;
@@ -58,7 +57,7 @@ export function CurrencyDropdown({
         className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-dark-800/90 px-3.5 py-2.5 text-left text-sm font-medium text-white shadow-sm transition hover:border-accent-cyan/40 hover:bg-dark-700/80 focus:border-accent-cyan/60 focus:outline-none"
       >
         <div className="flex items-center gap-2.5 truncate">
-          <span className="text-lg leading-none">{selected.flag || "🌐"}</span>
+          <CurrencyFlag code={selected.code} size="md" />
           <div className="flex flex-col truncate">
             <div className="flex items-center gap-1.5">
               <span className="font-mono font-bold text-accent-cyan">{selected.code}</span>
@@ -139,7 +138,7 @@ export function CurrencyDropdown({
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <span className="text-base">{curr.flag || "🌐"}</span>
+                      <CurrencyFlag code={curr.code} size="sm" />
                       <div className="truncate">
                         <span className="font-mono font-bold text-white mr-1.5">{curr.code}</span>
                         <span className="text-gray-400 truncate">{curr.name}</span>
