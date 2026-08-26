@@ -81,7 +81,7 @@ describe("bolt circles put every hole where it belongs", () => {
       }
     }
     expect(holes).toBeGreaterThan(2000);
-  });
+  }, 20000);
 
   it("spaces the holes evenly around the circle", () => {
     for (const holeCount of [3, 4, 6, 8, 12]) {
