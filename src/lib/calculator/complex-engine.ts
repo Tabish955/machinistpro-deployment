@@ -1,5 +1,6 @@
 /**
  * Comprehensive Complex Number Mathematics & Phasor Engine
+ * Uses typographical mathematical symbols (×, ÷, −, +, i, ∠, π, e)
  * Supports Rectangular, Polar, Euler Exponential, Trigonometric,
  * De Moivre n-th Roots, Polynomials, and AC Circuit Impedance.
  */
@@ -13,12 +14,12 @@ export interface ComplexFormDetails {
   argumentRad: number; // theta in radians (-pi, pi]
   argumentDeg: number; // theta in degrees (-180, 180]
   argumentDegPositive: number; // theta in degrees [0, 360)
-  rectangular: string; // "3 + 4i"
-  rectangularJ: string; // "3 + 4j" (Engineering notation)
-  polarDeg: string; // "5.0000 ∠ 53.1301°"
-  polarRad: string; // "5.0000 ∠ 0.9273 rad"
-  exponential: string; // "5.0000 · e^(i · 0.9273)"
-  trigonometric: string; // "5.0000 · (cos(53.13°) + i·sin(53.13°))"
+  rectangular: string; // "3 + 4i" or "3 − 4i"
+  rectangularJ: string; // "3 + 4j" or "3 − 4j" (Engineering notation)
+  polarDeg: string; // "5 ∠ 53.13°"
+  polarRad: string; // "5 ∠ 0.9273 rad"
+  exponential: string; // "5 · e^(i · 0.9273)"
+  trigonometric: string; // "5 · (cos(53.13°) + i·sin(53.13°))"
   conjugate: { real: number; imag: number; str: string };
   reciprocal: { real: number; imag: number; str: string };
   square: { real: number; imag: number; str: string };
@@ -56,17 +57,29 @@ export interface ACImpedanceResult {
 }
 
 /**
- * Format a number cleanly up to specified decimal precision, avoiding scientific noise
+ * Format a number cleanly avoiding floating point noise
  */
 export function formatNum(val: number, precision = 4): string {
   if (Math.abs(val) < 1e-12) return "0";
   if (Math.abs(val - Math.round(val)) < 1e-9) return Math.round(val).toString();
-  return parseFloat(val.toFixed(precision)).toString();
+  const formatted = parseFloat(val.toFixed(precision)).toString();
+  return formatted.replace(/^-0$/, "0");
 }
 
 /**
- * Normalize and parse human complex input into MathJS compatible expression
- * Handles '3+4j', '5 ∠ 45°', 'r cis(theta)', 'parallel ||'
+ * Format mathematical string to use real typographical operators (×, ÷, −)
+ */
+export function toTypographicalMath(str: string): string {
+  return str
+    .replace(/\*/g, " × ")
+    .replace(/\//g, " ÷ ")
+    .replace(/(?<=\d|\w|\))\s*-\s*(?=\d|\w|\()/g, " − ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Convert user input into MathJS compatible expression
  */
 export function normalizeComplexInput(raw: string): string {
   let expr = raw.trim();
@@ -87,9 +100,9 @@ export function normalizeComplexInput(raw: string): string {
     return `(${r} * cos(${rad}) + ${r} * sin(${rad}) * i)`;
   }
 
-  // Handle parallel impedance operator (Z1 || Z2) -> (Z1 * Z2) / (Z1 + Z2)
-  if (expr.includes("||")) {
-    const parts = expr.split("||").map((p) => p.trim());
+  // Handle parallel impedance operator: Z1 || Z2 -> (Z1 * Z2) / (Z1 + Z2)
+  if (expr.includes("||") || expr.includes("∥")) {
+    const parts = expr.split(/\|\||∥/).map((p) => p.trim());
     if (parts.length === 2) {
       const z1 = normalizeComplexInput(parts[0]);
       const z2 = normalizeComplexInput(parts[1]);
@@ -97,10 +110,11 @@ export function normalizeComplexInput(raw: string): string {
     }
   }
 
-  // Replace 'j' (engineering symbol) with 'i' (standard mathjs symbol)
-  expr = expr.replace(/(\d*\.?\d+)\s*j\b/gi, "$1i").replace(/\bj\b/gi, "i");
-  // Replace unicode arithmetic symbols
+  // Replace typographical operators with code arithmetic operators
   expr = expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
+
+  // Replace 'j' (engineering symbol) with 'i'
+  expr = expr.replace(/(\d*\.?\d+)\s*j\b/gi, "$1i").replace(/\bj\b/gi, "i");
 
   return expr;
 }
@@ -149,7 +163,7 @@ export function decomposeComplex(real: number, imag: number): ComplexFormDetails
   // Degrees [0, 360)
   const argumentDegPositive = argumentDeg < 0 ? argumentDeg + 360 : argumentDeg;
 
-  // Rectangular strings
+  // Rectangular strings with real mathematical minus sign (−)
   const rStr = formatNum(real);
   const iStr = formatNum(Math.abs(imag));
   const rectSign = imag >= 0 ? "+" : "−";
@@ -157,57 +171,62 @@ export function decomposeComplex(real: number, imag: number): ComplexFormDetails
     Math.abs(imag) < 1e-12
       ? rStr
       : Math.abs(real) < 1e-12
-      ? `${imag < 0 ? "-" : ""}${iStr === "1" ? "" : iStr}i`
+      ? `${imag < 0 ? "−" : ""}${iStr === "1" ? "" : iStr}i`
       : `${rStr} ${rectSign} ${iStr === "1" ? "" : iStr}i`;
 
   const rectangularJ =
     Math.abs(imag) < 1e-12
       ? rStr
       : Math.abs(real) < 1e-12
-      ? `${imag < 0 ? "-" : ""}${iStr === "1" ? "" : iStr}j`
+      ? `${imag < 0 ? "−" : ""}${iStr === "1" ? "" : iStr}j`
       : `${rStr} ${rectSign} ${iStr === "1" ? "" : iStr}j`;
 
   // Polar Form
   const polarDeg = `${formatNum(modulus)} ∠ ${formatNum(argumentDeg)}°`;
   const polarRad = `${formatNum(modulus)} ∠ ${formatNum(argumentRad)} rad`;
 
-  // Exponential Form: r * e^(i * theta)
+  // Exponential Form: r · e^(i · theta)
   const exponential = `${formatNum(modulus)} · e^(i · ${formatNum(argumentRad)})`;
 
-  // Trigonometric Form: r * (cos(theta) + i*sin(theta))
-  const trigonometric = `${formatNum(modulus)} · (cos(${formatNum(argumentDeg)}°) + i·sin(${formatNum(argumentDeg)}°))`;
+  // Trigonometric Form: r · (cos(theta) + i · sin(theta))
+  const trigonometric = `${formatNum(modulus)} · (cos(${formatNum(argumentDeg)}°) ${rectSign} i · sin(${formatNum(Math.abs(argumentDeg))}°))`;
 
-  // Complex Conjugate: a - bi
+  // Complex Conjugate: a − bi
   const conjImag = -imag;
+  const conjSign = conjImag >= 0 ? "+" : "−";
   const conjRect =
     Math.abs(conjImag) < 1e-12
       ? rStr
       : Math.abs(real) < 1e-12
-      ? `${conjImag < 0 ? "-" : ""}${formatNum(Math.abs(conjImag))}i`
-      : `${rStr} ${conjImag >= 0 ? "+" : "−"} ${formatNum(Math.abs(conjImag))}i`;
+      ? `${conjImag < 0 ? "−" : ""}${formatNum(Math.abs(conjImag))}i`
+      : `${rStr} ${conjSign} ${formatNum(Math.abs(conjImag))}i`;
 
-  // Complex Reciprocal: (a - bi) / (a^2 + b^2)
+  // Complex Reciprocal: (a − bi) / (a^2 + b^2)
   const denom = modulus * modulus || 1;
   const recipReal = real / denom;
   const recipImag = -imag / denom;
-  const recipStr = `${formatNum(recipReal)} ${recipImag >= 0 ? "+" : "−"} ${formatNum(Math.abs(recipImag))}i`;
+  const recipSign = recipImag >= 0 ? "+" : "−";
+  const recipStr = `${formatNum(recipReal)} ${recipSign} ${formatNum(Math.abs(recipImag))}i`;
 
   // Square: z^2 = (a^2 - b^2) + 2abi
   const sqReal = real * real - imag * imag;
   const sqImag = 2 * real * imag;
-  const squareStr = `${formatNum(sqReal)} ${sqImag >= 0 ? "+" : "−"} ${formatNum(Math.abs(sqImag))}i`;
+  const sqSign = sqImag >= 0 ? "+" : "−";
+  const squareStr = `${formatNum(sqReal)} ${sqSign} ${formatNum(Math.abs(sqImag))}i`;
 
   // Principal Square Root
   const sqrtR = Math.sqrt(modulus);
   const sqrtHalfTheta = argumentRad / 2;
   const root1Real = sqrtR * Math.cos(sqrtHalfTheta);
   const root1Imag = sqrtR * Math.sin(sqrtHalfTheta);
-  const root1 = `${formatNum(root1Real)} ${root1Imag >= 0 ? "+" : "−"} ${formatNum(Math.abs(root1Imag))}i`;
-  const root2 = `${formatNum(-root1Real)} ${-root1Imag >= 0 ? "+" : "−"} ${formatNum(Math.abs(root1Imag))}i`;
+  const root1Sign = root1Imag >= 0 ? "+" : "−";
+  const root1 = `${formatNum(root1Real)} ${root1Sign} ${formatNum(Math.abs(root1Imag))}i`;
+  const root2 = `−(${root1})`;
 
-  // Natural Logarithm: ln(z) = ln(r) + i*theta
+  // Natural Logarithm: ln(z) = ln(r) + i · theta
   const lnR = modulus > 0 ? Math.log(modulus) : 0;
-  const naturalLog = `${formatNum(lnR)} ${argumentRad >= 0 ? "+" : "−"} ${formatNum(Math.abs(argumentRad))}i`;
+  const lnSign = argumentRad >= 0 ? "+" : "−";
+  const naturalLog = `${formatNum(lnR)} ${lnSign} ${formatNum(Math.abs(argumentRad))}i`;
 
   // Equivalent 2x2 Real Matrix Representation
   const matrixRepresentation: [[number, number], [number, number]] = [
@@ -238,8 +257,7 @@ export function decomposeComplex(real: number, imag: number): ComplexFormDetails
 }
 
 /**
- * Calculate all n distinct complex roots using De Moivre's Theorem:
- * w_k = r^(1/n) * (cos((theta + 2k*pi)/n) + i * sin((theta + 2k*pi)/n))
+ * Calculate all n distinct complex roots using De Moivre's Theorem
  */
 export function calculateDeMoivreRoots(real: number, imag: number, n: number): ComplexRoot[] {
   if (n < 1 || !Number.isInteger(n)) {
@@ -255,7 +273,6 @@ export function calculateDeMoivreRoots(real: number, imag: number, n: number): C
   for (let k = 0; k < n; k++) {
     const angleRad = (argumentRad + 2 * Math.PI * k) / n;
     let angleDeg = (angleRad * 180) / Math.PI;
-    // Normalize to [-180, 180]
     while (angleDeg > 180) angleDeg -= 360;
     while (angleDeg <= -180) angleDeg += 360;
 
@@ -270,7 +287,7 @@ export function calculateDeMoivreRoots(real: number, imag: number, n: number): C
       Math.abs(rImag) < 1e-12
         ? rRealStr
         : Math.abs(rReal) < 1e-12
-        ? `${rImag < 0 ? "-" : ""}${rImagStr}i`
+        ? `${rImag < 0 ? "−" : ""}${rImagStr}i`
         : `${rRealStr} ${sign} ${rImagStr}i`;
 
     const polar = `${formatNum(rootModulus)} ∠ ${formatNum(angleDeg)}°`;
@@ -302,9 +319,9 @@ export function calculateACCircuitImpedance(
   capacitanceFarad: number
 ): ACImpedanceResult {
   const omega = 2 * Math.PI * frequencyHz;
-  const xl = omega * inductanceHenry; // Inductive Reactance XL = w*L
+  const xl = omega * inductanceHenry; // XL = w*L
   const xc = capacitanceFarad > 0 && omega > 0 ? 1 / (omega * capacitanceFarad) : 0; // XC = 1/(w*C)
-  const netX = xl - xc; // Net Reactance X = XL - XC
+  const netX = xl - xc;
 
   const zDetails = decomposeComplex(resistanceR, netX);
   const yDetails = decomposeComplex(zDetails.reciprocal.real, zDetails.reciprocal.imag);

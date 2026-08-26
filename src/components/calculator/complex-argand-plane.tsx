@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import { ZoomIn, ZoomOut, RotateCcw, Crosshair, Layers, Compass } from "lucide-react";
-import type { ComplexFormDetails, ComplexRoot } from "@/lib/calculator/complex-engine";
+import React, { useRef, useState, useMemo } from "react";
+import { ZoomIn, ZoomOut, RotateCcw, Eye, Compass, Layers } from "lucide-react";
+import { formatNum, type ComplexRoot } from "@/lib/calculator/complex-engine";
 
 interface ComplexArgandPlaneProps {
   real: number;
@@ -23,324 +23,88 @@ export function ComplexArgandPlane({
   showUnitCircle = true,
   className = "",
 }: ComplexArgandPlaneProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scale, setScale] = useState(35); // pixels per unit
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [scale, setScale] = useState(32); // pixels per unit
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDraggingPoint, setIsDraggingPoint] = useState(false);
-  const [isPanning, setIsPanning] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Auto scale when real or imag changes drastically
-  useEffect(() => {
-    const maxCoord = Math.max(Math.abs(real), Math.abs(imag), 4);
-    if (maxCoord * scale > 180 || maxCoord * scale < 50) {
-      setScale(Math.max(15, Math.min(80, 160 / maxCoord)));
+  const width = 580;
+  const height = 360;
+  const centerX = width / 2 + offset.x;
+  const centerY = height / 2 + offset.y;
+
+  // Vector Pixel Position
+  const zPixX = centerX + real * scale;
+  const zPixY = centerY - imag * scale;
+
+  // Polar details
+  const modulus = Math.hypot(real, imag);
+  const angleRad = Math.atan2(imag, real);
+  const angleDeg = (angleRad * 180) / Math.PI;
+
+  // Grid Ticks
+  const maxUnits = Math.ceil(Math.max(width, height) / (2 * scale)) + 2;
+  const ticks = useMemo(() => {
+    const list: number[] = [];
+    for (let i = -maxUnits; i <= maxUnits; i++) {
+      if (i !== 0) list.push(i);
     }
-  }, [real, imag]);
+    return list;
+  }, [maxUnits]);
 
-  // Redraw Canvas
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  // Pointer drag handler
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const clickX = ((e.clientX - rect.left) / rect.width) * width;
+    const clickY = ((e.clientY - rect.top) / rect.height) * height;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerX = width / 2 + offset.x;
-    const centerY = height / 2 + offset.y;
-
-    // Clear background
-    ctx.fillStyle = "#090d16";
-    ctx.fillRect(0, 0, width, height);
-
-    // 1. Grid Lines
-    const step = scale;
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
-
-    // Vertical grid
-    for (let x = centerX % step; x < width; x += step) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    // Horizontal grid
-    for (let y = centerY % step; y < height; y += step) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-
-    // 2. Unit Circle & Radius Circles
-    if (showUnitCircle) {
-      ctx.strokeStyle = "rgba(6, 182, 212, 0.2)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, scale, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Radius circle for current z
-      const rPix = Math.hypot(real, imag) * scale;
-      if (rPix > 5) {
-        ctx.strokeStyle = "rgba(245, 158, 11, 0.15)";
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, rPix, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.setLineDash([]);
-    }
-
-    // 3. Axes
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-
-    // Real Axis (X)
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(width, centerY);
-    ctx.stroke();
-
-    // Imaginary Axis (Y)
-    ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, height);
-    ctx.stroke();
-
-    // Axis Labels
-    ctx.fillStyle = "#9ca3af";
-    ctx.font = "10px monospace";
-    ctx.fillText("Re (Real)", width - 60, centerY - 6);
-    ctx.fillText("Im (Imaginary)", centerX + 6, 16);
-
-    // Number ticks on axes
-    const visibleUnitsX = Math.ceil(width / (2 * step));
-    const visibleUnitsY = Math.ceil(height / (2 * step));
-    ctx.fillStyle = "rgba(156, 163, 175, 0.5)";
-    ctx.font = "9px monospace";
-
-    for (let i = -visibleUnitsX; i <= visibleUnitsX; i++) {
-      if (i === 0) continue;
-      const tx = centerX + i * step;
-      ctx.fillText(i.toString(), tx - 4, centerY + 14);
-    }
-    for (let i = -visibleUnitsY; i <= visibleUnitsY; i++) {
-      if (i === 0) continue;
-      const ty = centerY - i * step;
-      ctx.fillText(`${i}i`, centerX + 4, ty + 3);
-    }
-
-    // 4. Roots Polygon (if roots provided)
-    if (roots && roots.length > 1) {
-      ctx.strokeStyle = "rgba(168, 85, 247, 0.4)";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      roots.forEach((rt, idx) => {
-        const rx = centerX + rt.real * scale;
-        const ry = centerY - rt.imag * scale;
-        if (idx === 0) ctx.moveTo(rx, ry);
-        else ctx.lineTo(rx, ry);
-      });
-      ctx.closePath();
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Draw each root point & vector
-      roots.forEach((rt) => {
-        const rx = centerX + rt.real * scale;
-        const ry = centerY - rt.imag * scale;
-
-        ctx.strokeStyle = "rgba(168, 85, 247, 0.6)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(rx, ry);
-        ctx.stroke();
-
-        ctx.fillStyle = "#c084fc";
-        ctx.beginPath();
-        ctx.arc(rx, ry, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "#e9d5ff";
-        ctx.font = "bold 9px monospace";
-        ctx.fillText(`w${rt.k}`, rx + 6, ry - 6);
-      });
-    }
-
-    // 5. Complex Conjugate (z*)
-    if (showConjugate && Math.abs(imag) > 1e-4) {
-      const conjX = centerX + real * scale;
-      const conjY = centerY - -imag * scale;
-
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.4)";
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.lineTo(conjX, conjY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = "#f59e0b";
-      ctx.beginPath();
-      ctx.arc(conjX, conjY, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#fcd34d";
-      ctx.font = "9px monospace";
-      ctx.fillText("z* (Conjugate)", conjX + 7, conjY + 12);
-    }
-
-    // 6. Complex Reciprocal (1/z)
-    if (showReciprocal && (real !== 0 || imag !== 0)) {
-      const d = real * real + imag * imag;
-      const recipReal = real / d;
-      const recipImag = -imag / d;
-      const rx = centerX + recipReal * scale;
-      const ry = centerY - recipImag * scale;
-
-      ctx.strokeStyle = "rgba(59, 130, 246, 0.5)";
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([2, 2]);
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.lineTo(rx, ry);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = "#3b82f6";
-      ctx.beginPath();
-      ctx.arc(rx, ry, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#93c5fd";
-      ctx.font = "9px monospace";
-      ctx.fillText("1/z", rx + 6, ry - 4);
-    }
-
-    // 7. Primary Vector z = a + bi
-    const zPixX = centerX + real * scale;
-    const zPixY = centerY - imag * scale;
-
-    // Angle Arc sector
-    const mod = Math.hypot(real, imag);
-    if (mod > 0.05) {
-      const angleRad = Math.atan2(imag, real);
-      const arcRadius = Math.min(28, mod * scale * 0.4);
-      ctx.strokeStyle = "rgba(6, 182, 212, 0.7)";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, arcRadius, 0, -angleRad, angleRad < 0);
-      ctx.stroke();
-
-      const angleDeg = ((angleRad * 180) / Math.PI).toFixed(1);
-      ctx.fillStyle = "#22d3ee";
-      ctx.font = "bold 9px monospace";
-      ctx.fillText(`θ = ${angleDeg}°`, centerX + arcRadius + 4, centerY - 6);
-    }
-
-    // Vector Ray
-    const gradient = ctx.createLinearGradient(centerX, centerY, zPixX, zPixY);
-    gradient.addColorStop(0, "rgba(6, 182, 212, 0.4)");
-    gradient.addColorStop(1, "#06b6d4");
-
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.lineTo(zPixX, zPixY);
-    ctx.stroke();
-
-    // Draggable point head with pulsing ring
-    ctx.fillStyle = "#06b6d4";
-    ctx.beginPath();
-    ctx.arc(zPixX, zPixY, 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(zPixX, zPixY, 6, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Value HUD Callout
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 11px monospace";
-    const sign = imag >= 0 ? "+" : "−";
-    const zStr = `z = (${real.toFixed(2)} ${sign} ${Math.abs(imag).toFixed(2)}i)`;
-    ctx.fillText(zStr, zPixX + 10, zPixY - 10);
-  }, [real, imag, scale, offset, roots, showConjugate, showReciprocal, showUnitCircle]);
-
-  useEffect(() => {
-    draw();
-  }, [draw]);
-
-  // Pointer event handlers for dragging point or panning
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    const centerX = canvas.width / 2 + offset.x;
-    const centerY = canvas.height / 2 + offset.y;
-    const zPixX = centerX + real * scale;
-    const zPixY = centerY - imag * scale;
-
-    const distToPoint = Math.hypot(clickX - zPixX, clickY - zPixY);
-
-    if (distToPoint < 18) {
-      setIsDraggingPoint(true);
-      canvas.setPointerCapture(e.pointerId);
-    } else {
-      setIsPanning(true);
-      setDragStart({ x: clickX - offset.x, y: clickY - offset.y });
-      canvas.setPointerCapture(e.pointerId);
+    const distToZ = Math.hypot(clickX - zPixX, clickY - zPixY);
+    if (distToZ < 30 && onChange) {
+      setIsDragging(true);
+      svg.setPointerCapture(e.pointerId);
     }
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const currX = e.clientX - rect.left;
-    const currY = e.clientY - rect.top;
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!isDragging || !onChange || !svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const currX = ((e.clientX - rect.left) / rect.width) * width;
+    const currY = ((e.clientY - rect.top) / rect.height) * height;
 
-    if (isDraggingPoint && onChange) {
-      const centerX = canvas.width / 2 + offset.x;
-      const centerY = canvas.height / 2 + offset.y;
-      const newReal = parseFloat(((currX - centerX) / scale).toFixed(3));
-      const newImag = parseFloat(((centerY - currY) / scale).toFixed(3));
-      onChange(newReal, newImag);
-    } else if (isPanning) {
-      setOffset({
-        x: currX - dragStart.x,
-        y: currY - dragStart.y,
-      });
-    }
+    const newReal = parseFloat(((currX - centerX) / scale).toFixed(2));
+    const newImag = parseFloat(((centerY - currY) / scale).toFixed(2));
+    onChange(newReal, newImag);
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    setIsDraggingPoint(false);
-    setIsPanning(false);
+  const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    setIsDragging(false);
     try {
-      canvasRef.current?.releasePointerCapture(e.pointerId);
+      svgRef.current?.releasePointerCapture(e.pointerId);
     } catch {}
   };
 
+  // Angle Arc Path
+  const arcRadius = Math.min(36, Math.max(18, modulus * scale * 0.45));
+  const arcStartX = centerX + arcRadius;
+  const arcStartY = centerY;
+  const arcEndX = centerX + arcRadius * Math.cos(-angleRad);
+  const arcEndY = centerY + arcRadius * Math.sin(-angleRad);
+  const largeArcFlag = Math.abs(angleRad) > Math.PI ? 1 : 0;
+  const sweepFlag = angleRad >= 0 ? 0 : 1;
+  const arcPath =
+    modulus > 0.1
+      ? `M ${arcStartX} ${arcStartY} A ${arcRadius} ${arcRadius} 0 ${largeArcFlag} ${sweepFlag} ${arcEndX} ${arcEndY}`
+      : "";
+
   return (
     <div className={`relative rounded-2xl border border-white/[0.08] bg-dark-950 p-2 shadow-2xl overflow-hidden ${className}`}>
-      {/* Top Floating Control Bar */}
+      {/* Top Floating Controls Bar */}
       <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-xl border border-white/10 bg-dark-900/90 p-1 backdrop-blur-md shadow-lg">
         <button
           type="button"
-          onClick={() => setScale((s) => Math.min(120, s * 1.25))}
+          onClick={() => setScale((s) => Math.min(90, s * 1.25))}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
           title="Zoom In"
         >
@@ -348,7 +112,7 @@ export function ComplexArgandPlane({
         </button>
         <button
           type="button"
-          onClick={() => setScale((s) => Math.max(10, s * 0.8))}
+          onClick={() => setScale((s) => Math.max(12, s * 0.8))}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
           title="Zoom Out"
         >
@@ -358,7 +122,7 @@ export function ComplexArgandPlane({
           type="button"
           onClick={() => {
             setOffset({ x: 0, y: 0 });
-            setScale(35);
+            setScale(32);
           }}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
           title="Reset View"
@@ -367,38 +131,292 @@ export function ComplexArgandPlane({
         </button>
       </div>
 
-      {/* Canvas */}
-      <canvas
-        ref={canvasRef}
-        width={560}
-        height={340}
+      {/* Floating HUD Pill */}
+      <div className="absolute right-4 top-4 z-10 rounded-xl border border-cyan-500/30 bg-dark-900/95 px-3 py-1.5 backdrop-blur-md shadow-xl text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-accent-cyan animate-pulse" />
+          <span className="font-bold text-white">
+            z = {formatNum(real)} {imag >= 0 ? "+" : "−"} {formatNum(Math.abs(imag))}i
+          </span>
+          <span className="text-gray-500">|</span>
+          <span className="text-accent-cyan">{formatNum(modulus)} ∠ {formatNum(angleDeg)}°</span>
+        </div>
+      </div>
+
+      {/* SVG Interactive Argand Plane */}
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="w-full h-80 cursor-grab active:cursor-grabbing select-none rounded-xl"
-      />
+        className="w-full h-80 select-none cursor-crosshair rounded-xl bg-radial from-dark-900/50 to-dark-950"
+      >
+        <defs>
+          {/* Arrowhead Marker */}
+          <marker
+            id="cyan-arrow"
+            viewBox="0 0 10 10"
+            refX="6"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#06b6d4" />
+          </marker>
+          <marker
+            id="amber-arrow"
+            viewBox="0 0 10 10"
+            refX="6"
+            refY="5"
+            markerWidth="5"
+            markerHeight="5"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b" />
+          </marker>
+          <radialGradient id="vector-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+          </radialGradient>
+        </defs>
 
-      {/* Legend and Instruction */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-2 px-2 text-[11px] text-gray-400 font-mono">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
+        {/* 1. Grid Lines */}
+        {ticks.map((t) => (
+          <g key={`grid-${t}`}>
+            <line
+              x1={centerX + t * scale}
+              y1={0}
+              x2={centerX + t * scale}
+              y2={height}
+              stroke="rgba(255, 255, 255, 0.035)"
+              strokeWidth="1"
+            />
+            <line
+              x1={0}
+              y1={centerY - t * scale}
+              x2={width}
+              y2={centerY - t * scale}
+              stroke="rgba(255, 255, 255, 0.035)"
+              strokeWidth="1"
+            />
+          </g>
+        ))}
+
+        {/* 2. Concentric Radius Rings */}
+        {showUnitCircle && (
+          <>
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={scale}
+              fill="none"
+              stroke="rgba(6, 182, 212, 0.25)"
+              strokeWidth="1"
+              strokeDasharray="4 4"
+            />
+            {modulus > 0.2 && (
+              <circle
+                cx={centerX}
+                cy={centerY}
+                r={modulus * scale}
+                fill="none"
+                stroke="rgba(245, 158, 11, 0.15)"
+                strokeWidth="1"
+                strokeDasharray="2 2"
+              />
+            )}
+          </>
+        )}
+
+        {/* 3. Coordinate Axes */}
+        <line
+          x1={0}
+          y1={centerY}
+          x2={width}
+          y2={centerY}
+          stroke="rgba(255, 255, 255, 0.2)"
+          strokeWidth="1.5"
+        />
+        <line
+          x1={centerX}
+          y1={0}
+          x2={centerX}
+          y2={height}
+          stroke="rgba(255, 255, 255, 0.2)"
+          strokeWidth="1.5"
+        />
+
+        {/* Axis Labels */}
+        <text
+          x={width - 55}
+          y={centerY - 8}
+          fill="rgba(156, 163, 175, 0.7)"
+          fontSize="10"
+          fontFamily="monospace"
+          fontWeight="bold"
+        >
+          Re (Real)
+        </text>
+        <text
+          x={centerX + 8}
+          y={16}
+          fill="rgba(156, 163, 175, 0.7)"
+          fontSize="10"
+          fontFamily="monospace"
+          fontWeight="bold"
+        >
+          Im (Imag)
+        </text>
+
+        {/* Axis Number Ticks */}
+        {ticks
+          .filter((t) => Math.abs(t) <= 10 && t % 2 === 0)
+          .map((t) => (
+            <g key={`num-${t}`}>
+              <text
+                x={centerX + t * scale}
+                y={centerY + 14}
+                fill="rgba(156, 163, 175, 0.4)"
+                fontSize="9"
+                fontFamily="monospace"
+                textAnchor="middle"
+              >
+                {t}
+              </text>
+              <text
+                x={centerX + 6}
+                y={centerY - t * scale + 3}
+                fill="rgba(156, 163, 175, 0.4)"
+                fontSize="9"
+                fontFamily="monospace"
+              >
+                {t}i
+              </text>
+            </g>
+          ))}
+
+        {/* 4. De Moivre Roots Polygon */}
+        {roots && roots.length > 1 && (
+          <g>
+            <polygon
+              points={roots
+                .map((r) => `${centerX + r.real * scale},${centerY - r.imag * scale}`)
+                .join(" ")}
+              fill="rgba(168, 85, 247, 0.08)"
+              stroke="rgba(168, 85, 247, 0.5)"
+              strokeWidth="1.5"
+              strokeDasharray="3 3"
+            />
+            {roots.map((r) => {
+              const rx = centerX + r.real * scale;
+              const ry = centerY - r.imag * scale;
+              return (
+                <g key={`root-${r.k}`}>
+                  <line
+                    x1={centerX}
+                    y1={centerY}
+                    x2={rx}
+                    y2={ry}
+                    stroke="rgba(168, 85, 247, 0.4)"
+                    strokeWidth="1"
+                  />
+                  <circle cx={rx} cy={ry} r="4.5" fill="#c084fc" />
+                  <circle cx={rx} cy={ry} r="2" fill="#ffffff" />
+                  <text
+                    x={rx + 6}
+                    y={ry - 6}
+                    fill="#e9d5ff"
+                    fontSize="9"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                  >
+                    w{r.k}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
+
+        {/* 5. Conjugate Vector (z*) */}
+        {showConjugate && Math.abs(imag) > 0.05 && (
+          <g>
+            <line
+              x1={centerX}
+              y1={centerY}
+              x2={centerX + real * scale}
+              y2={centerY - -imag * scale}
+              stroke="#f59e0b"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+              markerEnd="url(#amber-arrow)"
+            />
+            <circle
+              cx={centerX + real * scale}
+              cy={centerY - -imag * scale}
+              r="4"
+              fill="#f59e0b"
+            />
+          </g>
+        )}
+
+        {/* 6. Angle Arc */}
+        {arcPath && (
+          <path
+            d={arcPath}
+            fill="none"
+            stroke="rgba(6, 182, 212, 0.6)"
+            strokeWidth="1.5"
+          />
+        )}
+
+        {/* 7. Primary Vector z */}
+        <line
+          x1={centerX}
+          y1={centerY}
+          x2={zPixX}
+          y2={zPixY}
+          stroke="#06b6d4"
+          strokeWidth="2.5"
+          markerEnd="url(#cyan-arrow)"
+        />
+
+        {/* Glowing Head & Draggable Pin */}
+        <circle cx={zPixX} cy={zPixY} r="14" fill="url(#vector-glow)" />
+        <circle
+          cx={zPixX}
+          cy={zPixY}
+          r="6.5"
+          fill="#06b6d4"
+          stroke="#ffffff"
+          strokeWidth="2"
+          className="cursor-pointer transition-transform hover:scale-125 active:scale-95"
+        />
+      </svg>
+
+      {/* Clean Bottom Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5 px-3 text-[11px] font-mono text-gray-400">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-accent-cyan" />
-            <span>Vector z</span>
+            <span className="text-gray-300">Vector z (Active)</span>
           </span>
           {showConjugate && (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-accent-amber" />
-              <span>Conjugate z*</span>
+              <span className="text-gray-400">Conjugate z*</span>
             </span>
           )}
           {roots && roots.length > 0 && (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-purple-400" />
-              <span>{roots.length} Roots</span>
+              <span className="text-gray-400">{roots.length} Roots of Unity</span>
             </span>
           )}
         </div>
-        <span className="text-gray-500">Drag cyan dot to change (a + bi)</span>
+        <span className="text-gray-500">Drag cyan point on plane to adjust (a + bi)</span>
       </div>
     </div>
   );

@@ -87,4 +87,15 @@ describe("Complex Number CAS & Phasor Engine", () => {
     expect(ac.powerFactor).toBeGreaterThan(0);
     expect(ac.powerFactor).toBeLessThanOrEqual(1);
   });
+
+  it("handles typographical mathematical symbols (×, ÷, −) seamlessly", () => {
+    const res = evaluateComplexExpression("(3 + 4i) × (2 − i)");
+    expect(res.real).toBeCloseTo(10, 6);
+    expect(res.imag).toBeCloseTo(5, 6);
+    expect(res.rectangular).toBe("10 + 5i");
+
+    const divRes = evaluateComplexExpression("(10 + 5i) ÷ (2 − i)");
+    expect(divRes.real).toBeCloseTo(3, 6);
+    expect(divRes.imag).toBeCloseTo(4, 6);
+  });
 });

@@ -154,32 +154,6 @@ export const calculatorModules: ModuleConfig[] = [
     version: "1.0",
   },
   {
-    id: "complex",
-    name: "Complex Numbers Calculator",
-    shortName: "Complex",
-    description:
-      "Advanced complex numbers CAS, Argand plane visualizer, De Moivre roots, Euler polar forms, and AC electrical phasors",
-    icon: Compass,
-    href: "/dashboard/complex",
-    color: "purple",
-    status: "available",
-    category: "calculators",
-    keywords: [
-      "complex",
-      "imaginary",
-      "argand",
-      "polar",
-      "euler",
-      "phasor",
-      "ac impedance",
-      "de moivre",
-      "roots of unity",
-      "i",
-      "j",
-    ],
-    version: "1.0",
-  },
-  {
     // One page, one entry. "Cost" pointed at /dashboard/pricing, which only
     // redirected here, so the sidebar offered two routes to the same screen.
     id: "weight",
