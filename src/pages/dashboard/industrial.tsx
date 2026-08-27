@@ -545,9 +545,14 @@ function BeltCalc() {
   );
 }
 
+import { ASMEPipeAnalyzer } from "@/components/industrial/asme-pipe-analyzer";
+import { SheetMetalKFactorTool } from "@/components/industrial/sheet-metal-kfactor-tool";
+
 /* ═══ TABS & PAGE ════════════════════════════════════════════════════════════ */
 
 const TABS = [
+  { id: "asme-pipe", name: "ASME B31.3 Pipe", comp: ASMEPipeAnalyzer },
+  { id: "k-factor", name: "K-Factor & Bends", comp: SheetMetalKFactorTool },
   { id: "sheet", name: "Sheet Metal", comp: SheetMetalCalc },
   { id: "weld", name: "Welding", comp: WeldCalc },
   { id: "hydraulic", name: "Hydraulics", comp: HydraulicCalc },

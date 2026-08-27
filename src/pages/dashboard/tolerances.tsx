@@ -328,22 +328,25 @@ function SurfaceTab() {
   );
 }
 
+import { ToleranceStackupTool } from "@/components/tolerances/tolerance-stackup-tool";
+
 /* ═══ TABS & PAGE ════════════════════════════════════════════════════════════ */
 
 const TABS = [
+  { id: "stackup", label: "Tolerance Stack-Up & Monte Carlo" },
   { id: "fits", label: "ISO Fits" },
   { id: "gdt", label: "GD&T" },
   { id: "surface", label: "Surface & Numbers" },
 ];
 
 export default function TolerancesPage() {
-  const [tab, setTab] = usePersistentState("tolerances.TolerancesPage.tab", "fits");
+  const [tab, setTab] = usePersistentState("tolerances.TolerancesPage.tab", "stackup");
 
   return (
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
       <PageHeader
-        title="Tolerances & GD&T"
-        description="ISO fits, GD&T reference, surface finish, and preferred numbers"
+        title="Tolerances, GD&T & Stack-Up Quality"
+        description="Monte Carlo tolerance stack-up, ISO fits, GD&T symbols, and surface finish standards"
         icon={<Settings size={22} className="text-accent-blue" />}
         iconColor="blue"
         status="available"
@@ -365,6 +368,7 @@ export default function TolerancesPage() {
         ))}
       </div>
 
+      {tab === "stackup" && <ToleranceStackupTool />}
       {tab === "fits" && <FitsTab />}
       {tab === "gdt" && <GDTTab />}
       {tab === "surface" && <SurfaceTab />}

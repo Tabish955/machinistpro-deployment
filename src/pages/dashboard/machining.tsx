@@ -2433,11 +2433,14 @@ function InsertCalc() {
   );
 }
 
+import { RCTCTrochoidalCalculator } from "@/components/machining/rctc-trochoidal-calculator";
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Tab definitions
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const TABS = [
+  { id: "rctc", name: "RCTC & Trochoidal", comp: RCTCTrochoidalCalculator },
   { id: "rpm", name: "RPM", comp: RPMCalc },
   { id: "feed", name: "Feed Rate", comp: FeedCalc },
   { id: "milling", name: "Milling", comp: MillingCalc },
