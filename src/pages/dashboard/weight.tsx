@@ -245,11 +245,13 @@ function DimInput({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Page
-// ═══════════════════════════════════════════════════════════════════════════
+import { CuttingStockCalculator } from "@/components/materials/cutting-stock-calculator";
+import { HardnessConverterTool } from "@/components/materials/hardness-converter-tool";
+import { Scissors, Shield, Calculator } from "lucide-react";
 
 export default function WeightPage() {
+  const [activeTab, setActiveTab] = useState<"weight" | "cutting-stock" | "hardness">("weight");
+
   // ── Custom materials ──
   // Read once on mount. The list is small and the store is synchronous, so
   // there is nothing to gain from doing it any later.
@@ -468,14 +470,60 @@ export default function WeightPage() {
   return (
     <div className="space-y-5 animate-fade-in max-w-5xl mx-auto">
       <PageHeader
-        title="Material Weight & Cost"
-        description="Calculate weight, volume, and cost for any material and shape"
+        title="Material Weight, Stock & Hardness Suite"
+        description="Engineering material calculations: Stock weight & cost, 1D cut nesting optimizer, and ASTM E140 hardness cross-matrix"
         icon={<Weight size={22} className="text-accent-purple" />}
         iconColor="purple"
         status="available"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* Top Suite Tab Navigation */}
+      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-dark-900/90 border border-white/[0.08] backdrop-blur-xl">
+        <button
+          type="button"
+          onClick={() => setActiveTab("weight")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "weight"
+              ? "bg-accent-purple/20 text-accent-purple border border-accent-purple/40 shadow-lg"
+              : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+          }`}
+        >
+          <Calculator size={15} />
+          <span>Weight & Cost Estimator</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("cutting-stock")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "cutting-stock"
+              ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-lg"
+              : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+          }`}
+        >
+          <Scissors size={15} />
+          <span>Linear Cut Stock Optimizer</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("hardness")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "hardness"
+              ? "bg-accent-amber/20 text-accent-amber border border-accent-amber/40 shadow-lg"
+              : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
+          }`}
+        >
+          <Shield size={15} />
+          <span>Hardness Converter (ASTM E140)</span>
+        </button>
+      </div>
+
+      {activeTab === "cutting-stock" && <CuttingStockCalculator />}
+      {activeTab === "hardness" && <HardnessConverterTool />}
+
+      {activeTab === "weight" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* ═══════ LEFT COLUMN: inputs ═══════ */}
         <div className="lg:col-span-2 space-y-4">
           {/* Material selector */}
@@ -1019,6 +1067,7 @@ export default function WeightPage() {
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }

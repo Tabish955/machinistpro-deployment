@@ -110,4 +110,28 @@ describe("Currency Engine & Catalog", () => {
     const dateStr = getPastDateString(7);
     expect(dateStr).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it("calculates multi-timeframe OHLC series and technical indicators", async () => {
+    const { fetchHistoricalSeries, calculateEMA, exportHistoricalToCSV } = await import("../historical");
+    
+    // EMA calculation
+    const series = [10, 11, 12, 13, 14, 15];
+    const ema = calculateEMA(series, 3);
+    expect(ema.length).toBe(6);
+    expect(ema[ema.length - 1]).toBeGreaterThan(series[0]);
+
+    // Historical OHLC series
+    const summary = await fetchHistoricalSeries("USD", "EUR", "1M");
+    expect(summary.data.length).toBeGreaterThan(5);
+    expect(summary.currentRate).toBeGreaterThan(0);
+    expect(summary.volatility).toBeGreaterThanOrEqual(0);
+
+    const firstCandle = summary.data[0];
+    expect(firstCandle.high).toBeGreaterThanOrEqual(firstCandle.low);
+    expect(firstCandle.volume).toBeGreaterThan(0);
+
+    // CSV export
+    const csv = exportHistoricalToCSV("USD", "EUR", summary.data);
+    expect(csv).toContain("Date,Timestamp,Open,High,Low,Close,Volume");
+  });
 });

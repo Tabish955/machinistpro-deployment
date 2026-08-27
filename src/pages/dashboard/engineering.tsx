@@ -695,9 +695,14 @@ function MachineDesignCalc() {
   );
 }
 
+import { BeamDiagramPlotter } from "@/components/engineering/beam-diagram-plotter";
+import { MohrsCircleVisualizer } from "@/components/engineering/mohrs-circle-visualizer";
+
 /* ═══ TABS ════════════════════════════════════════════════════════════════════ */
 
 const TABS = [
+  { id: "beam-diagrams", name: "Beam V-M Diagrams", comp: BeamDiagramPlotter },
+  { id: "mohrs-circle", name: "Mohr's Circle Stress", comp: MohrsCircleVisualizer },
   { id: "stress", name: "Stress", comp: StressCalc },
   { id: "beam", name: "Beams", comp: BeamCalc },
   { id: "moi", name: "MOI", comp: MoiCalc },

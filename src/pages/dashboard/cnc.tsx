@@ -2527,7 +2527,10 @@ function MillDrillPanel() {
   );
 }
 
+import { CncToolpath3DVisualizer } from "@/components/cnc/cnc-toolpath-3d-visualizer";
+
 const TABS = [
+  { id: "3d-sim", label: "3D WebGL Simulator", comp: CncToolpath3DVisualizer },
   { id: "g71", label: "G71 · OD Rough", comp: G71Panel },
   { id: "g72", label: "G72 · Facing", comp: G72Panel },
   { id: "g73", label: "G73 · Pattern", comp: G73Panel },
@@ -2535,12 +2538,7 @@ const TABS = [
   { id: "g75", label: "G75 · Groove", comp: G75Panel },
   { id: "g76", label: "G76 · Thread", comp: G76Panel },
   { id: "simple", label: "G90 · G92 · G94", comp: SimplePanel },
-  // The mill's side. One tab rather than four, because G81 to G84 differ by a
-  // single word each and share every other input; four tabs would have meant
-  // filling the same six boxes over again to compare them.
   { id: "mill", label: "G81–G84 · Mill Drill", comp: MillDrillPanel },
-  // The backplot is a tab of its own rather than a footer under every cycle.
-  // Repeated seven times it only ever showed the same canned sample.
   { id: "backplot", label: "Backplot", comp: null },
 ];
 
