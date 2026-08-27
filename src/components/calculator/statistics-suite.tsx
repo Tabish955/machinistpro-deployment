@@ -488,7 +488,7 @@ export function StatisticsSuite() {
                               textAnchor="middle"
                               fontFamily="monospace"
                             >
-                              {bin.min.toFixed(1)}
+                              {bin.binStart.toFixed(1)}
                             </text>
                           </g>
                         );

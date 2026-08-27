@@ -441,6 +441,7 @@ export function PremiumCalculator() {
         {mode !== "standard" && mode !== "scientific" && (
           <div className="flex-1 min-h-0 overflow-y-auto">
             <ErrorBoundary
+              key={mode}
               fallbackTitle={`${MODE_TITLES[mode]} encountered an issue`}
               fallbackMessage="Click reset to return to standard scientific calculator mode."
               onReset={() => setMode("scientific")}
