@@ -13,6 +13,7 @@ import type { CalculatorMode } from "@/lib/calculator/advanced";
 import type { MathConstant } from "@/lib/calculator/constants-db";
 import { ModeSelector } from "./mode-selector";
 import { AdvancedWorkspace } from "./advanced-workspaces";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 function formatMemoryValue(value: number): string {
   if (!Number.isFinite(value)) return "—";
@@ -436,28 +437,22 @@ export function PremiumCalculator() {
           </div>
         )}
 
-        {/* Advanced Workspaces */}
-        <div className={mode === "standard" || mode === "scientific" ? "hidden" : "flex-1 min-h-0"}>
-          {(
-            [
-              "engineering",
-              "statistics",
-              "complex",
-              "programmer",
-              "matrix",
-              "equation",
-              "graphing",
-            ] as const
-          ).map((workspaceMode) => (
-            <div key={workspaceMode} className={mode === workspaceMode ? "h-full" : "hidden"}>
+        {/* Advanced Workspaces - Only render active workspace inside ErrorBoundary */}
+        {mode !== "standard" && mode !== "scientific" && (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <ErrorBoundary
+              fallbackTitle={`${MODE_TITLES[mode]} encountered an issue`}
+              fallbackMessage="Click reset to return to standard scientific calculator mode."
+              onReset={() => setMode("scientific")}
+            >
               <AdvancedWorkspace
-                mode={workspaceMode}
-                historyItem={workspaceMode === "engineering" ? advancedHistoryItem : null}
+                mode={mode}
+                historyItem={mode === "engineering" ? advancedHistoryItem : null}
                 onHistoryConsumed={() => setAdvancedHistoryItem(null)}
               />
-            </div>
-          ))}
-        </div>
+            </ErrorBoundary>
+          </div>
+        )}
       </div>
 
       {/* Modals and History */}
@@ -470,6 +465,6 @@ export function PremiumCalculator() {
       <VariableManagerModal isOpen={isVariablesOpen} onClose={() => setIsVariablesOpen(false)} />
 
       <HistoryPanel onLoadItem={loadHistoryItem} />
-    </>
+    </ErrorBoundary>
   );
 }
