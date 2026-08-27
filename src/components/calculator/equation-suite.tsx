@@ -148,29 +148,29 @@ export function EquationSuite() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in w-full min-w-0 max-w-full overflow-hidden">
       {/* Header Mode Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-4">
-        <div>
-          <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <span className="bg-gradient-to-r from-accent-cyan via-blue-400 to-accent-purple bg-clip-text text-transparent">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3 sm:pb-4">
+        <div className="min-w-0">
+          <h2 className="text-sm sm:text-lg font-bold text-white flex items-center gap-2">
+            <span className="bg-gradient-to-r from-accent-cyan via-blue-400 to-accent-purple bg-clip-text text-transparent truncate">
               Equation Solver & CAS Engine
             </span>
-            <span className="rounded-full bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-400 border border-cyan-500/20 shadow-sm">
+            <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-cyan-400 border border-cyan-500/20 shadow-sm shrink-0">
               Magnum Opus
             </span>
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Polynomials, single-variable root finding, simultaneous linear systems (Cramer & Gauss-Jordan), and step derivations
+          <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 truncate">
+            Polynomials, root finding, linear systems (Cramer & Gauss-Jordan), and step derivations
           </p>
         </div>
 
         {/* Workspace Mode Tabs */}
-        <div className="flex items-center rounded-xl border border-white/10 bg-dark-950 p-1">
+        <div className="flex items-center rounded-xl border border-white/10 bg-dark-950 p-1 overflow-x-auto no-scrollbar scroll-smooth snap-x w-full sm:w-auto">
           {[
             { id: "polynomial", label: "Polynomial Solver", icon: Calculator },
-            { id: "general", label: "General Root Finder", icon: Sparkles },
-            { id: "system", label: "Linear Systems (N×N)", icon: Grid },
+            { id: "general", label: "General Roots", icon: Sparkles },
+            { id: "system", label: "Linear Systems", icon: Grid },
           ].map((tab) => {
             const Icon = tab.icon;
             const active = mode === tab.id;
@@ -179,7 +179,7 @@ export function EquationSuite() {
                 key={tab.id}
                 type="button"
                 onClick={() => setMode(tab.id as EquationMode)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 snap-start rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
                   active
                     ? "bg-accent-cyan text-dark-950 shadow-md font-bold"
                     : "text-gray-400 hover:text-white"
@@ -195,15 +195,15 @@ export function EquationSuite() {
 
       {/* ═══ MODE 1: POLYNOMIAL EQUATION SOLVER ═══ */}
       {mode === "polynomial" && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 min-w-0 w-full">
           {/* Degree & Coefficient Inputs Card */}
-          <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3 mb-4">
+          <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3.5 sm:p-6 shadow-2xl backdrop-blur-xl min-w-0 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-white/[0.06] pb-3 mb-4">
               <div>
                 <span className="text-xs font-semibold text-gray-300">Polynomial Degree</span>
-                <p className="text-[11px] text-gray-500">Select order of polynomial to solve</p>
+                <p className="text-[10px] sm:text-[11px] text-gray-500">Select order of polynomial</p>
               </div>
-              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-dark-950 p-1">
+              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-dark-950 p-1 overflow-x-auto no-scrollbar scroll-smooth snap-x">
                 {[
                   { deg: 1, label: "Linear (1°)" },
                   { deg: 2, label: "Quadratic (2°)" },
@@ -215,7 +215,7 @@ export function EquationSuite() {
                     key={item.deg}
                     type="button"
                     onClick={() => handleDegreeChange(item.deg)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-mono font-semibold transition ${
+                    className={`rounded-lg px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-mono font-semibold whitespace-nowrap shrink-0 snap-start transition ${
                       polyDegree === item.deg
                         ? "bg-accent-cyan text-dark-950 font-bold shadow-sm"
                         : "text-gray-400 hover:text-white"
@@ -228,23 +228,23 @@ export function EquationSuite() {
             </div>
 
             {/* Coefficient Inputs Grid */}
-            <div className="space-y-3">
-              <label className="text-xs text-gray-400 block">
-                Enter Coefficients (from highest power <code className="text-accent-cyan font-mono">x^{polyDegree}</code> down to constant):
+            <div className="space-y-2.5 min-w-0">
+              <label className="text-[11px] sm:text-xs text-gray-400 block truncate">
+                Enter Coefficients (<code className="text-accent-cyan font-mono">x^{polyDegree}</code> down to constant):
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 min-w-0 w-full">
                 {polyCoeffs.map((c, idx) => {
                   const power = polyDegree - idx;
                   const label = power === 0 ? "Constant (c)" : power === 1 ? "x term" : `x^${power}`;
                   return (
-                    <div key={idx} className="rounded-xl border border-white/[0.08] bg-dark-950 p-2.5">
-                      <span className="text-[10px] font-mono text-gray-400 block mb-1">{label}</span>
+                    <div key={idx} className="rounded-xl border border-white/[0.08] bg-dark-950 p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] font-mono text-gray-400 block mb-1 truncate">{label}</span>
                       <input
                         type="number"
                         step="any"
                         value={c}
                         onChange={(e) => handleCoeffUpdate(idx, parseFloat(e.target.value) || 0)}
-                        className="w-full rounded-lg border border-white/10 bg-dark-900 px-2 py-1 font-mono text-sm font-bold text-white focus:border-accent-cyan focus:outline-none"
+                        className="w-full rounded-lg border border-white/10 bg-dark-900 px-2 py-1 font-mono text-xs sm:text-sm font-bold text-white focus:border-accent-cyan focus:outline-none"
                       />
                     </div>
                   );
@@ -254,18 +254,18 @@ export function EquationSuite() {
 
             {/* Live Rendered Equation */}
             {polySolution && (
-              <div className="mt-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 flex items-center justify-between">
-                <span className="font-mono text-base font-bold text-accent-cyan">
+              <div className="mt-3 sm:mt-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center justify-between gap-2 min-w-0">
+                <span className="font-mono text-sm sm:text-base font-bold text-accent-cyan break-words">
                   {polySolution.equationString}
                 </span>
-                <span className="text-xs font-mono text-gray-400">
+                <span className="text-[10px] sm:text-xs font-mono text-gray-400 shrink-0">
                   {polySolution.roots.length} {polySolution.roots.length === 1 ? "Root" : "Roots"}
                 </span>
               </div>
             )}
 
             {polyError && (
-              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 font-mono">
+              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 font-mono break-words">
                 {polyError}
               </div>
             )}
@@ -273,10 +273,10 @@ export function EquationSuite() {
 
           {/* Results: Roots & Curve Plot Grid */}
           {polySolution && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-w-0 w-full">
               {/* Roots Cards (5 cols) */}
-              <div className="lg:col-span-5 space-y-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <div className="lg:col-span-5 space-y-2.5 min-w-0 w-full">
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                   <Sparkles size={16} className="text-accent-cyan" />
                   <span>Exact & Numerical Roots</span>
                 </h3>
@@ -284,22 +284,22 @@ export function EquationSuite() {
                 {polySolution.roots.map((r) => (
                   <div
                     key={r.index}
-                    className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 shadow-xl flex items-center justify-between"
+                    className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3 sm:p-4 shadow-xl flex items-center justify-between min-w-0 overflow-hidden"
                   >
-                    <div>
+                    <div className="min-w-0 overflow-hidden mr-2">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent-cyan/15 text-[11px] font-mono font-bold text-accent-cyan">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent-cyan/15 text-[10px] sm:text-[11px] font-mono font-bold text-accent-cyan shrink-0">
                           x_{r.index}
                         </span>
-                        <span className="text-xs text-gray-400 font-medium">
-                          {r.isReal ? "Real Root" : "Complex Conjugate Root"}
+                        <span className="text-[10px] sm:text-xs text-gray-400 font-medium truncate">
+                          {r.isReal ? "Real Root" : "Complex Conjugate"}
                         </span>
                       </div>
-                      <p className="font-mono text-xl font-black text-white">{r.formatted}</p>
+                      <p className="font-mono text-base sm:text-xl font-black text-white break-words">{r.formatted}</p>
                     </div>
                     <button
                       onClick={() => copyToClipboard(r.formatted, `root-${r.index}`)}
-                      className="text-gray-500 hover:text-white transition"
+                      className="text-gray-500 hover:text-white transition p-1 shrink-0"
                     >
                       {copiedKey === `root-${r.index}` ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                     </button>
@@ -308,18 +308,18 @@ export function EquationSuite() {
 
                 {/* Quadratic Extra Stats (Discriminant & Vertex) */}
                 {polySolution.degree === 2 && polySolution.discriminant !== undefined && (
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <div className="rounded-xl border border-white/[0.06] bg-dark-950 p-3">
-                      <span className="text-[10px] text-gray-400 font-mono block">Discriminant (Δ)</span>
-                      <span className="font-mono text-sm font-bold text-accent-cyan mt-0.5 block">
+                  <div className="grid grid-cols-2 gap-2 mt-2 min-w-0">
+                    <div className="rounded-xl border border-white/[0.06] bg-dark-950 p-2.5 sm:p-3 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-400 font-mono block truncate">Discriminant (Δ)</span>
+                      <span className="font-mono text-xs sm:text-sm font-bold text-accent-cyan mt-0.5 block truncate">
                         {formatNum(polySolution.discriminant)}
                       </span>
                     </div>
                     {polySolution.vertex && (
-                      <div className="rounded-xl border border-white/[0.06] bg-dark-950 p-3">
-                        <span className="text-[10px] text-gray-400 font-mono block">Parabola Vertex</span>
-                        <span className="font-mono text-sm font-bold text-white mt-0.5 block truncate">
-                          ({formatNum(polySolution.vertex.x, 2)}, {formatNum(polySolution.vertex.y, 2)})
+                      <div className="rounded-xl border border-white/[0.06] bg-dark-950 p-2.5 sm:p-3 min-w-0 overflow-hidden">
+                        <span className="text-[9px] sm:text-[10px] text-gray-400 font-mono block truncate">Vertex</span>
+                        <span className="font-mono text-xs sm:text-sm font-bold text-white mt-0.5 block truncate">
+                          ({formatNum(polySolution.vertex.x, 1)}, {formatNum(polySolution.vertex.y, 1)})
                         </span>
                       </div>
                     )}
@@ -328,7 +328,7 @@ export function EquationSuite() {
               </div>
 
               {/* Curve Plot (7 cols) */}
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-7 min-w-0 w-full">
                 <EquationCurvePlot
                   expression={polySolution.equationString.replace(" = 0", "")}
                   roots={polySolution.roots.filter((r) => r.isReal).map((r) => r.real)}
@@ -340,28 +340,28 @@ export function EquationSuite() {
 
           {/* Step-by-Step Derivation */}
           {polySolution && polySolution.steps.length > 0 && (
-            <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-xl">
+            <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3.5 sm:p-6 shadow-xl min-w-0 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowSteps((s) => !s)}
-                className="w-full flex items-center justify-between text-left text-sm font-bold text-white"
+                className="w-full flex items-center justify-between text-left text-xs sm:text-sm font-bold text-white"
               >
                 <div className="flex items-center gap-2">
                   <Info size={16} className="text-accent-cyan" />
-                  <span>Step-by-Step Analytical Derivation</span>
+                  <span>Analytical Derivation Steps</span>
                 </div>
                 {showSteps ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
 
               {showSteps && (
-                <div className="mt-4 space-y-3 border-t border-white/[0.06] pt-4">
+                <div className="mt-3 space-y-2 pt-3 border-t border-white/[0.06]">
                   {polySolution.steps.map((step, idx) => (
-                    <div key={idx} className="rounded-xl border border-white/[0.04] bg-dark-950 p-3 text-xs space-y-1">
-                      <span className="font-bold text-accent-cyan">{step.title}</span>
+                    <div key={idx} className="rounded-xl border border-white/[0.04] bg-dark-950 p-2.5 sm:p-3 text-xs space-y-1 min-w-0">
+                      <span className="font-bold text-accent-cyan block truncate">{step.title}</span>
                       {step.expression && (
-                        <p className="font-mono text-sm text-white font-semibold">{step.expression}</p>
+                        <p className="font-mono text-xs sm:text-sm text-white font-semibold break-words">{step.expression}</p>
                       )}
-                      <p className="text-gray-400">{step.explanation}</p>
+                      <p className="text-gray-400 text-[11px] sm:text-xs break-words">{step.explanation}</p>
                     </div>
                   ))}
                 </div>
@@ -371,67 +371,33 @@ export function EquationSuite() {
         </div>
       )}
 
-      {/* ═══ MODE 2: GENERAL SINGLE-VARIABLE ROOT FINDER ═══ */}
+      {/* ═══ MODE 2: GENERAL SINGLE-VARIABLE SOLVER ═══ */}
       {mode === "general" && (
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
-            <label className="text-xs font-medium text-gray-300 mb-2 block">
-              Enter any Algebraic, Trigonometric, or Transcendental Equation (Supports <code className="text-accent-cyan font-mono">sin</code>, <code className="text-accent-cyan font-mono">cos</code>, <code className="text-accent-cyan font-mono">ln</code>, <code className="text-accent-cyan font-mono">exp</code>, <code className="text-accent-cyan font-mono">×</code>, <code className="text-accent-cyan font-mono">÷</code>, <code className="text-accent-cyan font-mono">−</code>):
+        <div className="space-y-4 sm:space-y-6 min-w-0 w-full">
+          <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3.5 sm:p-6 shadow-2xl backdrop-blur-xl min-w-0 overflow-hidden">
+            <label className="text-xs font-semibold text-gray-300 block mb-2">
+              Enter Non-Linear Equation in <code className="text-accent-cyan font-mono">x</code> (e.g. <code className="text-accent-cyan font-mono">sin(x) = 0.5</code> or <code className="text-accent-cyan font-mono">x^3 − 6x^2 + 11x − 6 = 0</code>):
             </label>
-
-            <div className="flex flex-col sm:flex-row items-stretch gap-2">
-              <input
-                type="text"
-                value={generalEquation}
-                onChange={(e) => setGeneralEquation(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && solveGen()}
-                placeholder="e.g. sin(x) = 0.5 or e^x − 3x = 0 or x^3 − 5x + 1 = 0"
-                className="flex-1 rounded-xl border border-white/10 bg-dark-950 px-4 py-3 font-mono text-base font-bold text-white placeholder:text-gray-600 focus:border-accent-cyan focus:outline-none shadow-inner"
-              />
-              <button
-                type="button"
-                onClick={solveGen}
-                className="rounded-xl border border-cyan-500/40 bg-accent-cyan/20 px-6 py-3 text-sm font-bold text-accent-cyan transition hover:bg-accent-cyan hover:text-dark-950 shadow-lg active:scale-95"
-              >
-                Find Roots
-              </button>
-            </div>
-
-            {/* Quick Presets */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] pt-3">
-              <span className="text-[11px] text-gray-400 mr-1 font-medium">Presets:</span>
-              {[
-                "sin(x) = 0.5",
-                "exp(x) − 3x = 0",
-                "x^3 − 6x^2 + 11x − 6 = 0",
-                "ln(x) + 2x = 4",
-                "cos(x) − x = 0",
-                "x^4 − 16 = 0",
-              ].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setGeneralEquation(preset)}
-                  className="rounded-lg border border-white/[0.06] bg-dark-950 px-2 py-0.5 text-[11px] font-mono text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/30 transition"
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
+            <input
+              type="text"
+              value={generalEquation}
+              onChange={(e) => setGeneralEquation(e.target.value)}
+              placeholder="e.g. cos(x) - x = 0"
+              className="w-full rounded-xl border border-white/10 bg-dark-950 px-3 sm:px-4 py-2.5 sm:py-3 font-mono text-sm sm:text-base font-bold text-white focus:border-accent-cyan focus:outline-none"
+            />
 
             {generalError && (
-              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 font-mono">
+              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 font-mono break-words">
                 {generalError}
               </div>
             )}
           </div>
 
-          {/* General Results & Curve Plot Grid */}
           {generalSolution && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-w-0 w-full">
               {/* Roots list (5 cols) */}
-              <div className="lg:col-span-5 space-y-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <div className="lg:col-span-5 space-y-2.5 min-w-0 w-full">
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                   <Sparkles size={16} className="text-accent-cyan" />
                   <span>Isolated Numerical Roots</span>
                 </h3>
@@ -440,36 +406,36 @@ export function EquationSuite() {
                   generalSolution.roots.map((r, idx) => (
                     <div
                       key={idx}
-                      className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 shadow-xl flex items-center justify-between"
+                      className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3 sm:p-4 shadow-xl flex items-center justify-between min-w-0 overflow-hidden"
                     >
-                      <div>
+                      <div className="min-w-0 overflow-hidden mr-2">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent-cyan/15 text-[11px] font-mono font-bold text-accent-cyan">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent-cyan/15 text-[10px] sm:text-[11px] font-mono font-bold text-accent-cyan shrink-0">
                             x_{idx + 1}
                           </span>
-                          <span className="text-[11px] text-gray-400 font-mono">
+                          <span className="text-[10px] sm:text-[11px] text-gray-400 font-mono truncate">
                             Residual: {r.fx.toExponential(2)}
                           </span>
                         </div>
-                        <p className="font-mono text-xl font-black text-white">{formatNum(r.x, 6)}</p>
+                        <p className="font-mono text-base sm:text-xl font-black text-white break-words">{formatNum(r.x, 6)}</p>
                       </div>
                       <button
                         onClick={() => copyToClipboard(formatNum(r.x, 6), `gen-root-${idx}`)}
-                        className="text-gray-500 hover:text-white transition"
+                        className="text-gray-500 hover:text-white transition p-1 shrink-0"
                       >
                         {copiedKey === `gen-root-${idx}` ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                       </button>
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl border border-white/[0.08] bg-dark-900/50 p-6 text-center text-xs text-gray-500">
-                    No real roots found within default search range [−10, 10]
+                  <div className="rounded-2xl border border-white/[0.08] bg-dark-900/50 p-4 sm:p-6 text-center text-xs text-gray-500">
+                    No real roots found within default range [−10, 10]
                   </div>
                 )}
               </div>
 
               {/* Curve Plot (7 cols) */}
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-7 min-w-0 w-full">
                 <EquationCurvePlot
                   expression={generalSolution.standardForm.replace(" = 0", "")}
                   roots={generalSolution.roots.map((r) => r.x)}
@@ -482,12 +448,12 @@ export function EquationSuite() {
 
       {/* ═══ MODE 3: SIMULTANEOUS LINEAR SYSTEMS ═══ */}
       {mode === "system" && (
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3 mb-4">
+        <div className="space-y-4 sm:space-y-6 min-w-0 w-full">
+          <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3.5 sm:p-6 shadow-2xl backdrop-blur-xl min-w-0 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-white/[0.06] pb-3 mb-4">
               <div>
                 <span className="text-xs font-semibold text-gray-300">System Dimension (N × N)</span>
-                <p className="text-[11px] text-gray-500">Number of unknown variables and equations</p>
+                <p className="text-[10px] sm:text-[11px] text-gray-500">Number of unknown variables and equations</p>
               </div>
               <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-dark-950 p-1">
                 {[2, 3, 4, 5].map((s) => (
@@ -495,7 +461,7 @@ export function EquationSuite() {
                     key={s}
                     type="button"
                     onClick={() => handleSystemSizeChange(s)}
-                    className={`rounded-lg px-3 py-1 text-xs font-mono font-semibold transition ${
+                    className={`rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-semibold transition ${
                       systemSize === s
                         ? "bg-accent-cyan text-dark-950 font-bold shadow-sm"
                         : "text-gray-400 hover:text-white"
@@ -508,17 +474,17 @@ export function EquationSuite() {
             </div>
 
             {/* Matrix & Equations Grid */}
-            <div className="space-y-3 overflow-x-auto">
-              <label className="text-xs text-gray-400 block">
+            <div className="space-y-2.5 overflow-x-auto pb-2">
+              <label className="text-xs text-gray-400 block truncate">
                 Coefficient Matrix [A] and Constants Vector [b]:
               </label>
-              <div className="space-y-2 min-w-[340px]">
+              <div className="space-y-2 min-w-[280px]">
                 {matrixA.map((row, rIdx) => (
-                  <div key={rIdx} className="flex items-center gap-2">
+                  <div key={rIdx} className="flex items-center gap-1.5 sm:gap-2">
                     {row.map((val, cIdx) => {
                       const vName = ["x", "y", "z", "w", "v"][cIdx];
                       return (
-                        <div key={cIdx} className="flex items-center gap-1.5 flex-1">
+                        <div key={cIdx} className="flex items-center gap-1 flex-1 min-w-[50px]">
                           <input
                             type="number"
                             step="any"
@@ -529,15 +495,15 @@ export function EquationSuite() {
                               );
                               setMatrixA(nextA);
                             }}
-                            className="w-full rounded-xl border border-white/10 bg-dark-950 px-2.5 py-2 font-mono text-sm font-bold text-white text-center focus:border-accent-cyan focus:outline-none"
+                            className="w-full rounded-lg sm:rounded-xl border border-white/10 bg-dark-950 px-1.5 sm:px-2.5 py-1.5 sm:py-2 font-mono text-xs sm:text-sm font-bold text-white text-center focus:border-accent-cyan focus:outline-none"
                           />
-                          <span className="font-mono text-xs font-bold text-accent-cyan">{vName}</span>
-                          {cIdx < row.length - 1 && <span className="text-gray-500 font-bold">+</span>}
+                          <span className="font-mono text-[11px] sm:text-xs font-bold text-accent-cyan">{vName}</span>
+                          {cIdx < row.length - 1 && <span className="text-gray-500 font-bold text-xs">+</span>}
                         </div>
                       );
                     })}
 
-                    <span className="text-white font-bold mx-1">=</span>
+                    <span className="text-white font-bold mx-0.5 text-xs">=</span>
 
                     {/* Vector b entry */}
                     <input
@@ -549,7 +515,7 @@ export function EquationSuite() {
                         nextB[rIdx] = parseFloat(e.target.value) || 0;
                         setVectorB(nextB);
                       }}
-                      className="w-20 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-2 font-mono text-sm font-bold text-white text-center focus:border-accent-cyan focus:outline-none"
+                      className="w-14 sm:w-20 rounded-lg sm:rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-1.5 sm:px-2.5 py-1.5 sm:py-2 font-mono text-xs sm:text-sm font-bold text-white text-center focus:border-accent-cyan focus:outline-none"
                     />
                   </div>
                 ))}
@@ -557,7 +523,7 @@ export function EquationSuite() {
             </div>
 
             {systemError && (
-              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 font-mono">
+              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 font-mono break-words">
                 {systemError}
               </div>
             )}
@@ -565,52 +531,52 @@ export function EquationSuite() {
 
           {/* System Solutions Grid */}
           {systemSolution && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <div className="space-y-3 sm:space-y-4 min-w-0 w-full">
+              <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                 <Sparkles size={16} className="text-accent-cyan" />
                 <span>Simultaneous System Solution</span>
               </h3>
 
               {systemSolution.status === "unique" && systemSolution.solution ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 sm:gap-3 min-w-0 w-full">
                   {Object.entries(systemSolution.solution).map(([varName, val]) => (
                     <div
                       key={varName}
-                      className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 shadow-xl relative group"
+                      className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3 sm:p-4 shadow-xl relative group min-w-0 overflow-hidden"
                     >
-                      <span className="text-xs font-mono font-bold text-accent-cyan block mb-1">
+                      <span className="text-[10px] sm:text-xs font-mono font-bold text-accent-cyan block mb-1 truncate">
                         Variable {varName}
                       </span>
-                      <p className="font-mono text-2xl font-black text-white">{formatNum(val, 4)}</p>
+                      <p className="font-mono text-lg sm:text-2xl font-black text-white break-words">{formatNum(val, 4)}</p>
                       <button
                         onClick={() => copyToClipboard(formatNum(val, 4), `sys-${varName}`)}
-                        className="absolute right-3 top-3 text-gray-500 hover:text-white transition"
+                        className="absolute right-2.5 top-2.5 text-gray-500 hover:text-white transition p-1"
                       >
-                        {copiedKey === `sys-${varName}` ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                        {copiedKey === `sys-${varName}` ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-red-500/20 bg-dark-900/80 p-6 text-center text-sm text-red-400 font-mono">
+                <div className="rounded-2xl border border-red-500/20 bg-dark-900/80 p-4 sm:p-6 text-center text-xs sm:text-sm text-red-400 font-mono break-words">
                   Matrix determinant det(A) = 0. System is singular (Inconsistent or Infinite solutions).
                 </div>
               )}
 
               {/* Cramer's Rule Step Derivation */}
               {systemSolution.steps.length > 0 && (
-                <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-xl">
-                  <span className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-3">
+                <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3.5 sm:p-6 shadow-xl min-w-0 overflow-hidden">
+                  <span className="text-[10px] sm:text-xs font-bold text-gray-300 uppercase tracking-wider block mb-3">
                     Cramer's Rule & Determinants Breakdown
                   </span>
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {systemSolution.steps.map((step, idx) => (
-                      <div key={idx} className="rounded-xl border border-white/[0.04] bg-dark-950 p-3 text-xs space-y-1">
-                        <span className="font-bold text-accent-cyan">{step.title}</span>
+                      <div key={idx} className="rounded-xl border border-white/[0.04] bg-dark-950 p-2.5 sm:p-3 text-xs space-y-1 min-w-0">
+                        <span className="font-bold text-accent-cyan block truncate">{step.title}</span>
                         {step.expression && (
-                          <p className="font-mono text-sm text-white font-semibold">{step.expression}</p>
+                          <p className="font-mono text-xs sm:text-sm text-white font-semibold break-words">{step.expression}</p>
                         )}
-                        <p className="text-gray-400">{step.explanation}</p>
+                        <p className="text-gray-400 text-[11px] sm:text-xs break-words">{step.explanation}</p>
                       </div>
                     ))}
                   </div>

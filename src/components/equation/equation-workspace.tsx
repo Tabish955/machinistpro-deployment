@@ -124,29 +124,29 @@ export function EquationWorkspace() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in max-w-7xl mx-auto w-full min-w-0 overflow-hidden">
       {/* Top Main Mode Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-4">
-        <div>
-          <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <span className="bg-gradient-to-r from-accent-cyan via-blue-400 to-accent-purple bg-clip-text text-transparent">
-              Engineering Calculation Notebook & Equation CAS
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3 sm:pb-4">
+        <div className="min-w-0">
+          <h2 className="text-sm sm:text-lg font-bold text-white flex items-center gap-2">
+            <span className="bg-gradient-to-r from-accent-cyan via-blue-400 to-accent-purple bg-clip-text text-transparent truncate">
+              Engineering Calculation Notebook
             </span>
-            <span className="rounded-full bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-400 border border-cyan-500/20 shadow-sm">
-              Reactive Mathcad-Grade
+            <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-cyan-400 border border-cyan-500/20 shadow-sm shrink-0">
+              Mathcad-Grade
             </span>
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Multi-block sequential calculations, dimensional units, variable dependency graph, and exact CAS solvers
+          <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 truncate">
+            Sequential calculations, dimensional units, variable dependency graph, and exact CAS solvers
           </p>
         </div>
 
         {/* Mode Tabs Switcher */}
-        <div className="flex items-center rounded-xl border border-white/10 bg-dark-950 p-1">
+        <div className="flex items-center rounded-xl border border-white/10 bg-dark-950 p-1 overflow-x-auto no-scrollbar scroll-smooth snap-x w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setActiveTab("notebook")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 snap-start rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
               activeTab === "notebook"
                 ? "bg-accent-cyan text-dark-950 shadow-md font-bold"
                 : "text-gray-400 hover:text-white"
@@ -158,7 +158,7 @@ export function EquationWorkspace() {
           <button
             type="button"
             onClick={() => setActiveTab("solvers")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 snap-start rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
               activeTab === "solvers"
                 ? "bg-accent-cyan text-dark-950 shadow-md font-bold"
                 : "text-gray-400 hover:text-white"
@@ -170,7 +170,7 @@ export function EquationWorkspace() {
           <button
             type="button"
             onClick={() => setActiveTab("templates")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 snap-start rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition ${
               activeTab === "templates"
                 ? "bg-accent-cyan text-dark-950 shadow-md font-bold"
                 : "text-gray-400 hover:text-white"
@@ -184,18 +184,18 @@ export function EquationWorkspace() {
 
       {/* ═══ TAB 1: CALCULATION SHEET NOTEBOOK ═══ */}
       {activeTab === "notebook" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-w-0 w-full">
           {/* Main Calculation Document (8 cols) */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className="lg:col-span-8 space-y-3 sm:space-y-4 min-w-0 w-full">
             {/* Action Bar */}
-            <div className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3 shadow-lg">
+            <div className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-dark-900/80 p-2.5 sm:p-3 shadow-lg">
               <button
                 type="button"
                 onClick={handleAddBlock}
-                className="flex items-center gap-1.5 rounded-xl border border-accent-cyan/40 bg-accent-cyan/20 px-3.5 py-1.5 text-xs font-bold text-accent-cyan hover:bg-accent-cyan hover:text-dark-950 transition shadow-md"
+                className="flex items-center gap-1.5 rounded-xl border border-accent-cyan/40 bg-accent-cyan/20 px-3 sm:px-3.5 py-1.5 text-xs font-bold text-accent-cyan hover:bg-accent-cyan hover:text-dark-950 transition shadow-md"
               >
                 <Plus size={14} />
-                <span>Add Calculation Line</span>
+                <span>Add Line</span>
               </button>
 
               <div className="flex items-center gap-2">
@@ -212,7 +212,7 @@ export function EquationWorkspace() {
             </div>
 
             {/* Sequential Calculation Rows */}
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3 min-w-0 w-full">
               {blocks.map((block, idx) => (
                 <EditableEquationRow
                   key={block.id}
@@ -226,31 +226,33 @@ export function EquationWorkspace() {
           </div>
 
           {/* Right Inspector & Tools (4 cols) */}
-          <div className="lg:col-span-4 space-y-4">
+          <div className="lg:col-span-4 space-y-4 min-w-0 w-full">
             <VariablePalette scope={scope} />
 
             {/* Quick Templates Callout */}
-            <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 shadow-xl space-y-2">
+            <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-3.5 sm:p-4 shadow-xl space-y-2 min-w-0 overflow-hidden">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                 <BookOpen size={14} className="text-accent-cyan" />
-                <span>Insert Engineering Template</span>
+                <span>Insert Template</span>
               </h4>
               <div className="space-y-1.5 pt-1">
                 {ENGINEERING_TEMPLATES.slice(0, 3).map((tmpl) => (
                   <button
                     key={tmpl.id}
                     onClick={() => handleInsertTemplate(tmpl.id)}
-                    className="w-full text-left rounded-xl border border-white/[0.04] bg-dark-950 p-2.5 text-xs hover:border-accent-cyan/30 hover:bg-dark-900 transition flex items-center justify-between group"
+                    className="w-full text-left rounded-xl border border-white/[0.04] bg-dark-950 p-2.5 text-xs hover:border-accent-cyan/30 hover:bg-dark-900 transition flex items-center justify-between group min-w-0"
                   >
-                    <div>
-                      <span className="font-semibold text-white group-hover:text-accent-cyan transition">
+                    <div className="min-w-0 mr-2">
+                      <span className="font-semibold text-white group-hover:text-accent-cyan transition block truncate">
                         {tmpl.name}
                       </span>
                       <span className="text-[10px] text-gray-500 block truncate mt-0.5">
                         {tmpl.description}
                       </span>
                     </div>
-                    <Plus size={14} className="text-gray-500 group-hover:text-accent-cyan transition ml-2 shrink-0" />
+                    <span className="text-[10px] font-mono text-accent-cyan shrink-0 rounded bg-cyan-500/10 px-1.5 py-0.5">
+                      {tmpl.blocks.length} lines
+                    </span>
                   </button>
                 ))}
               </div>
@@ -259,50 +261,44 @@ export function EquationWorkspace() {
         </div>
       )}
 
-      {/* ═══ TAB 2: EXACT & MATRIX SOLVERS ═══ */}
+      {/* ═══ TAB 2: CAS EXACT & NUMERICAL SOLVERS ═══ */}
       {activeTab === "solvers" && (
-        <div className="space-y-6">
+        <div className="min-w-0 w-full">
           <EquationSuite />
         </div>
       )}
 
-      {/* ═══ TAB 3: FORMULA TEMPLATES BROWSER ═══ */}
+      {/* ═══ TAB 3: COMPLETE FORMULA TEMPLATES LIBRARY ═══ */}
       {activeTab === "templates" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 min-w-0 w-full">
           {ENGINEERING_TEMPLATES.map((tmpl) => (
             <div
               key={tmpl.id}
-              className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-5 shadow-xl space-y-3 flex flex-col justify-between"
+              className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 shadow-xl flex flex-col justify-between space-y-3 min-w-0 overflow-hidden"
             >
               <div>
-                <span className="rounded-full bg-accent-cyan/10 px-2.5 py-0.5 text-[10px] font-mono font-bold text-accent-cyan uppercase tracking-wider border border-accent-cyan/20">
-                  {tmpl.category}
-                </span>
-                <h3 className="text-base font-bold text-white mt-2">{tmpl.name}</h3>
-                <p className="text-xs text-gray-400 mt-1">{tmpl.description}</p>
-
-                <div className="mt-3 space-y-1 rounded-xl border border-white/[0.04] bg-dark-950 p-2.5 text-[11px] font-mono text-gray-300">
-                  {tmpl.blocks.slice(0, 3).map((b, idx) => (
-                    <div key={idx} className="truncate">
-                      {b.rawInput}
-                    </div>
-                  ))}
-                  {tmpl.blocks.length > 3 && (
-                    <div className="text-[10px] text-gray-500 font-sans">
-                      + {tmpl.blocks.length - 3} more calculation steps
-                    </div>
-                  )}
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="rounded-md bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-accent-cyan uppercase tracking-wider shrink-0">
+                    {tmpl.category}
+                  </span>
+                  <span className="text-[11px] text-gray-500 font-mono">
+                    {tmpl.blocks.length} Steps
+                  </span>
                 </div>
+                <h3 className="text-sm font-bold text-white truncate">{tmpl.name}</h3>
+                <p className="text-xs text-gray-400 mt-1 line-clamp-2">{tmpl.description}</p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleInsertTemplate(tmpl.id)}
-                className="w-full rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 py-2.5 text-xs font-bold text-accent-cyan hover:bg-accent-cyan hover:text-dark-950 transition flex items-center justify-center gap-1.5 shadow-md"
-              >
-                <Plus size={14} />
-                <span>Insert Template into Sheet</span>
-              </button>
+              <div className="pt-2 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => handleInsertTemplate(tmpl.id)}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-2 text-xs font-bold text-accent-cyan hover:bg-cyan-500 hover:text-dark-950 transition"
+                >
+                  <Plus size={14} />
+                  <span>Load into Notebook</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>

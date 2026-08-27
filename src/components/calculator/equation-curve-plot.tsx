@@ -89,11 +89,11 @@ export function EquationCurvePlot({
   const originX = toPxX(0);
   const originY = toPxY(0);
 
-  // Mouse hover scrubber
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  // Pointer hover & touch scrubber
+  const handlePointerScrub = (clientX: number) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const relX = ((e.clientX - rect.left) / rect.width) * width;
+    const relX = ((clientX - rect.left) / rect.width) * width;
     const mathX = minX + ((relX - padding) / (width - 2 * padding)) * (maxX - minX);
     setHoverX(Math.max(minX, Math.min(maxX, mathX)));
   };
@@ -110,26 +110,29 @@ export function EquationCurvePlot({
   }, [hoverX, expression]);
 
   return (
-    <div className={`relative rounded-2xl border border-white/[0.08] bg-dark-950 p-2 shadow-2xl overflow-hidden ${className}`}>
+    <div className={`relative rounded-2xl border border-white/[0.08] bg-dark-950 p-2 shadow-2xl overflow-hidden min-w-0 w-full ${className}`}>
       {/* Top Readout HUD */}
-      <div className="absolute right-3 top-3 z-10 rounded-xl border border-white/10 bg-dark-900/90 px-3 py-1 text-xs font-mono backdrop-blur-md shadow-lg">
+      <div className="absolute right-2 sm:right-3 top-2 sm:top-3 z-10 max-w-[60%] sm:max-w-none rounded-xl border border-white/10 bg-dark-900/90 px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-mono backdrop-blur-md shadow-lg truncate">
         {hoverX !== null && hoveredY !== null ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 truncate">
             <span className="text-gray-400">x: <strong className="text-white">{formatNum(hoverX, 2)}</strong></span>
             <span className="text-gray-500">|</span>
-            <span className="text-accent-cyan">f(x): <strong className="text-cyan-300">{formatNum(hoveredY, 3)}</strong></span>
+            <span className="text-accent-cyan">f(x): <strong className="text-cyan-300">{formatNum(hoveredY, 2)}</strong></span>
           </div>
         ) : (
-          <span className="text-gray-500">Hover graph to trace f(x)</span>
+          <span className="text-gray-500">Touch/hover to trace</span>
         )}
       </div>
 
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoverX(null)}
-        className="w-full h-56 select-none cursor-crosshair rounded-xl"
+        onPointerDown={(e) => handlePointerScrub(e.clientX)}
+        onPointerMove={(e) => {
+          if (e.buttons > 0 || e.pointerType === "mouse") handlePointerScrub(e.clientX);
+        }}
+        onPointerLeave={() => setHoverX(null)}
+        className="w-full h-48 sm:h-56 select-none cursor-crosshair rounded-xl touch-none max-w-full"
       >
         <defs>
           <linearGradient id="curve-glow" x1="0" y1="0" x2="0" y2="1">
@@ -179,18 +182,18 @@ export function EquationCurvePlot({
           const py = originY >= padding && originY <= height - padding ? originY : toPxY(0);
           return (
             <g key={`root-${idx}`}>
-              <circle cx={px} cy={py} r="6" fill="#10b981" />
-              <circle cx={px} cy={py} r="2.5" fill="#ffffff" />
+              <circle cx={px} cy={py} r="5" fill="#10b981" />
+              <circle cx={px} cy={py} r="2" fill="#ffffff" />
               <text
                 x={px}
-                y={py - 9}
+                y={py - 8}
                 fill="#34d399"
-                fontSize="10"
+                fontSize="9"
                 fontFamily="monospace"
                 fontWeight="bold"
                 textAnchor="middle"
               >
-                x={formatNum(rx, 2)}
+                x={formatNum(rx, 1)}
               </text>
             </g>
           );
@@ -199,12 +202,12 @@ export function EquationCurvePlot({
         {/* Vertex (if quadratic) */}
         {vertex && vertex.x >= minX && vertex.x <= maxX && (
           <g>
-            <circle cx={toPxX(vertex.x)} cy={toPxY(vertex.y)} r="5" fill="#f59e0b" />
+            <circle cx={toPxX(vertex.x)} cy={toPxY(vertex.y)} r="4.5" fill="#f59e0b" />
             <text
               x={toPxX(vertex.x)}
-              y={toPxY(vertex.y) + (vertex.y < 0 ? 14 : -9)}
+              y={toPxY(vertex.y) + (vertex.y < 0 ? 12 : -8)}
               fill="#fbbf24"
-              fontSize="9"
+              fontSize="8"
               fontFamily="monospace"
               textAnchor="middle"
             >
@@ -228,7 +231,7 @@ export function EquationCurvePlot({
             <circle
               cx={toPxX(hoverX)}
               cy={toPxY(hoveredY)}
-              r="4.5"
+              r="4"
               fill="#06b6d4"
               stroke="#ffffff"
               strokeWidth="1.5"

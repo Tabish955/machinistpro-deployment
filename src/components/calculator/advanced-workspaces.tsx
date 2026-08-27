@@ -683,17 +683,18 @@ function EngineeringWorkspace({
 
 function StatisticsWorkspace() {
   return (
-    <Workspace
-      title="Statistics"
-      subtitle="Comprehensive 1-variable descriptive analytics, 2-variable regressions, probability distributions, and hypothesis testing"
-    >
+    <div className="h-full overflow-y-auto px-2 sm:px-4 pb-6 min-w-0 w-full max-w-full overflow-x-hidden">
       <StatisticsSuite />
-    </Workspace>
+    </div>
   );
 }
 
 function ComplexWorkspace() {
-  return <ComplexSuite />;
+  return (
+    <div className="h-full overflow-y-auto px-2 sm:px-4 pb-6 min-w-0 w-full max-w-full overflow-x-hidden">
+      <ComplexSuite />
+    </div>
+  );
 }
 
 function ProgrammerWorkspace() {
@@ -862,7 +863,11 @@ function MatrixWorkspace() {
 }
 
 function EquationWorkspace() {
-  return <ProfessionalEquationWorkspace />;
+  return (
+    <div className="h-full overflow-y-auto px-2 sm:px-4 pb-6 min-w-0 w-full max-w-full overflow-x-hidden">
+      <ProfessionalEquationWorkspace />
+    </div>
+  );
 }
 
 const colors = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#fb7185", "#60a5fa"];
@@ -1320,12 +1325,12 @@ function Workspace({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-full overflow-y-auto px-3 pb-4 sm:px-4">
-      <div className="mb-3">
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
-        <p className="text-[10px] text-gray-600">{subtitle}</p>
+    <div className="h-full overflow-y-auto px-2 sm:px-4 pb-6 min-w-0 w-full max-w-full overflow-x-hidden">
+      <div className="mb-3 min-w-0">
+        <h2 className="text-sm font-semibold text-white truncate">{title}</h2>
+        <p className="text-[10px] text-gray-600 truncate">{subtitle}</p>
       </div>
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-3 min-w-0 w-full">{children}</div>
     </div>
   );
 }

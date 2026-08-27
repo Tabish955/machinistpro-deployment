@@ -43,12 +43,12 @@ import {
 import { copyText } from "@/lib/clipboard";
 
 const field =
-  "w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-sm text-white placeholder:text-gray-700 focus:border-accent-cyan/40 focus:outline-none";
+  "w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-gray-700 focus:border-accent-cyan/40 focus:outline-none";
 const button =
-  "rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/[0.08] hover:text-white";
+  "rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-gray-300 transition hover:bg-white/[0.08] hover:text-white";
 const primary =
-  "rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-4 py-2 text-xs font-semibold text-accent-cyan transition hover:bg-accent-cyan/20";
-const panel = "rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 sm:p-4";
+  "rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-accent-cyan transition hover:bg-accent-cyan/20";
+const panel = "rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 sm:p-4 min-w-0 w-full overflow-hidden";
 
 export function StatisticsSuite() {
   const [activeTab, setActiveTab] = useState<
@@ -120,9 +120,13 @@ export function StatisticsSuite() {
     const s = Number(normStd);
     const x = Number(normX);
     if (!Number.isFinite(m) || !Number.isFinite(s) || !Number.isFinite(x) || s <= 0) return null;
-    const cdf = normalCdf(x, m, s);
-    const pdf = normalPdf(x, m, s);
-    return { cdf, pdf, upper: 1 - cdf };
+    try {
+      const cdf = normalCdf(x, m, s);
+      const pdf = normalPdf(x, m, s);
+      return { cdf, pdf, upper: 1 - cdf };
+    } catch {
+      return null;
+    }
   }, [normMean, normStd, normX]);
 
   // Binomial params
@@ -134,7 +138,8 @@ export function StatisticsSuite() {
     const n = Number(binomN);
     const p = Number(binomP);
     const k = Number(binomK);
-    if (!Number.isFinite(n) || !Number.isFinite(p) || !Number.isFinite(k)) return null;
+    if (!Number.isFinite(n) || !Number.isFinite(p) || !Number.isFinite(k) || n < 1 || p < 0 || p > 1)
+      return null;
     try {
       const pmf = binomialPmf(k, n, p);
       const cdf = binomialCdf(k, n, p);
@@ -145,7 +150,7 @@ export function StatisticsSuite() {
   }, [binomN, binomP, binomK]);
 
   // Poisson params
-  const [poisLambda, setPoisLambda] = useState("3.5");
+  const [poisLambda, setPoisLambda] = useState("4");
   const [poisK, setPoisK] = useState("3");
 
   const poisProb = useMemo(() => {
@@ -164,7 +169,7 @@ export function StatisticsSuite() {
   // ----------------------------------------------------------------
   // Tab 4: Hypothesis Testing
   // ----------------------------------------------------------------
-  const [testType, setTestType] = useState<"1t" | "1z" | "2t" | "anova">("1t");
+  const [testType, setTestType] = useState<"1t" | "1z">("1t");
   const [hypMean, setHypMean] = useState("20");
   const [sampleM, setSampleM] = useState("22.5");
   const [sampleS, setSampleS] = useState("4.2");
@@ -199,36 +204,36 @@ export function StatisticsSuite() {
   }, [testType, hypMean, sampleM, sampleS, sampleN, alpha]);
 
   return (
-    <div className="space-y-4">
-      {/* Tab Navigation Header */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-white/[0.08] pb-3">
+    <div className="space-y-4 w-full min-w-0 max-w-full overflow-hidden">
+      {/* Horizontally Scrollable Tab Navigation Header */}
+      <div className="flex items-center gap-1.5 border-b border-white/[0.08] pb-3 overflow-x-auto no-scrollbar scroll-smooth snap-x">
         <button
           onClick={() => setActiveTab("descriptive")}
-          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+          className={`flex items-center gap-2 whitespace-nowrap shrink-0 snap-start rounded-xl px-3 py-2 text-xs font-semibold transition ${
             activeTab === "descriptive"
               ? "border border-accent-cyan/40 bg-accent-cyan/15 text-accent-cyan"
               : "text-gray-400 hover:bg-white/[0.04] hover:text-white"
           }`}
         >
           <BarChart3 size={15} />
-          <span>1-Variable Descriptive & Visuals</span>
+          <span>1-Var Descriptive & Visuals</span>
         </button>
 
         <button
           onClick={() => setActiveTab("regression")}
-          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+          className={`flex items-center gap-2 whitespace-nowrap shrink-0 snap-start rounded-xl px-3 py-2 text-xs font-semibold transition ${
             activeTab === "regression"
               ? "border border-accent-cyan/40 bg-accent-cyan/15 text-accent-cyan"
               : "text-gray-400 hover:bg-white/[0.04] hover:text-white"
           }`}
         >
           <TrendingUp size={15} />
-          <span>2-Variable Curve Fitting & Regression</span>
+          <span>2-Var Curve Fitting & Regression</span>
         </button>
 
         <button
           onClick={() => setActiveTab("distributions")}
-          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+          className={`flex items-center gap-2 whitespace-nowrap shrink-0 snap-start rounded-xl px-3 py-2 text-xs font-semibold transition ${
             activeTab === "distributions"
               ? "border border-accent-cyan/40 bg-accent-cyan/15 text-accent-cyan"
               : "text-gray-400 hover:bg-white/[0.04] hover:text-white"
@@ -240,14 +245,14 @@ export function StatisticsSuite() {
 
         <button
           onClick={() => setActiveTab("hypothesis")}
-          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+          className={`flex items-center gap-2 whitespace-nowrap shrink-0 snap-start rounded-xl px-3 py-2 text-xs font-semibold transition ${
             activeTab === "hypothesis"
               ? "border border-accent-cyan/40 bg-accent-cyan/15 text-accent-cyan"
               : "text-gray-400 hover:bg-white/[0.04] hover:text-white"
           }`}
         >
           <FlaskConical size={15} />
-          <span>Hypothesis Testing & Confidence Intervals</span>
+          <span>Hypothesis Testing</span>
         </button>
       </div>
 
@@ -255,8 +260,8 @@ export function StatisticsSuite() {
       {/* TAB 1: 1-VARIABLE DESCRIPTIVE STATISTICS & VISUALIZATIONS */}
       {/* ------------------------------------------------------------- */}
       {activeTab === "descriptive" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 min-w-0 w-full">
+          <div className="grid gap-4 lg:grid-cols-3 min-w-0 w-full">
             {/* Input Data Box */}
             <div className={`${panel} lg:col-span-1 space-y-3`}>
               <div className="flex items-center justify-between">
@@ -264,7 +269,7 @@ export function StatisticsSuite() {
                 <span className="text-[10px] text-gray-500">{parsed1VarData.length} items</span>
               </div>
               <textarea
-                className={`${field} min-h-32 font-mono text-xs`}
+                className={`${field} min-h-28 sm:min-h-32 font-mono text-xs`}
                 value={data1Var}
                 onChange={(e) => setData1Var(e.target.value)}
                 placeholder="Enter numbers separated by commas, spaces, or new lines..."
@@ -274,13 +279,13 @@ export function StatisticsSuite() {
                   className={button}
                   onClick={() => setData1Var("10, 12, 14, 15, 15, 16, 17, 18, 19, 20, 22, 25, 30")}
                 >
-                  Preset 1 (Machining tolerances)
+                  Tolerances
                 </button>
                 <button
                   className={button}
                   onClick={() => setData1Var("100, 102, 98, 105, 99, 101, 103, 97, 100, 104")}
                 >
-                  Preset 2 (Shaft diameters)
+                  Diameters
                 </button>
                 <button className={button} onClick={() => setData1Var("")}>
                   <RotateCcw size={12} className="inline mr-1" />
@@ -305,119 +310,119 @@ export function StatisticsSuite() {
             <div className={`${panel} lg:col-span-2 space-y-3`}>
               <h3 className="text-xs font-semibold text-gray-300">Summary Statistics</h3>
               {stats1Var ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      Sample Mean (x̄)
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0 w-full">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
+                      Mean (x̄)
                     </span>
-                    <p className="font-mono text-base font-bold text-white mt-0.5">
+                    <p className="font-mono text-sm sm:text-base font-bold text-white mt-0.5 truncate">
                       {stats1Var.mean.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Median (Q2)
                     </span>
-                    <p className="font-mono text-base font-bold text-accent-cyan mt-0.5">
+                    <p className="font-mono text-sm sm:text-base font-bold text-accent-cyan mt-0.5 truncate">
                       {stats1Var.median.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      Sample Std Dev (s)
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
+                      Std Dev (s)
                     </span>
-                    <p className="font-mono text-base font-bold text-white mt-0.5">
+                    <p className="font-mono text-sm sm:text-base font-bold text-white mt-0.5 truncate">
                       {stats1Var.sampleStdDev.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Std Error (SE)
                     </span>
-                    <p className="font-mono text-base font-bold text-gray-300 mt-0.5">
+                    <p className="font-mono text-sm sm:text-base font-bold text-gray-300 mt-0.5 truncate">
                       {stats1Var.standardError.toFixed(4)}
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      Sample Variance (s²)
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
+                      Variance (s²)
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-200 mt-0.5 truncate">
                       {stats1Var.sampleVariance.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      IQR (Q3 − Q1)
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
+                      IQR (Q3−Q1)
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-200 mt-0.5 truncate">
                       {stats1Var.iqr.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Min / Max
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-200 mt-0.5 truncate">
                       {stats1Var.min.toFixed(2)} / {stats1Var.max.toFixed(2)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Range
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-200 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-200 mt-0.5 truncate">
                       {stats1Var.range.toFixed(4)}
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Q1 (25th %)
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-300 mt-0.5 truncate">
                       {stats1Var.q1.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Q3 (75th %)
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-300 mt-0.5 truncate">
                       {stats1Var.q3.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Skewness
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-300 mt-0.5 truncate">
                       {stats1Var.skewness.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      Excess Kurtosis
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
+                      Kurtosis
                     </span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-300 mt-0.5 truncate">
                       {stats1Var.kurtosis.toFixed(4)}
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5 col-span-2">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 col-span-2 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Sum (Σx) & Sum of Squares (Σx²)
                     </span>
-                    <p className="font-mono text-xs text-gray-300 mt-0.5">
+                    <p className="font-mono text-[11px] sm:text-xs text-gray-300 mt-0.5 truncate">
                       Σx = {stats1Var.sum.toFixed(2)} | Σx² = {stats1Var.sumSquares.toFixed(2)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5 col-span-2">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 col-span-2 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                       Modes
                     </span>
-                    <p className="font-mono text-xs text-gray-300 mt-0.5">
+                    <p className="font-mono text-[11px] sm:text-xs text-gray-300 mt-0.5 truncate">
                       {stats1Var.modes.length > 0
                         ? stats1Var.modes.join(", ")
                         : "No repeated modes"}
@@ -434,12 +439,12 @@ export function StatisticsSuite() {
 
           {/* Interactive SVG Charts: Histogram and Box Plot */}
           {stats1Var && histogramBins.length > 0 && (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-2 min-w-0 w-full">
               {/* Histogram */}
               <div className={`${panel} space-y-2`}>
                 <h4 className="text-xs font-semibold text-gray-300">Histogram Distribution</h4>
-                <div className="h-56 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center">
-                  <svg viewBox="0 0 400 200" className="w-full h-full">
+                <div className="h-48 sm:h-56 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center overflow-hidden">
+                  <svg viewBox="0 0 400 200" className="w-full h-full max-w-full">
                     {/* Grid lines */}
                     <line x1="40" y1="20" x2="40" y2="170" stroke="#334155" strokeWidth="1" />
                     <line x1="40" y1="170" x2="380" y2="170" stroke="#334155" strokeWidth="1" />
@@ -448,25 +453,27 @@ export function StatisticsSuite() {
                     {(() => {
                       const maxFreq = Math.max(...histogramBins.map((b) => b.count), 1);
                       const barWidth = 340 / histogramBins.length - 4;
+
                       return histogramBins.map((bin, idx) => {
                         const barHeight = (bin.count / maxFreq) * 140;
-                        const x = 45 + idx * (340 / histogramBins.length);
+                        const x = 44 + idx * (barWidth + 4);
                         const y = 170 - barHeight;
+
                         return (
-                          <g key={idx} className="transition-all hover:opacity-80">
+                          <g key={idx}>
                             <rect
                               x={x}
                               y={y}
-                              width={Math.max(2, barWidth)}
-                              height={Math.max(1, barHeight)}
+                              width={barWidth}
+                              height={barHeight}
                               fill="#06b6d4"
-                              rx="3"
-                              opacity="0.85"
+                              opacity="0.8"
+                              rx="2"
                             />
                             <text
                               x={x + barWidth / 2}
-                              y={y - 5}
-                              fill="#94a3b8"
+                              y={y - 4}
+                              fill="#22d3ee"
                               fontSize="10"
                               textAnchor="middle"
                               fontFamily="monospace"
@@ -477,11 +484,11 @@ export function StatisticsSuite() {
                               x={x + barWidth / 2}
                               y="185"
                               fill="#64748b"
-                              fontSize="9"
+                              fontSize="8"
                               textAnchor="middle"
                               fontFamily="monospace"
                             >
-                              {bin.midpoint.toFixed(1)}
+                              {bin.min.toFixed(1)}
                             </text>
                           </g>
                         );
@@ -491,11 +498,11 @@ export function StatisticsSuite() {
                 </div>
               </div>
 
-              {/* Box and Whisker Plot */}
+              {/* Box & Whisker Plot */}
               <div className={`${panel} space-y-2`}>
-                <h4 className="text-xs font-semibold text-gray-300">Box & Whisker Plot</h4>
-                <div className="h-56 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center">
-                  <svg viewBox="0 0 400 200" className="w-full h-full">
+                <h4 className="text-xs font-semibold text-gray-300">Box & Whisker Five-Number Summary</h4>
+                <div className="h-48 sm:h-56 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center overflow-hidden">
+                  <svg viewBox="0 0 400 200" className="w-full h-full max-w-full">
                     {(() => {
                       const min = stats1Var.min;
                       const max = stats1Var.max;
@@ -576,7 +583,7 @@ export function StatisticsSuite() {
                             x={minX}
                             y="155"
                             fill="#64748b"
-                            fontSize="10"
+                            fontSize="9"
                             textAnchor="middle"
                             fontFamily="monospace"
                           >
@@ -586,7 +593,7 @@ export function StatisticsSuite() {
                             x={q2X}
                             y="50"
                             fill="#22d3ee"
-                            fontSize="10"
+                            fontSize="9"
                             textAnchor="middle"
                             fontFamily="monospace"
                           >
@@ -596,7 +603,7 @@ export function StatisticsSuite() {
                             x={maxX}
                             y="155"
                             fill="#64748b"
-                            fontSize="10"
+                            fontSize="9"
                             textAnchor="middle"
                             fontFamily="monospace"
                           >
@@ -617,8 +624,8 @@ export function StatisticsSuite() {
       {/* TAB 2: 2-VARIABLE REGRESSION & CURVE FITTING */}
       {/* ------------------------------------------------------------- */}
       {activeTab === "regression" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 min-w-0 w-full">
+          <div className="grid gap-4 lg:grid-cols-3 min-w-0 w-full">
             {/* Pairs Input */}
             <div className={`${panel} lg:col-span-1 space-y-3`}>
               <div className="flex items-center justify-between">
@@ -626,7 +633,7 @@ export function StatisticsSuite() {
                 <span className="text-[10px] text-gray-500">{parsedPairs.length} points</span>
               </div>
               <textarea
-                className={`${field} min-h-36 font-mono text-xs`}
+                className={`${field} min-h-28 sm:min-h-36 font-mono text-xs`}
                 value={pairsText}
                 onChange={(e) => setPairsText(e.target.value)}
                 placeholder="X, Y (one pair per line)..."
@@ -636,7 +643,7 @@ export function StatisticsSuite() {
                 <label className="text-[10px] text-gray-400 font-semibold uppercase">
                   Regression Model
                 </label>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {(
                     [
                       "linear",
@@ -649,7 +656,7 @@ export function StatisticsSuite() {
                     <button
                       key={type}
                       onClick={() => setRegressionType(type)}
-                      className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold capitalize transition ${
+                      className={`rounded-lg px-2 py-1.5 text-[11px] sm:text-xs font-semibold capitalize transition truncate ${
                         regressionType === type ? primary : button
                       }`}
                     >
@@ -662,16 +669,16 @@ export function StatisticsSuite() {
               {/* Point Prediction */}
               <div className="pt-2 border-t border-white/[0.06] space-y-1">
                 <label className="text-[10px] text-gray-400">Predict Y for X =</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="number"
                     className={field}
                     value={predictX}
                     onChange={(e) => setPredictX(e.target.value)}
-                    placeholder="Enter X value..."
+                    placeholder="Enter X..."
                   />
                   {predictedY !== null && (
-                    <div className="rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-2 font-mono text-sm font-bold text-accent-cyan flex items-center whitespace-nowrap">
+                    <div className="rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-2 font-mono text-xs sm:text-sm font-bold text-accent-cyan flex items-center whitespace-nowrap justify-center">
                       Ŷ = {predictedY.toFixed(4)}
                     </div>
                   )}
@@ -686,63 +693,63 @@ export function StatisticsSuite() {
               </h3>
               {regressionResult ? (
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 p-3 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-semibold text-accent-cyan uppercase tracking-wider">
+                  <div className="rounded-xl border border-accent-cyan/30 bg-accent-cyan/10 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] font-semibold text-accent-cyan uppercase tracking-wider block">
                         Fitted Equation
                       </span>
-                      <p className="font-mono text-lg font-bold text-white">
+                      <p className="font-mono text-sm sm:text-base md:text-lg font-bold text-white break-words mt-0.5">
                         {regressionResult.equation}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                    <div className="text-left sm:text-right shrink-0">
+                      <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider block">
                         R² Coefficient
                       </span>
-                      <p className="font-mono text-lg font-bold text-accent-purple">
+                      <p className="font-mono text-base sm:text-lg font-bold text-accent-purple">
                         {regressionResult.r2.toFixed(4)}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0 w-full">
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                         Pearson r
                       </span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                      <p className="font-mono text-xs sm:text-sm font-semibold text-white mt-0.5 truncate">
                         {regressionResult.r.toFixed(4)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                         Spearman Rank
                       </span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                      <p className="font-mono text-xs sm:text-sm font-semibold text-white mt-0.5 truncate">
                         {regressionResult.spearmanRankCorrelation.toFixed(4)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                         RMSE
                       </span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                      <p className="font-mono text-xs sm:text-sm font-semibold text-white mt-0.5 truncate">
                         {regressionResult.rmse.toFixed(4)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider block truncate">
                         Covariance
                       </span>
-                      <p className="font-mono text-sm font-semibold text-white mt-0.5">
+                      <p className="font-mono text-xs sm:text-sm font-semibold text-white mt-0.5 truncate">
                         {regressionResult.covariance.toFixed(4)}
                       </p>
                     </div>
                   </div>
 
                   {/* Scatter Plot with Regression Line */}
-                  <div className="h-60 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center">
-                    <svg viewBox="0 0 450 220" className="w-full h-full">
+                  <div className="h-48 sm:h-60 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center overflow-hidden">
+                    <svg viewBox="0 0 450 220" className="w-full h-full max-w-full">
                       {(() => {
                         const xs = parsedPairs.map((p) => p.x);
                         const ys = parsedPairs.map((p) => p.y);
@@ -805,7 +812,7 @@ export function StatisticsSuite() {
                                 key={idx}
                                 cx={scaleX(p.x)}
                                 cy={scaleY(p.y)}
-                                r="4.5"
+                                r="4"
                                 fill="#a855f7"
                                 stroke="#fff"
                                 strokeWidth="1.5"
@@ -831,13 +838,13 @@ export function StatisticsSuite() {
       {/* TAB 3: PROBABILITY DISTRIBUTIONS */}
       {/* ------------------------------------------------------------- */}
       {activeTab === "distributions" && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            {(["normal", "t", "binomial", "poisson"] as const).map((dist) => (
+        <div className="space-y-4 min-w-0 w-full">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth snap-x pb-1">
+            {(["normal", "binomial", "poisson"] as const).map((dist) => (
               <button
                 key={dist}
                 onClick={() => setDistType(dist)}
-                className={`rounded-xl px-3 py-2 text-xs font-semibold capitalize transition ${
+                className={`rounded-xl px-3 py-1.5 text-xs font-semibold capitalize whitespace-nowrap shrink-0 snap-start transition ${
                   distType === dist ? primary : button
                 }`}
               >
@@ -848,10 +855,10 @@ export function StatisticsSuite() {
 
           {/* Normal Distribution */}
           {distType === "normal" && (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-2 min-w-0 w-full">
               <div className={`${panel} space-y-3`}>
                 <h3 className="text-xs font-semibold text-gray-300">Normal Parameters</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <label className="text-[10px] text-gray-400">
                     Mean (μ)
                     <input
@@ -882,23 +889,23 @@ export function StatisticsSuite() {
                 </label>
 
                 {normProb && (
-                  <div className="grid grid-cols-3 gap-2 pt-2">
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase">P(X ≤ x)</span>
-                      <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">
-                        {normProb.cdf.toFixed(5)}
+                  <div className="grid grid-cols-3 gap-2 pt-2 min-w-0 w-full">
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">P(X ≤ x)</span>
+                      <p className="font-mono text-xs sm:text-sm font-bold text-accent-cyan mt-0.5 truncate">
+                        {normProb.cdf.toFixed(4)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase">P(X &gt; x)</span>
-                      <p className="font-mono text-sm font-bold text-white mt-0.5">
-                        {normProb.upper.toFixed(5)}
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">P(X &gt; x)</span>
+                      <p className="font-mono text-xs sm:text-sm font-bold text-white mt-0.5 truncate">
+                        {normProb.upper.toFixed(4)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase">PDF f(x)</span>
-                      <p className="font-mono text-sm font-bold text-gray-300 mt-0.5">
-                        {normProb.pdf.toFixed(5)}
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">PDF f(x)</span>
+                      <p className="font-mono text-xs sm:text-sm font-bold text-gray-300 mt-0.5 truncate">
+                        {normProb.pdf.toFixed(4)}
                       </p>
                     </div>
                   </div>
@@ -910,8 +917,8 @@ export function StatisticsSuite() {
                 <h4 className="text-xs font-semibold text-gray-300">
                   Probability Density Function (PDF)
                 </h4>
-                <div className="h-52 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center">
-                  <svg viewBox="0 0 400 180" className="w-full h-full">
+                <div className="h-48 sm:h-52 w-full rounded-xl bg-dark-950/60 p-2 flex items-center justify-center overflow-hidden">
+                  <svg viewBox="0 0 400 180" className="w-full h-full max-w-full">
                     {(() => {
                       const m = Number(normMean) || 0;
                       const s = Number(normStd) || 1;
@@ -983,7 +990,7 @@ export function StatisticsSuite() {
           {distType === "binomial" && (
             <div className={`${panel} space-y-3 max-w-xl`}>
               <h3 className="text-xs font-semibold text-gray-300">Binomial Distribution B(n, p)</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <label className="text-[10px] text-gray-400">
                   Trials (n)
                   <input
@@ -1015,28 +1022,28 @@ export function StatisticsSuite() {
               </div>
 
               {binomProb && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase">P(X = k)</span>
-                    <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">
-                      {binomProb.pmf.toFixed(5)}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 min-w-0 w-full">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">P(X = k)</span>
+                    <p className="font-mono text-xs sm:text-sm font-bold text-accent-cyan mt-0.5 truncate">
+                      {binomProb.pmf.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase">P(X ≤ k)</span>
-                    <p className="font-mono text-sm font-bold text-white mt-0.5">
-                      {binomProb.cdf.toFixed(5)}
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">P(X ≤ k)</span>
+                    <p className="font-mono text-xs sm:text-sm font-bold text-white mt-0.5 truncate">
+                      {binomProb.cdf.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase">Mean E(X)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">Mean E(X)</span>
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-300 mt-0.5 truncate">
                       {binomProb.mean.toFixed(2)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase">Variance Var(X)</span>
-                    <p className="font-mono text-sm font-semibold text-gray-300 mt-0.5">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">Var(X)</span>
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-gray-300 mt-0.5 truncate">
                       {binomProb.variance.toFixed(2)}
                     </p>
                   </div>
@@ -1049,7 +1056,7 @@ export function StatisticsSuite() {
           {distType === "poisson" && (
             <div className={`${panel} space-y-3 max-w-xl`}>
               <h3 className="text-xs font-semibold text-gray-300">Poisson Distribution Pois(λ)</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <label className="text-[10px] text-gray-400">
                   Rate (λ)
                   <input
@@ -1072,17 +1079,17 @@ export function StatisticsSuite() {
               </div>
 
               {poisProb && (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase">P(X = k)</span>
-                    <p className="font-mono text-sm font-bold text-accent-cyan mt-0.5">
-                      {poisProb.pmf.toFixed(5)}
+                <div className="grid grid-cols-2 gap-2 pt-2 min-w-0 w-full">
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">P(X = k)</span>
+                    <p className="font-mono text-xs sm:text-sm font-bold text-accent-cyan mt-0.5 truncate">
+                      {poisProb.pmf.toFixed(4)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                    <span className="text-[10px] text-gray-500 uppercase">P(X ≤ k)</span>
-                    <p className="font-mono text-sm font-bold text-white mt-0.5">
-                      {poisProb.cdf.toFixed(5)}
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2 sm:p-2.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">P(X ≤ k)</span>
+                    <p className="font-mono text-xs sm:text-sm font-bold text-white mt-0.5 truncate">
+                      {poisProb.cdf.toFixed(4)}
                     </p>
                   </div>
                 </div>
@@ -1096,8 +1103,8 @@ export function StatisticsSuite() {
       {/* TAB 4: HYPOTHESIS TESTING */}
       {/* ------------------------------------------------------------- */}
       {activeTab === "hypothesis" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 min-w-0 w-full">
+          <div className="grid gap-4 lg:grid-cols-3 min-w-0 w-full">
             {/* Parameters */}
             <div className={`${panel} lg:col-span-1 space-y-3`}>
               <h3 className="text-xs font-semibold text-gray-300">Hypothesis Parameters</h3>
@@ -1176,53 +1183,52 @@ export function StatisticsSuite() {
               {hypResult ? (
                 <div className="space-y-3">
                   <div
-                    className={`rounded-xl border p-4 ${
+                    className={`rounded-xl border p-3 sm:p-4 ${
                       hypResult.rejectNull
                         ? "border-red-500/30 bg-red-500/10 text-red-300"
                         : "border-green-500/30 bg-green-500/10 text-green-300"
                     }`}
                   >
-                    <span className="text-xs uppercase font-bold tracking-wider">
+                    <span className="text-[11px] sm:text-xs uppercase font-bold tracking-wider block">
                       {hypResult.rejectNull
                         ? "Reject Null Hypothesis (H₀)"
                         : "Fail to Reject Null Hypothesis (H₀)"}
                     </span>
-                    <p className="text-sm font-semibold mt-1 text-white">{hypResult.conclusion}</p>
+                    <p className="text-xs sm:text-sm font-semibold mt-1 text-white break-words">{hypResult.conclusion}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase">Test Statistic</span>
-                      <p className="font-mono text-base font-bold text-accent-cyan mt-0.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0 w-full">
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">Test Statistic</span>
+                      <p className="font-mono text-sm sm:text-base font-bold text-accent-cyan mt-0.5 truncate">
                         {testType === "1t"
                           ? `t = ${hypResult.testStatistic.toFixed(4)}`
                           : `z = ${hypResult.testStatistic.toFixed(4)}`}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                      <span className="text-[10px] text-gray-500 uppercase">p-Value</span>
-                      <p className="font-mono text-base font-bold text-white mt-0.5">
+                    <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5 min-w-0 overflow-hidden">
+                      <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">p-Value</span>
+                      <p className="font-mono text-sm sm:text-base font-bold text-white mt-0.5 truncate">
                         {hypResult.pValue.toFixed(5)}
                       </p>
                     </div>
                     {hypResult.degreesOfFreedom !== undefined && (
-                      <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5">
-                        <span className="text-[10px] text-gray-500 uppercase">
+                      <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-2.5 min-w-0 overflow-hidden">
+                        <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase block truncate">
                           Degrees of Freedom
                         </span>
-                        <p className="font-mono text-base font-bold text-gray-300 mt-0.5">
+                        <p className="font-mono text-sm sm:text-base font-bold text-gray-300 mt-0.5 truncate">
                           df = {hypResult.degreesOfFreedom.toFixed(0)}
                         </p>
                       </div>
                     )}
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wider">
-                      {(hypResult.confidenceInterval.level * 100).toFixed(0)}% Confidence Interval
-                      for μ
+                  <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-3 min-w-0 overflow-hidden">
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider block truncate">
+                      {(hypResult.confidenceInterval.level * 100).toFixed(0)}% Confidence Interval for μ
                     </span>
-                    <p className="font-mono text-base font-bold text-accent-purple mt-0.5">
+                    <p className="font-mono text-sm sm:text-base font-bold text-accent-purple mt-0.5 break-words">
                       [{hypResult.confidenceInterval.lower.toFixed(4)},{" "}
                       {hypResult.confidenceInterval.upper.toFixed(4)}]
                     </p>

@@ -99,24 +99,24 @@ export function ComplexArgandPlane({
       : "";
 
   return (
-    <div className={`relative rounded-2xl border border-white/[0.08] bg-dark-950 p-2 shadow-2xl overflow-hidden ${className}`}>
+    <div className={`relative rounded-2xl border border-white/[0.08] bg-dark-950 p-2 shadow-2xl overflow-hidden min-w-0 w-full ${className}`}>
       {/* Top Floating Controls Bar */}
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-xl border border-white/10 bg-dark-900/90 p-1 backdrop-blur-md shadow-lg">
+      <div className="absolute left-2 sm:left-4 top-2 sm:top-4 z-10 flex items-center gap-1 sm:gap-1.5 rounded-xl border border-white/10 bg-dark-900/90 p-1 backdrop-blur-md shadow-lg">
         <button
           type="button"
           onClick={() => setScale((s) => Math.min(90, s * 1.25))}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
+          className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
           title="Zoom In"
         >
-          <ZoomIn size={14} />
+          <ZoomIn size={13} />
         </button>
         <button
           type="button"
           onClick={() => setScale((s) => Math.max(12, s * 0.8))}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
+          className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
           title="Zoom Out"
         >
-          <ZoomOut size={14} />
+          <ZoomOut size={13} />
         </button>
         <button
           type="button"
@@ -124,22 +124,22 @@ export function ComplexArgandPlane({
             setOffset({ x: 0, y: 0 });
             setScale(32);
           }}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
+          className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition"
           title="Reset View"
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={13} />
         </button>
       </div>
 
       {/* Floating HUD Pill */}
-      <div className="absolute right-4 top-4 z-10 rounded-xl border border-cyan-500/30 bg-dark-900/95 px-3 py-1.5 backdrop-blur-md shadow-xl text-xs font-mono">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-accent-cyan animate-pulse" />
-          <span className="font-bold text-white">
-            z = {formatNum(real)} {imag >= 0 ? "+" : "−"} {formatNum(Math.abs(imag))}i
+      <div className="absolute right-2 sm:right-4 top-2 sm:top-4 z-10 max-w-[55%] sm:max-w-none rounded-xl border border-cyan-500/30 bg-dark-900/95 px-2 sm:px-3 py-1 sm:py-1.5 backdrop-blur-md shadow-xl text-[10px] sm:text-xs font-mono truncate">
+        <div className="flex items-center gap-1.5 sm:gap-2 truncate">
+          <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-accent-cyan animate-pulse shrink-0" />
+          <span className="font-bold text-white truncate">
+            {formatNum(real)} {imag >= 0 ? "+" : "−"} {formatNum(Math.abs(imag))}i
           </span>
-          <span className="text-gray-500">|</span>
-          <span className="text-accent-cyan">{formatNum(modulus)} ∠ {formatNum(angleDeg)}°</span>
+          <span className="text-gray-500 hidden sm:inline">|</span>
+          <span className="text-accent-cyan hidden sm:inline">{formatNum(modulus)} ∠ {formatNum(angleDeg)}°</span>
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export function ComplexArgandPlane({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="w-full h-80 select-none cursor-crosshair rounded-xl bg-radial from-dark-900/50 to-dark-950"
+        className="w-full h-56 sm:h-80 select-none cursor-crosshair rounded-xl bg-radial from-dark-900/50 to-dark-950 touch-none max-w-full"
       >
         <defs>
           {/* Arrowhead Marker */}
