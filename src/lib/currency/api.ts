@@ -528,7 +528,7 @@ export async function getExchangeRates(
 export function formatRelativeTime(timestamp: number): string {
   const diffMs = Date.now() - timestamp;
   const diffSecs = Math.floor(diffMs / 1000);
-  if (diffSecs < 10) return "just now";
+  if (diffSecs < 15) return "just now";
   if (diffSecs < 60) return `${diffSecs}s ago`;
   const diffMins = Math.floor(diffMs / 60000);
   if (diffMins === 1) return "1 min ago";
