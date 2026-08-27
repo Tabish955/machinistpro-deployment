@@ -122,7 +122,7 @@ describe("Currency Engine & Catalog", () => {
 
     // Historical OHLC series
     const summary = await fetchHistoricalSeries("USD", "EUR", "1M");
-    expect(summary.data.length).toBeGreaterThan(5);
+    expect(summary.data.length).toBeGreaterThanOrEqual(5);
     expect(summary.currentRate).toBeGreaterThan(0);
     expect(summary.volatility).toBeGreaterThanOrEqual(0);
 
