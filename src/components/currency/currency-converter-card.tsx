@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ArrowDownUp,
   RefreshCw,
@@ -44,11 +44,38 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
   const [copied, setCopied] = useState(false);
   const [ticker, setTicker] = useState(0);
 
-  // Live timer tick every 2 seconds for fresh relative time display
+  // Live timer tick for relative time display
   useEffect(() => {
     const timer = setInterval(() => setTicker((t) => t + 1), 2000);
     return () => clearInterval(timer);
   }, []);
+
+  // Update amounts helper
+  const updateAmounts = useCallback(
+    (currentRates: Record<string, number>, currentBase: string, currentTarget: string) => {
+      const targetKey = currentTarget.toLowerCase();
+      const targetRate =
+        currentRates[targetKey] ??
+        currentRates[currentTarget.toUpperCase()] ??
+        getCrossRate(currentBase, currentTarget, {
+          base: currentBase,
+          date: "",
+          rates: currentRates,
+          lastUpdated: Date.now(),
+        });
+
+      if (!targetRate || targetRate <= 0) return;
+
+      if (activeField === "base") {
+        const numBase = typeof baseAmount === "number" ? baseAmount : parseFloat(String(baseAmount)) || 0;
+        setTargetAmount(parseFloat((numBase * targetRate).toFixed(4)));
+      } else {
+        const numTarget = typeof targetAmount === "number" ? targetAmount : parseFloat(String(targetAmount)) || 0;
+        setBaseAmount(parseFloat((numTarget / targetRate).toFixed(4)));
+      }
+    },
+    [activeField, baseAmount, targetAmount]
+  );
 
   // Fetch rates
   const fetchRates = useCallback(
@@ -64,6 +91,7 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
         const { data } = await getExchangeRates(base, force);
         setRatesData(data);
 
+        updateAmounts(data.rates, base, targetCurrency);
         const currentRate = getCrossRate(base, targetCurrency, data);
         onPairChange?.(base, targetCurrency, currentRate);
       } catch (err: any) {
@@ -74,10 +102,10 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
         setIsRefreshing(false);
       }
     },
-    [targetCurrency, onPairChange]
+    [targetCurrency, updateAmounts, onPairChange]
   );
 
-  // Initial load and 60-second background polling
+  // Initial load and 60-second auto-poll
   useEffect(() => {
     fetchRates(baseCurrency, false);
 
@@ -88,35 +116,24 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
     return () => clearInterval(interval);
   }, [baseCurrency, fetchRates]);
 
-  // Handle active calculations using cross-rate triangulation
+  // Recalculate when amount or pair changes
   useEffect(() => {
-    const crossRate = getCrossRate(baseCurrency, targetCurrency, ratesData);
-
-    if (activeField === "base") {
-      const numBase = typeof baseAmount === "number" ? baseAmount : parseFloat(String(baseAmount)) || 0;
-      const converted = numBase * crossRate;
-      setTargetAmount(
-        converted === 0
-          ? ""
-          : converted < 0.0001
-          ? converted.toExponential(4)
-          : parseFloat(converted.toFixed(converted < 1 ? 6 : 4))
-      );
-    } else {
-      const numTarget = typeof targetAmount === "number" ? targetAmount : parseFloat(String(targetAmount)) || 0;
-      const inverseRate = crossRate > 0 ? 1 / crossRate : 0;
-      const converted = numTarget * inverseRate;
-      setBaseAmount(
-        converted === 0
-          ? ""
-          : converted < 0.0001
-          ? converted.toExponential(4)
-          : parseFloat(converted.toFixed(converted < 1 ? 6 : 4))
-      );
+    if (ratesData && ratesData.rates) {
+      updateAmounts(ratesData.rates, baseCurrency, targetCurrency);
+      const currentRate = getCrossRate(baseCurrency, targetCurrency, ratesData);
+      onPairChange?.(baseCurrency, targetCurrency, currentRate);
     }
+  }, [baseAmount, targetAmount, baseCurrency, targetCurrency, ratesData, updateAmounts, onPairChange]);
 
-    onPairChange?.(baseCurrency, targetCurrency, crossRate);
-  }, [baseCurrency, targetCurrency, baseAmount, targetAmount, activeField, ratesData, onPairChange]);
+  const handleBaseAmountChange = (value: number | string) => {
+    setBaseAmount(value);
+    setActiveField("base");
+  };
+
+  const handleTargetAmountChange = (value: number | string) => {
+    setTargetAmount(value);
+    setActiveField("target");
+  };
 
   // Swap Base and Target
   const handleSwap = () => {
@@ -232,10 +249,7 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
                 min="0"
                 step="any"
                 value={baseAmount}
-                onChange={(e) => {
-                  setBaseAmount(e.target.value);
-                  setActiveField("base");
-                }}
+                onChange={(e) => handleBaseAmountChange(e.target.value)}
                 placeholder="1"
                 className={`w-full rounded-xl border border-white/10 bg-dark-900/90 py-2.5 pr-3 font-mono text-lg font-bold text-white shadow-inner placeholder:text-gray-600 focus:border-accent-cyan/60 focus:outline-none ${
                   baseMeta.symbol ? "pl-9" : "pl-3.5"
@@ -278,10 +292,7 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
                 min="0"
                 step="any"
                 value={targetAmount}
-                onChange={(e) => {
-                  setTargetAmount(e.target.value);
-                  setActiveField("target");
-                }}
+                onChange={(e) => handleTargetAmountChange(e.target.value)}
                 placeholder="0.00"
                 className={`w-full rounded-xl border border-white/10 bg-dark-900/90 py-2.5 pr-3 font-mono text-lg font-bold text-white shadow-inner placeholder:text-gray-600 focus:border-accent-cyan/60 focus:outline-none ${
                   targetMeta.symbol ? "pl-9" : "pl-3.5"
@@ -300,8 +311,7 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
             key={amt}
             type="button"
             onClick={() => {
-              setBaseAmount(amt);
-              setActiveField("base");
+              handleBaseAmountChange(amt);
             }}
             className={`rounded-lg px-2 py-0.5 text-xs font-mono font-medium transition ${
               Number(baseAmount) === amt

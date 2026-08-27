@@ -1,6 +1,7 @@
 /**
- * High-Speed Resilient Currency Exchange Rate Service & Cross-Rate Engine
- * Supports multi-source CDN failovers, client-side caching, exponential backoff, and full baseline rates.
+ * Exact Currency Rates Engine & API Client
+ * Replicated directly from https://github.com/Tabish955/currencyconverterpro
+ * Uses @fawazahmed0/currency-api CDN with cascading failovers and localStorage caching.
  */
 
 export interface ExchangeRatesData {
@@ -11,13 +12,144 @@ export interface ExchangeRatesData {
   source?: "live" | "cache" | "baseline";
 }
 
-const CACHE_PREFIX = "machinistpro_rates_";
-const CACHE_TTL_MS = 60 * 1000; // 60 seconds fresh rate refresh interval
+export const API_ENDPOINTS = {
+  CURRENCIES: "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json",
+  RATES_BASE: "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies",
+  PAGES_CDN_BASE: "https://latest.currency-api.pages.dev/v1/currencies",
+  OPEN_ER_BASE: "https://open.er-api.com/v6/latest",
+};
 
-// In-memory cache
-const memoryCache = new Map<string, { data: ExchangeRatesData; expiry: number }>();
+export const CACHE_KEYS = {
+  SYMBOLS: "currency-converter-symbols",
+  RATES_PREFIX: "currency-converter-rates-",
+  LAST_UPDATED: "currency-converter-last-updated",
+};
 
-// Built-in baseline rates (relative to 1 USD) covering all world currencies, precious metals & crypto
+/**
+ * A simple in-memory cache with expiration
+ */
+export class CurrencyCache<T> {
+  private cache: Map<string, { value: T; expires: number }>;
+  private defaultTtl: number;
+
+  constructor(defaultTtl: number) {
+    this.cache = new Map();
+    this.defaultTtl = defaultTtl;
+  }
+
+  set(key: string, value: T, ttl?: number): void {
+    const expires = Date.now() + (ttl ?? this.defaultTtl);
+    this.cache.set(key, { value, expires });
+  }
+
+  get(key: string): T | undefined {
+    const item = this.cache.get(key);
+    if (!item || Date.now() > item.expires) {
+      if (item) {
+        this.cache.delete(key);
+      }
+      return undefined;
+    }
+    return item.value;
+  }
+
+  remove(key: string): void {
+    this.cache.delete(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+// In-memory caches (5-minute TTL for rates)
+export const ratesCache = new CurrencyCache<Record<string, number>>(5 * 60 * 1000);
+
+/**
+ * Retry a function with exponential backoff
+ */
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  retriesLeft = 3,
+  delay = 500
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retriesLeft <= 0) {
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return retryWithBackoff(fn, retriesLeft - 1, delay * 2);
+  }
+}
+
+/**
+ * Save data to localStorage with timestamp
+ */
+export function saveToCache<T>(key: string, data: T): void {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      localStorage.setItem(key, JSON.stringify(data));
+      localStorage.setItem(CACHE_KEYS.LAST_UPDATED, new Date().toISOString());
+    }
+  } catch (error) {
+    console.error("Error saving to cache:", error);
+  }
+}
+
+/**
+ * Get data from localStorage
+ */
+export function getFromCache<T>(key: string): T | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const item = localStorage.getItem(key);
+    return item ? (JSON.parse(item) as T) : null;
+  } catch (error) {
+    console.error("Error retrieving from cache:", error);
+    return null;
+  }
+}
+
+/**
+ * Get the last update timestamp for cached data
+ */
+export function getLastUpdateTime(): Date | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const timestamp = localStorage.getItem(CACHE_KEYS.LAST_UPDATED);
+    return timestamp ? new Date(timestamp) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Format a relative time (e.g., "just now", "5 minutes ago")
+ */
+export function formatRelativeTime(dateOrTimestamp: Date | number): string {
+  const date = typeof dateOrTimestamp === "number" ? new Date(dateOrTimestamp) : dateOrTimestamp;
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+
+  if (diffSecs < 15) return "just now";
+  if (diffSecs < 60) return `${diffSecs}s ago`;
+
+  const diffMins = Math.round(diffMs / 60000);
+  if (diffMins === 1) return "1 min ago";
+  if (diffMins < 60) return `${diffMins} mins ago`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours === 1) return "1 hour ago";
+  if (diffHours < 24) return `${diffHours} hours ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} days ago`;
+}
+
+// Built-in baseline rates (relative to 1 USD) covering world currencies
 export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   USD: 1.0,
   EUR: 0.8578,
@@ -32,7 +164,7 @@ export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   PKR: 277.657,
   AED: 3.6725,
   SAR: 3.75,
-  KWD: 0.30818, // 1 KWD = $3.2448 -> ~900.95 PKR
+  KWD: 0.30818, // 1 KWD ≈ 898.67 - 901.53 PKR
   QAR: 3.64,
   BHD: 0.377,
   OMR: 0.385,
@@ -41,7 +173,7 @@ export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   LBP: 89500.0,
   SYP: 13000.0,
   YER: 250.0,
-  IRR: 42105.0, // Official interbank baseline ~ 42,105 IRR / USD
+  IRR: 42105.0,
   ILS: 3.72,
   TRY: 32.5,
   SGD: 1.35,
@@ -167,13 +299,13 @@ export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   SZL: 18.5,
   VES: 36.5,
   ZWG: 13.8,
-  XAU: 0.00042, // Gold ~ $2,380/oz
-  XAG: 0.034,   // Silver ~ $29/oz
-  XPT: 0.00105, // Platinum ~ $950/oz
-  XPD: 0.00102, // Palladium ~ $980/oz
+  XAU: 0.00042,
+  XAG: 0.034,
+  XPT: 0.00105,
+  XPD: 0.00102,
   XDR: 0.76,
-  BTC: 0.000015, // Bitcoin ~ $66,000
-  ETH: 0.00028,  // Ethereum ~ $3,500
+  BTC: 0.000015,
+  ETH: 0.00028,
   BNB: 0.0017,
   SOL: 0.0068,
   XRP: 1.95,
@@ -193,8 +325,177 @@ export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
 };
 
 /**
- * Calculate accurate cross-exchange rate between any two currencies (From -> To)
- * Eliminates single-base mismatch bugs (e.g. 1 IRR = 278 PKR)
+ * Direct rates fetching from currencyconverterpro source
+ */
+export async function getExchangeRates(
+  base = "USD",
+  forceRefresh = false
+): Promise<{ data: ExchangeRatesData; isFromCache: boolean }> {
+  const baseLower = base.toLowerCase();
+  const baseUpper = base.toUpperCase();
+  const cacheKey = `rates-${baseUpper}`;
+  const localCacheKey = `${CACHE_KEYS.RATES_PREFIX}${baseUpper}`;
+
+  // 1. Check in-memory cache
+  if (!forceRefresh) {
+    const cachedRates = ratesCache.get(cacheKey);
+    if (cachedRates) {
+      return {
+        data: {
+          base: baseUpper,
+          date: new Date().toISOString().split("T")[0],
+          rates: cachedRates,
+          lastUpdated: Date.now(),
+          source: "cache",
+        },
+        isFromCache: true,
+      };
+    }
+
+    // 2. Check localStorage cache
+    const localCached = getFromCache<{ rates: Record<string, number>; timestamp: string }>(localCacheKey);
+    if (localCached && localCached.rates && Object.keys(localCached.rates).length > 5) {
+      const lastUpdated = new Date(localCached.timestamp).getTime();
+      ratesCache.set(cacheKey, localCached.rates);
+      return {
+        data: {
+          base: baseUpper,
+          date: localCached.timestamp.split("T")[0],
+          rates: localCached.rates,
+          lastUpdated,
+          source: "cache",
+        },
+        isFromCache: true,
+      };
+    }
+  }
+
+  // 3. Fetch from @fawazahmed0/currency-api JSDelivr CDN
+  try {
+    const data = await retryWithBackoff<any>(async () => {
+      const url = `${API_ENDPOINTS.RATES_BASE}/${baseLower}.json`;
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`JSDelivr fetch failed: ${response.status}`);
+      return response.json();
+    }, forceRefresh ? 1 : 2);
+
+    if (data && data[baseLower]) {
+      const fetchedRates: Record<string, number> = {};
+      for (const [k, v] of Object.entries(data[baseLower])) {
+        if (typeof v === "number" && !isNaN(v) && v > 0) {
+          fetchedRates[k.toUpperCase()] = v;
+          fetchedRates[k.toLowerCase()] = v;
+        }
+      }
+      fetchedRates[baseUpper] = 1;
+      fetchedRates[baseLower] = 1;
+
+      ratesCache.set(cacheKey, fetchedRates);
+      saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
+
+      return {
+        data: {
+          base: baseUpper,
+          date: data.date || new Date().toISOString().split("T")[0],
+          rates: fetchedRates,
+          lastUpdated: Date.now(),
+          source: "live",
+        },
+        isFromCache: false,
+      };
+    }
+  } catch (e1) {
+    // 4. Fallback to Cloudflare Pages CDN
+    try {
+      const url = `${API_ENDPOINTS.PAGES_CDN_BASE}/${baseLower}.min.json?_t=${Date.now()}`;
+      const response = await fetch(url, { cache: "no-store" });
+      if (response.ok) {
+        const json = await response.json();
+        if (json && json[baseLower]) {
+          const fetchedRates: Record<string, number> = {};
+          for (const [k, v] of Object.entries(json[baseLower])) {
+            if (typeof v === "number" && !isNaN(v) && v > 0) {
+              fetchedRates[k.toUpperCase()] = v;
+              fetchedRates[k.toLowerCase()] = v;
+            }
+          }
+          fetchedRates[baseUpper] = 1;
+          fetchedRates[baseLower] = 1;
+
+          ratesCache.set(cacheKey, fetchedRates);
+          saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
+
+          return {
+            data: {
+              base: baseUpper,
+              date: json.date || new Date().toISOString().split("T")[0],
+              rates: fetchedRates,
+              lastUpdated: Date.now(),
+              source: "live",
+            },
+            isFromCache: false,
+          };
+        }
+      }
+    } catch (e2) {}
+
+    // 5. Fallback to OpenER
+    try {
+      const url = `${API_ENDPOINTS.OPEN_ER_BASE}/${baseUpper}`;
+      const response = await fetch(url, { cache: "no-store" });
+      if (response.ok) {
+        const json = await response.json();
+        if (json && json.rates) {
+          const fetchedRates: Record<string, number> = {};
+          for (const [k, v] of Object.entries(json.rates)) {
+            if (typeof v === "number" && !isNaN(v) && v > 0) {
+              fetchedRates[k.toUpperCase()] = v;
+              fetchedRates[k.toLowerCase()] = v;
+            }
+          }
+          ratesCache.set(cacheKey, fetchedRates);
+          saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
+
+          return {
+            data: {
+              base: baseUpper,
+              date: new Date().toISOString().split("T")[0],
+              rates: fetchedRates,
+              lastUpdated: Date.now(),
+              source: "live",
+            },
+            isFromCache: false,
+          };
+        }
+      }
+    } catch (e3) {}
+  }
+
+  // 6. Offline fallback to baseline
+  const baseRateUSD = DEFAULT_BASELINE_USD_RATES[baseUpper] || 1;
+  const derivedRates: Record<string, number> = {};
+  for (const [code, usdRate] of Object.entries(DEFAULT_BASELINE_USD_RATES)) {
+    const rate = usdRate / baseRateUSD;
+    derivedRates[code.toUpperCase()] = rate;
+    derivedRates[code.toLowerCase()] = rate;
+  }
+  derivedRates[baseUpper] = 1;
+  derivedRates[baseLower] = 1;
+
+  return {
+    data: {
+      base: baseUpper,
+      date: new Date().toISOString().split("T")[0],
+      rates: derivedRates,
+      lastUpdated: Date.now(),
+      source: "baseline",
+    },
+    isFromCache: true,
+  };
+}
+
+/**
+ * Get Cross Rate between any pair
  */
 export function getCrossRate(
   fromCode: string,
@@ -207,38 +508,32 @@ export function getCrossRate(
   if (!from || !to) return 1;
   if (from === to) return 1;
 
-  // If live ratesData is available
   if (ratesData && ratesData.rates) {
     const base = ratesData.base.toUpperCase().trim();
 
-    // 1. Direct match: ratesData is already keyed to 'from'
-    if (base === from && typeof ratesData.rates[to] === "number" && ratesData.rates[to] > 0) {
-      return ratesData.rates[to];
+    // 1. Direct rate match
+    if (base === from) {
+      const direct = ratesData.rates[to] ?? ratesData.rates[to.toLowerCase()];
+      if (typeof direct === "number" && direct > 0) return direct;
     }
 
-    // 2. Direct inverse: ratesData is keyed to 'to'
-    if (base === to && typeof ratesData.rates[from] === "number" && ratesData.rates[from] > 0) {
-      return 1 / ratesData.rates[from];
+    // 2. Inverse rate match
+    if (base === to) {
+      const inv = ratesData.rates[from] ?? ratesData.rates[from.toLowerCase()];
+      if (typeof inv === "number" && inv > 0) return 1 / inv;
     }
 
-    // 3. Triangulation via ratesData.base
-    const fromRateInBase = from === base ? 1 : ratesData.rates[from];
-    const toRateInBase = to === base ? 1 : ratesData.rates[to];
-
-    if (
-      typeof fromRateInBase === "number" &&
-      fromRateInBase > 0 &&
-      typeof toRateInBase === "number" &&
-      toRateInBase > 0
-    ) {
-      return toRateInBase / fromRateInBase;
+    // 3. Triangulation
+    const fromR = ratesData.rates[from] ?? ratesData.rates[from.toLowerCase()];
+    const toR = ratesData.rates[to] ?? ratesData.rates[to.toLowerCase()];
+    if (typeof fromR === "number" && fromR > 0 && typeof toR === "number" && toR > 0) {
+      return toR / fromR;
     }
   }
 
-  // Fallback: Cross-triangulate using master USD baseline dictionary
+  // Baseline triangulation
   const fromUSD = DEFAULT_BASELINE_USD_RATES[from] || 1;
   const toUSD = DEFAULT_BASELINE_USD_RATES[to] || 1;
-
   if (fromUSD > 0 && toUSD > 0) {
     return toUSD / fromUSD;
   }
@@ -247,7 +542,7 @@ export function getCrossRate(
 }
 
 /**
- * Convert an amount from one currency to another using exact cross triangulation
+ * Convert Currency
  */
 export function convertCurrency(
   amount: number,
@@ -261,281 +556,21 @@ export function convertCurrency(
 }
 
 /**
- * Clear in-memory and local storage rates cache to force immediate fresh fetch
+ * Clear in-memory and local storage cache
  */
 export function clearRatesCache(base?: string) {
   if (base) {
     const b = base.toUpperCase();
-    memoryCache.delete(b);
+    ratesCache.remove(`rates-${b}`);
     if (typeof window !== "undefined" && window.localStorage) {
-      localStorage.removeItem(`${CACHE_PREFIX}${b}`);
+      localStorage.removeItem(`${CACHE_KEYS.RATES_PREFIX}${b}`);
     }
   } else {
-    memoryCache.clear();
+    ratesCache.clear();
     if (typeof window !== "undefined" && window.localStorage) {
       Object.keys(localStorage)
-        .filter((k) => k.startsWith(CACHE_PREFIX))
+        .filter((k) => k.startsWith(CACHE_KEYS.RATES_PREFIX))
         .forEach((k) => localStorage.removeItem(k));
     }
   }
-}
-
-/**
- * Fetch rates from Open Exchange Rates API (open.er-api.com) - Real-time institutional rates
- */
-async function fetchFromOpenEr(base: string): Promise<Record<string, number>> {
-  const baseUpper = base.toUpperCase();
-  const url = `https://open.er-api.com/v6/latest/${baseUpper}?_t=${Date.now()}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`OpenER API failed with status ${res.status}`);
-  const json = await res.json();
-  if (!json.rates || typeof json.rates !== "object") {
-    throw new Error("Invalid rates payload from OpenER API");
-  }
-  const normalized: Record<string, number> = {};
-  for (const [k, v] of Object.entries(json.rates)) {
-    if (typeof v === "number" && !isNaN(v) && v > 0) {
-      normalized[k.toUpperCase()] = v;
-    }
-  }
-  return normalized;
-}
-
-/**
- * Fetch rates from Cloudflare Pages CDN (currency-api) - 340+ extended currencies
- */
-async function fetchFromCloudflarePages(base: string): Promise<Record<string, number>> {
-  const baseLower = base.toLowerCase();
-  const url = `https://latest.currency-api.pages.dev/v1/currencies/${baseLower}.min.json?_t=${Date.now()}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Cloudflare CDN failed with status ${res.status}`);
-  const json = await res.json();
-  const ratesObj = json[baseLower];
-  if (!ratesObj || typeof ratesObj !== "object") {
-    throw new Error("Invalid rates payload returned from Cloudflare CDN");
-  }
-
-  const normalized: Record<string, number> = {};
-  for (const [k, v] of Object.entries(ratesObj)) {
-    if (typeof v === "number" && !isNaN(v) && v > 0) {
-      normalized[k.toUpperCase()] = v;
-    }
-  }
-  return normalized;
-}
-
-/**
- * Fetch rates from JSDelivr CDN (currency-api)
- */
-async function fetchFromJSDelivr(base: string): Promise<Record<string, number>> {
-  const baseLower = base.toLowerCase();
-  const url = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${baseLower}.min.json`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`JSDelivr CDN failed with status ${res.status}`);
-  const json = await res.json();
-  const ratesObj = json[baseLower];
-  if (!ratesObj || typeof ratesObj !== "object") {
-    throw new Error("Invalid rates payload returned from JSDelivr CDN");
-  }
-
-  const normalized: Record<string, number> = {};
-  for (const [k, v] of Object.entries(ratesObj)) {
-    if (typeof v === "number" && !isNaN(v) && v > 0) {
-      normalized[k.toUpperCase()] = v;
-    }
-  }
-  return normalized;
-}
-
-/**
- * Fetch rates from ExchangeRate-API (api.exchangerate-api.com)
- */
-async function fetchFromExchangeRateApi(base: string): Promise<Record<string, number>> {
-  const baseUpper = base.toUpperCase();
-  const url = `https://api.exchangerate-api.com/v4/latest/${baseUpper}?_t=${Date.now()}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`ExchangeRate-API failed with status ${res.status}`);
-  const json = await res.json();
-  if (!json.rates || typeof json.rates !== "object") {
-    throw new Error("Invalid rates payload from ExchangeRate-API");
-  }
-  const normalized: Record<string, number> = {};
-  for (const [k, v] of Object.entries(json.rates)) {
-    if (typeof v === "number" && !isNaN(v) && v > 0) {
-      normalized[k.toUpperCase()] = v;
-    }
-  }
-  return normalized;
-}
-
-/**
- * Save rates to localStorage
- */
-function saveRatesToStorage(base: string, rates: Record<string, number>) {
-  try {
-    const payload: ExchangeRatesData = {
-      base: base.toUpperCase(),
-      date: new Date().toISOString().split("T")[0],
-      rates,
-      lastUpdated: Date.now(),
-      source: "live",
-    };
-    if (typeof window !== "undefined" && window.localStorage) {
-      localStorage.setItem(`${CACHE_PREFIX}${base.toUpperCase()}`, JSON.stringify(payload));
-    }
-  } catch (e) {
-    // Ignore storage quota issues
-  }
-}
-
-/**
- * Read cached rates from localStorage
- */
-export function getCachedRates(base: string): ExchangeRatesData | null {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return null;
-    const raw = localStorage.getItem(`${CACHE_PREFIX}${base.toUpperCase()}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ExchangeRatesData;
-    // Only return if it contains valid rates and was from a live source
-    if (parsed && parsed.rates && Object.keys(parsed.rates).length > 10) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Fetch latest live exchange rates with parallel multi-source merge + fast fallback
- */
-export async function getExchangeRates(
-  base = "USD",
-  forceRefresh = false
-): Promise<{ data: ExchangeRatesData; isFromCache: boolean }> {
-  const baseUpper = base.toUpperCase();
-
-  // If forceRefresh, clear existing memory cache for this base
-  if (forceRefresh) {
-    memoryCache.delete(baseUpper);
-  }
-
-  // 1. Check memory cache
-  const cachedMem = memoryCache.get(baseUpper);
-  if (!forceRefresh && cachedMem && Date.now() < cachedMem.expiry) {
-    return { data: cachedMem.data, isFromCache: true };
-  }
-
-  // 2. Check localStorage cache
-  const stored = getCachedRates(baseUpper);
-  if (!forceRefresh && stored && Date.now() - stored.lastUpdated < CACHE_TTL_MS) {
-    memoryCache.set(baseUpper, { data: stored, expiry: stored.lastUpdated + CACHE_TTL_MS });
-    return { data: stored, isFromCache: true };
-  }
-
-  // 3. Network Fetch: Merge OpenER (freshest institutional rates) + Cloudflare Pages (340+ extended fiats/crypto)
-  let mergedRates: Record<string, number> = {};
-
-  try {
-    // Fetch OpenER and Cloudflare Pages in parallel
-    const [openErRes, cdnRes] = await Promise.allSettled([
-      fetchFromOpenEr(baseUpper),
-      fetchFromCloudflarePages(baseUpper),
-    ]);
-
-    if (openErRes.status === "fulfilled" && openErRes.value) {
-      Object.assign(mergedRates, openErRes.value);
-    }
-
-    if (cdnRes.status === "fulfilled" && cdnRes.value) {
-      // CDN provides extra currencies (crypto, precious metals, obscure fiats)
-      // OpenER rates are preferred for common pairs, so only assign missing or augment
-      for (const [code, rate] of Object.entries(cdnRes.value)) {
-        if (!mergedRates[code]) {
-          mergedRates[code] = rate;
-        }
-      }
-    }
-
-    // If both failed, try fallback endpoints (JSDelivr & ExchangeRate-API)
-    if (Object.keys(mergedRates).length < 5) {
-      const [jsDelivrRes, exchRateRes] = await Promise.allSettled([
-        fetchFromJSDelivr(baseUpper),
-        fetchFromExchangeRateApi(baseUpper),
-      ]);
-
-      if (exchRateRes.status === "fulfilled" && exchRateRes.value) {
-        Object.assign(mergedRates, exchRateRes.value);
-      }
-      if (jsDelivrRes.status === "fulfilled" && jsDelivrRes.value) {
-        for (const [code, rate] of Object.entries(jsDelivrRes.value)) {
-          if (!mergedRates[code]) {
-            mergedRates[code] = rate;
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Live exchange rate network fetch error:", err);
-  }
-
-  // If we successfully fetched live rates
-  if (Object.keys(mergedRates).length > 5) {
-    mergedRates[baseUpper] = 1;
-
-    const freshData: ExchangeRatesData = {
-      base: baseUpper,
-      date: new Date().toISOString().split("T")[0],
-      rates: mergedRates,
-      lastUpdated: Date.now(),
-      source: "live",
-    };
-
-    memoryCache.set(baseUpper, { data: freshData, expiry: Date.now() + CACHE_TTL_MS });
-    saveRatesToStorage(baseUpper, mergedRates);
-
-    return { data: freshData, isFromCache: false };
-  }
-
-  // 4. Fallback to localStorage stored data if available
-  if (stored && stored.rates && Object.keys(stored.rates).length > 5) {
-    return { data: { ...stored, source: "cache" }, isFromCache: true };
-  }
-
-  // 5. Ultimate Fallback to built-in baseline rates (triangulated for baseUpper)
-  const baseRateUSD = DEFAULT_BASELINE_USD_RATES[baseUpper] || 1;
-  const derivedRates: Record<string, number> = {};
-  for (const [code, usdRate] of Object.entries(DEFAULT_BASELINE_USD_RATES)) {
-    derivedRates[code] = usdRate / baseRateUSD;
-  }
-  derivedRates[baseUpper] = 1;
-
-  const fallbackData: ExchangeRatesData = {
-    base: baseUpper,
-    date: new Date().toISOString().split("T")[0],
-    rates: derivedRates,
-    lastUpdated: Date.now(),
-    source: "baseline",
-  };
-
-  return { data: fallbackData, isFromCache: true };
-}
-
-/**
- * Format relative time (e.g. "just now", "2 mins ago", "1 hour ago")
- */
-export function formatRelativeTime(timestamp: number): string {
-  const diffMs = Date.now() - timestamp;
-  const diffSecs = Math.floor(diffMs / 1000);
-  if (diffSecs < 15) return "just now";
-  if (diffSecs < 60) return `${diffSecs}s ago`;
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins === 1) return "1 min ago";
-  if (diffMins < 60) return `${diffMins} mins ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours === 1) return "1 hour ago";
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} days ago`;
 }
