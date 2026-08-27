@@ -8,10 +8,11 @@ export interface ExchangeRatesData {
   date: string;
   rates: Record<string, number>;
   lastUpdated: number;
+  source?: "live" | "cache" | "baseline";
 }
 
 const CACHE_PREFIX = "machinistpro_rates_";
-const CACHE_TTL_MS = 60 * 1000; // 1 minute fresh rate refresh interval
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds fresh rate refresh interval
 
 // In-memory cache
 const memoryCache = new Map<string, { data: ExchangeRatesData; expiry: number }>();
@@ -19,19 +20,19 @@ const memoryCache = new Map<string, { data: ExchangeRatesData; expiry: number }>
 // Built-in baseline rates (relative to 1 USD) covering all world currencies, precious metals & crypto
 export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   USD: 1.0,
-  EUR: 0.92,
-  GBP: 0.79,
-  JPY: 154.5,
-  CAD: 1.36,
-  AUD: 1.52,
-  CHF: 0.91,
-  CNY: 7.24,
-  CNH: 7.25,
-  INR: 83.5,
-  PKR: 278.5,
+  EUR: 0.8578,
+  GBP: 0.7351,
+  JPY: 153.2,
+  CAD: 1.365,
+  AUD: 1.512,
+  CHF: 0.895,
+  CNY: 7.23,
+  CNH: 7.24,
+  INR: 83.52,
+  PKR: 277.657,
   AED: 3.6725,
   SAR: 3.75,
-  KWD: 0.306,
+  KWD: 0.30818, // 1 KWD = $3.2448 -> ~900.95 PKR
   QAR: 3.64,
   BHD: 0.377,
   OMR: 0.385,
@@ -49,139 +50,128 @@ export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
   KRW: 1375.0,
   SEK: 10.6,
   NOK: 10.8,
-  DKK: 6.87,
-  PLN: 3.96,
-  BRL: 5.15,
-  MXN: 16.8,
-  ZAR: 18.5,
-  RUB: 91.0,
-  IDR: 16200.0,
-  MYR: 4.71,
-  THB: 36.8,
-  PHP: 58.2,
-  VND: 25450.0,
-  BDT: 117.5,
-  LKR: 302.0,
-  NPR: 133.5,
-  AFN: 71.5,
-  EGP: 47.8,
-  NGN: 1450.0,
-  KES: 132.0,
-  GHS: 14.5,
-  MAD: 10.1,
-  DZD: 134.5,
-  TND: 3.12,
-  ARS: 885.0,
-  CLP: 935.0,
-  COP: 3900.0,
-  PEN: 3.74,
+  DKK: 6.9,
+  PLN: 3.95,
   CZK: 23.2,
   HUF: 365.0,
-  RON: 4.62,
-  BGN: 1.80,
-  HRK: 7.02,
-  RSD: 108.5,
+  RON: 4.6,
+  BGN: 1.8,
+  ISK: 139.0,
+  HRK: 7.0,
+  RSD: 108.0,
+  RUB: 91.0,
   UAH: 40.5,
-  KZT: 445.0,
-  UZS: 12650.0,
-  AZN: 1.70,
-  GEL: 2.75,
-  ALL: 93.5,
-  AMD: 388.0,
-  ANG: 1.80,
-  AOA: 855.0,
-  AWG: 1.80,
-  BAM: 1.80,
+  BYN: 3.27,
+  BRL: 5.4,
+  MXN: 18.2,
+  ARS: 920.0,
+  CLP: 940.0,
+  COP: 4150.0,
+  PEN: 3.75,
+  UYU: 39.5,
+  BOB: 6.91,
+  PYG: 7550.0,
+  CRC: 525.0,
+  DOP: 59.0,
+  GTQ: 7.75,
+  HNL: 24.7,
+  NIO: 36.8,
+  PAB: 1.0,
+  TTD: 6.78,
+  JMD: 156.0,
+  BSD: 1.0,
   BBD: 2.0,
-  BIF: 2875.0,
+  BZD: 2.0,
+  XCD: 2.7,
+  AWG: 1.8,
+  ANG: 1.8,
+  KYD: 0.83,
   BMD: 1.0,
   BND: 1.35,
-  BOB: 6.91,
-  BSD: 1.0,
-  BTN: 83.5,
+  MYR: 4.71,
+  THB: 36.7,
+  IDR: 16350.0,
+  PHP: 58.7,
+  VND: 25450.0,
+  TWD: 32.4,
+  MNT: 3380.0,
+  KHR: 4100.0,
+  LAK: 22000.0,
+  MMK: 2100.0,
+  NPR: 133.5,
+  BDT: 117.5,
+  LKR: 304.0,
+  MVR: 15.4,
+  AFN: 70.8,
+  KZT: 465.0,
+  UZS: 12650.0,
+  TMT: 3.5,
+  TJS: 10.9,
+  KGS: 87.5,
+  AZN: 1.7,
+  GEL: 2.78,
+  AMD: 388.0,
+  ZAR: 18.3,
+  EGP: 47.8,
+  NGN: 1490.0,
+  KES: 129.5,
+  GHS: 15.1,
+  MAD: 9.95,
+  DZD: 134.5,
+  TND: 3.12,
+  LYD: 4.86,
+  ETB: 57.5,
+  UGX: 3740.0,
+  TZS: 2610.0,
+  RWF: 1310.0,
+  MZN: 63.8,
+  AOA: 855.0,
+  ZMW: 26.0,
   BWP: 13.6,
-  BYN: 3.27,
-  BZD: 2.0,
-  CDF: 2800.0,
-  CRC: 520.0,
+  NAD: 18.3,
+  MUR: 46.5,
+  SCR: 13.7,
+  FJD: 2.25,
+  PGK: 3.88,
+  SBD: 8.45,
+  VUV: 121.0,
+  WST: 2.75,
+  TOP: 2.37,
+  XPF: 110.5,
+  ALL: 93.0,
+  BAM: 1.8,
   CUP: 24.0,
   CVE: 102.5,
-  DJF: 178.0,
-  DOP: 59.0,
+  DJF: 177.7,
   ERN: 15.0,
-  ETB: 57.5,
-  FJD: 2.25,
   FKP: 0.79,
   GIP: 0.79,
-  GMD: 68.0,
+  GMD: 68.5,
   GNF: 8600.0,
-  GTQ: 7.78,
   GYD: 209.0,
-  HNL: 24.7,
   HTG: 132.5,
-  ISK: 139.0,
-  JMD: 156.0,
-  KGS: 87.5,
-  KHR: 4080.0,
   KMF: 455.0,
   KPW: 900.0,
-  KYD: 0.83,
-  LAK: 21500.0,
   LRD: 194.0,
-  LSL: 18.5,
-  LYD: 4.88,
+  LSL: 18.3,
   MDL: 17.7,
   MGA: 4500.0,
   MKD: 57.0,
-  MMK: 2100.0,
-  MNT: 3450.0,
   MOP: 8.05,
   MRU: 39.8,
-  MUR: 46.5,
-  MVR: 15.4,
   MWK: 1735.0,
-  MZN: 63.8,
-  NAD: 18.5,
-  NIO: 36.8,
-  PAB: 1.0,
-  PGK: 3.85,
-  PYG: 7500.0,
-  RWF: 1300.0,
-  SBD: 8.5,
-  SCR: 13.6,
-  SDG: 600.0,
-  SHP: 0.79,
-  SLE: 22.5,
   SOS: 571.0,
   SRD: 32.5,
   SSP: 130.0,
   STN: 22.8,
-  SVC: 8.75,
   SZL: 18.5,
-  TJS: 10.9,
-  TMT: 3.5,
-  TOP: 2.36,
-  TTD: 6.78,
-  TVD: 1.52,
-  TWD: 32.3,
-  TZS: 2600.0,
-  UGX: 3750.0,
-  UYU: 38.8,
   VES: 36.5,
-  VUV: 120.0,
-  WST: 2.75,
-  XAF: 605.0,
-  XCD: 2.70,
-  XOF: 605.0,
-  XPF: 110.0,
-  ZMW: 26.5,
   ZWG: 13.8,
   XAU: 0.00042, // Gold ~ $2,380/oz
   XAG: 0.034,   // Silver ~ $29/oz
   XPT: 0.00105, // Platinum ~ $950/oz
   XPD: 0.00102, // Palladium ~ $980/oz
   XDR: 0.76,
-  XCG: 1.80,
   BTC: 0.000015, // Bitcoin ~ $66,000
   ETH: 0.00028,  // Ethereum ~ $3,500
   BNB: 0.0017,
@@ -271,29 +261,53 @@ export function convertCurrency(
 }
 
 /**
- * Retry a promise function with exponential backoff
+ * Clear in-memory and local storage rates cache to force immediate fresh fetch
  */
-export async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  retriesLeft = 2,
-  delayMs = 300
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    if (retriesLeft <= 0) throw err;
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return retryWithBackoff(fn, retriesLeft - 1, delayMs * 2);
+export function clearRatesCache(base?: string) {
+  if (base) {
+    const b = base.toUpperCase();
+    memoryCache.delete(b);
+    if (typeof window !== "undefined" && window.localStorage) {
+      localStorage.removeItem(`${CACHE_PREFIX}${b}`);
+    }
+  } else {
+    memoryCache.clear();
+    if (typeof window !== "undefined" && window.localStorage) {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith(CACHE_PREFIX))
+        .forEach((k) => localStorage.removeItem(k));
+    }
   }
 }
 
 /**
- * Fetch rates from Cloudflare Pages CDN (currency-api)
+ * Fetch rates from Open Exchange Rates API (open.er-api.com) - Real-time institutional rates
+ */
+async function fetchFromOpenEr(base: string): Promise<Record<string, number>> {
+  const baseUpper = base.toUpperCase();
+  const url = `https://open.er-api.com/v6/latest/${baseUpper}?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`OpenER API failed with status ${res.status}`);
+  const json = await res.json();
+  if (!json.rates || typeof json.rates !== "object") {
+    throw new Error("Invalid rates payload from OpenER API");
+  }
+  const normalized: Record<string, number> = {};
+  for (const [k, v] of Object.entries(json.rates)) {
+    if (typeof v === "number" && !isNaN(v) && v > 0) {
+      normalized[k.toUpperCase()] = v;
+    }
+  }
+  return normalized;
+}
+
+/**
+ * Fetch rates from Cloudflare Pages CDN (currency-api) - 340+ extended currencies
  */
 async function fetchFromCloudflarePages(base: string): Promise<Record<string, number>> {
   const baseLower = base.toLowerCase();
-  const url = `https://latest.currency-api.pages.dev/v1/currencies/${baseLower}.json`;
-  const res = await fetch(url);
+  const url = `https://latest.currency-api.pages.dev/v1/currencies/${baseLower}.min.json?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Cloudflare CDN failed with status ${res.status}`);
   const json = await res.json();
   const ratesObj = json[baseLower];
@@ -315,8 +329,8 @@ async function fetchFromCloudflarePages(base: string): Promise<Record<string, nu
  */
 async function fetchFromJSDelivr(base: string): Promise<Record<string, number>> {
   const baseLower = base.toLowerCase();
-  const url = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${baseLower}.json`;
-  const res = await fetch(url);
+  const url = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${baseLower}.min.json`;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`JSDelivr CDN failed with status ${res.status}`);
   const json = await res.json();
   const ratesObj = json[baseLower];
@@ -334,33 +348,24 @@ async function fetchFromJSDelivr(base: string): Promise<Record<string, number>> 
 }
 
 /**
- * Fetch rates from Open Exchange Rates API (open.er-api.com)
- */
-async function fetchFromOpenEr(base: string): Promise<Record<string, number>> {
-  const baseUpper = base.toUpperCase();
-  const url = `https://open.er-api.com/v6/latest/${baseUpper}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`OpenER API failed with status ${res.status}`);
-  const json = await res.json();
-  if (!json.rates || typeof json.rates !== "object") {
-    throw new Error("Invalid rates payload from OpenER API");
-  }
-  return json.rates;
-}
-
-/**
  * Fetch rates from ExchangeRate-API (api.exchangerate-api.com)
  */
 async function fetchFromExchangeRateApi(base: string): Promise<Record<string, number>> {
   const baseUpper = base.toUpperCase();
-  const url = `https://api.exchangerate-api.com/v4/latest/${baseUpper}`;
-  const res = await fetch(url);
+  const url = `https://api.exchangerate-api.com/v4/latest/${baseUpper}?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`ExchangeRate-API failed with status ${res.status}`);
   const json = await res.json();
   if (!json.rates || typeof json.rates !== "object") {
     throw new Error("Invalid rates payload from ExchangeRate-API");
   }
-  return json.rates;
+  const normalized: Record<string, number> = {};
+  for (const [k, v] of Object.entries(json.rates)) {
+    if (typeof v === "number" && !isNaN(v) && v > 0) {
+      normalized[k.toUpperCase()] = v;
+    }
+  }
+  return normalized;
 }
 
 /**
@@ -373,12 +378,13 @@ function saveRatesToStorage(base: string, rates: Record<string, number>) {
       date: new Date().toISOString().split("T")[0],
       rates,
       lastUpdated: Date.now(),
+      source: "live",
     };
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.setItem(`${CACHE_PREFIX}${base.toUpperCase()}`, JSON.stringify(payload));
     }
   } catch (e) {
-    // Ignore quota issues
+    // Ignore storage quota issues
   }
 }
 
@@ -390,20 +396,30 @@ export function getCachedRates(base: string): ExchangeRatesData | null {
     if (typeof window === "undefined" || !window.localStorage) return null;
     const raw = localStorage.getItem(`${CACHE_PREFIX}${base.toUpperCase()}`);
     if (!raw) return null;
-    return JSON.parse(raw) as ExchangeRatesData;
+    const parsed = JSON.parse(raw) as ExchangeRatesData;
+    // Only return if it contains valid rates and was from a live source
+    if (parsed && parsed.rates && Object.keys(parsed.rates).length > 10) {
+      return parsed;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Fetch latest live exchange rates with 4 cascading failovers + offline baseline
+ * Fetch latest live exchange rates with parallel multi-source merge + fast fallback
  */
 export async function getExchangeRates(
   base = "USD",
   forceRefresh = false
 ): Promise<{ data: ExchangeRatesData; isFromCache: boolean }> {
   const baseUpper = base.toUpperCase();
+
+  // If forceRefresh, clear existing memory cache for this base
+  if (forceRefresh) {
+    memoryCache.delete(baseUpper);
+  }
 
   // 1. Check memory cache
   const cachedMem = memoryCache.get(baseUpper);
@@ -418,50 +434,73 @@ export async function getExchangeRates(
     return { data: stored, isFromCache: true };
   }
 
-  // 3. Network Fetch with 4-Tier Cascading Failover
-  let rates: Record<string, number> | null = null;
+  // 3. Network Fetch: Merge OpenER (freshest institutional rates) + Cloudflare Pages (340+ extended fiats/crypto)
+  let mergedRates: Record<string, number> = {};
 
-  // Endpoint 1: Cloudflare Pages CDN
   try {
-    rates = await retryWithBackoff(() => fetchFromCloudflarePages(baseUpper), 1, 300);
-  } catch {
-    // Endpoint 2: JSDelivr CDN
-    try {
-      rates = await retryWithBackoff(() => fetchFromJSDelivr(baseUpper), 1, 300);
-    } catch {
-      // Endpoint 3: Open ER API
-      try {
-        rates = await retryWithBackoff(() => fetchFromOpenEr(baseUpper), 1, 300);
-      } catch {
-        // Endpoint 4: ExchangeRate API
-        try {
-          rates = await retryWithBackoff(() => fetchFromExchangeRateApi(baseUpper), 1, 300);
-        } catch {
-          rates = null;
+    // Fetch OpenER and Cloudflare Pages in parallel
+    const [openErRes, cdnRes] = await Promise.allSettled([
+      fetchFromOpenEr(baseUpper),
+      fetchFromCloudflarePages(baseUpper),
+    ]);
+
+    if (openErRes.status === "fulfilled" && openErRes.value) {
+      Object.assign(mergedRates, openErRes.value);
+    }
+
+    if (cdnRes.status === "fulfilled" && cdnRes.value) {
+      // CDN provides extra currencies (crypto, precious metals, obscure fiats)
+      // OpenER rates are preferred for common pairs, so only assign missing or augment
+      for (const [code, rate] of Object.entries(cdnRes.value)) {
+        if (!mergedRates[code]) {
+          mergedRates[code] = rate;
         }
       }
     }
+
+    // If both failed, try fallback endpoints (JSDelivr & ExchangeRate-API)
+    if (Object.keys(mergedRates).length < 5) {
+      const [jsDelivrRes, exchRateRes] = await Promise.allSettled([
+        fetchFromJSDelivr(baseUpper),
+        fetchFromExchangeRateApi(baseUpper),
+      ]);
+
+      if (exchRateRes.status === "fulfilled" && exchRateRes.value) {
+        Object.assign(mergedRates, exchRateRes.value);
+      }
+      if (jsDelivrRes.status === "fulfilled" && jsDelivrRes.value) {
+        for (const [code, rate] of Object.entries(jsDelivrRes.value)) {
+          if (!mergedRates[code]) {
+            mergedRates[code] = rate;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Live exchange rate network fetch error:", err);
   }
 
-  if (rates && Object.keys(rates).length > 5) {
-    rates[baseUpper] = 1;
+  // If we successfully fetched live rates
+  if (Object.keys(mergedRates).length > 5) {
+    mergedRates[baseUpper] = 1;
 
     const freshData: ExchangeRatesData = {
       base: baseUpper,
       date: new Date().toISOString().split("T")[0],
-      rates,
+      rates: mergedRates,
       lastUpdated: Date.now(),
+      source: "live",
     };
 
     memoryCache.set(baseUpper, { data: freshData, expiry: Date.now() + CACHE_TTL_MS });
-    saveRatesToStorage(baseUpper, rates);
+    saveRatesToStorage(baseUpper, mergedRates);
 
     return { data: freshData, isFromCache: false };
   }
 
   // 4. Fallback to localStorage stored data if available
   if (stored && stored.rates && Object.keys(stored.rates).length > 5) {
-    return { data: stored, isFromCache: true };
+    return { data: { ...stored, source: "cache" }, isFromCache: true };
   }
 
   // 5. Ultimate Fallback to built-in baseline rates (triangulated for baseUpper)
@@ -477,6 +516,7 @@ export async function getExchangeRates(
     date: new Date().toISOString().split("T")[0],
     rates: derivedRates,
     lastUpdated: Date.now(),
+    source: "baseline",
   };
 
   return { data: fallbackData, isFromCache: true };
@@ -487,8 +527,10 @@ export async function getExchangeRates(
  */
 export function formatRelativeTime(timestamp: number): string {
   const diffMs = Date.now() - timestamp;
+  const diffSecs = Math.floor(diffMs / 1000);
+  if (diffSecs < 10) return "just now";
+  if (diffSecs < 60) return `${diffSecs}s ago`;
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return "just now";
   if (diffMins === 1) return "1 min ago";
   if (diffMins < 60) return `${diffMins} mins ago`;
   const diffHours = Math.floor(diffMins / 60);

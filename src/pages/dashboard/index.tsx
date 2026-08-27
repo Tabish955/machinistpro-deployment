@@ -147,13 +147,6 @@ export default function DashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
               {greetingText}, {user?.username || "Engineer"}!
             </h1>
-            <p className="text-sm text-gray-500 mt-1 max-w-md">
-              Your precision engineering workspace is ready. Open any tool below or press{" "}
-              <kbd className="px-1.5 py-0.5 rounded bg-dark-700 text-[10px] font-mono text-gray-400 mx-0.5">
-                <Command size={9} className="inline" />K
-              </kbd>{" "}
-              to search.
-            </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             <div className="flex items-center gap-2 text-gray-500 font-mono text-xs">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   ArrowDownUp,
   RefreshCw,
@@ -9,6 +9,8 @@ import {
   WifiOff,
   Sparkles,
   ArrowRight,
+  Clock,
+  ShieldCheck,
 } from "lucide-react";
 import { CurrencyDropdown } from "./currency-dropdown";
 import {
@@ -16,6 +18,7 @@ import {
   getCrossRate,
   convertCurrency,
   formatRelativeTime,
+  clearRatesCache,
   type ExchangeRatesData,
 } from "@/lib/currency/api";
 import { POPULAR_FOREX_PAIRS, getCurrencyMeta } from "@/lib/currency/database";
@@ -38,8 +41,14 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isCached, setIsCached] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [ticker, setTicker] = useState(0);
+
+  // Live timer tick every 2 seconds for fresh relative time display
+  useEffect(() => {
+    const timer = setInterval(() => setTicker((t) => t + 1), 2000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Fetch rates
   const fetchRates = useCallback(
@@ -49,9 +58,11 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
       setError(null);
 
       try {
-        const { data, isFromCache } = await getExchangeRates(base, force);
+        if (force) {
+          clearRatesCache(base);
+        }
+        const { data } = await getExchangeRates(base, force);
         setRatesData(data);
-        setIsCached(isFromCache);
 
         const currentRate = getCrossRate(base, targetCurrency, data);
         onPairChange?.(base, targetCurrency, currentRate);
@@ -66,12 +77,14 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
     [targetCurrency, onPairChange]
   );
 
+  // Initial load and 60-second background polling
   useEffect(() => {
     fetchRates(baseCurrency, false);
-    // 60s auto-poll to guarantee fresh rates every minute
+
     const interval = setInterval(() => {
       fetchRates(baseCurrency, true);
     }, 60000);
+
     return () => clearInterval(interval);
   }, [baseCurrency, fetchRates]);
 
@@ -131,6 +144,8 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
   const unitRate = getCrossRate(baseCurrency, targetCurrency, ratesData);
   const inverseUnitRate = getCrossRate(targetCurrency, baseCurrency, ratesData);
 
+  const isLive = ratesData?.source === "live";
+
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-dark-900/80 p-4 sm:p-6 shadow-2xl backdrop-blur-xl transition-all">
       {/* Header with live ticker & status */}
@@ -142,25 +157,26 @@ export function CurrencyConverterCard({ onPairChange }: CurrencyConverterCardPro
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 border border-emerald-500/20 shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Interbank
+              Live Interbank Rates
             </span>
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
-            Real-time institutional conversion rates across 340+ fiat, precious metals & crypto
+            Real-time institutional rates across 340+ fiat currencies, precious metals & crypto
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {ratesData && (
-            <span className="text-[11px] text-gray-400 font-mono">
-              {isCached ? "Cached" : "Live"} · {formatRelativeTime(ratesData.lastUpdated)}
+            <span className="text-[11px] text-gray-400 font-mono flex items-center gap-1">
+              <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-emerald-400" : "bg-cyan-400"}`} />
+              <span>{isLive ? "Live" : "Synced"} · {formatRelativeTime(ratesData.lastUpdated)}</span>
             </span>
           )}
           <button
             onClick={() => fetchRates(baseCurrency, true)}
             disabled={isRefreshing}
             className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-accent-cyan/30 hover:bg-accent-cyan/10 hover:text-accent-cyan disabled:opacity-50"
-            title="Refresh Live Rates"
+            title="Force refresh live rates now"
           >
             <RefreshCw size={14} className={isRefreshing ? "animate-spin text-accent-cyan" : ""} />
           </button>

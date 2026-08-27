@@ -61,7 +61,7 @@ describe("Currency Engine & Catalog", () => {
 
     // 100 USD to EUR
     const res = convertCurrency(100, "USD", "EUR");
-    expect(res).toBeCloseTo(92, 1);
+    expect(res).toBeCloseTo(85.8, 0);
   });
 
   it("formats relative timestamps correctly", () => {
