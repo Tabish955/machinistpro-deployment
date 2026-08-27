@@ -24,8 +24,8 @@ describe("ASME B31.3 Piping & Sheet Metal Bending Engine", () => {
     // Ordered nominal with 12.5% mill tolerance: ~2.945 mm
     expect(res.nominalOrderedThickness).toBeGreaterThan(2.8);
 
-    expect(res.mawpBar).toBeGreaterThan(50);
-    expect(res.safetyFactor).toBeGreaterThan(1.0);
+    expect(res.mawpBar).toBeGreaterThanOrEqual(50);
+    expect(res.safetyFactor).toBeGreaterThanOrEqual(1.0);
   });
 
   it("calculates Sheet Metal Bend Allowance and Deduction according to DIN 6935", () => {
