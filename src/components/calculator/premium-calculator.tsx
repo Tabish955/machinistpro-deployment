@@ -303,7 +303,7 @@ export function PremiumCalculator() {
   };
 
   return (
-    <>
+    <ErrorBoundary fallbackTitle="Calculator Suite encountered an issue" fallbackMessage="Click the reset button below to restore standard calculator mode.">
       <div
         ref={containerRef}
         className="flex min-h-[calc(100dvh-11.25rem)] lg:h-[calc(100dvh-3.5rem)] lg:max-h-[calc(100dvh-3.5rem)] flex-col -m-4 lg:-m-6 overflow-x-hidden overflow-y-auto bg-gradient-to-b from-dark-900 via-dark-950 to-dark-990 w-[calc(100%+2rem)] lg:w-[calc(100%+3rem)] min-w-0 max-w-[100vw]"
