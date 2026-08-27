@@ -192,7 +192,6 @@ export default function DxfConverterPage() {
         description="Turn drawings, models, programs and photographs into CAD geometry — on this device"
         icon={<ScanLine size={22} className="text-accent-cyan" />}
         iconColor="cyan"
-        status="beta"
       />
 
       <div className="grid lg:grid-cols-[380px_1fr] gap-5">

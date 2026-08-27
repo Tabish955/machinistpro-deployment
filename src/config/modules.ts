@@ -474,7 +474,7 @@ export const workspaceModules: ModuleConfig[] = [
     icon: ScanLine,
     href: "/dashboard/dxf-converter",
     color: "cyan",
-    status: "beta",
+    status: "available",
     category: "tools",
     keywords: [
       "dxf",
