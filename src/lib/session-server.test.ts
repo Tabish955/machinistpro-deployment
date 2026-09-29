@@ -227,7 +227,7 @@ describe("validateSession", () => {
     const result = await validateSession("a".repeat(32));
     expect(result).not.toBeNull();
     expect(result!.username).toBe("alice");
-    expect(result!.subscription).toBe("Pro");
+    expect(result!.subscription).toMatch(/^Trial \(\d+ days? left\)$/);
     expect(result!.expiry).toBe("2027-01-01");
     expect(result!.isTrial).toBe(true);
     expect(result!.rememberMe).toBe(true);
