@@ -146,6 +146,25 @@ export async function validateSession(rawToken: string): Promise<SessionRecord |
     expiry = u.expiry_date;
   }
 
+  // Trials: the stored subscription string is a snapshot. Recompute the
+  // countdown every validation and hard-expire when the trial window ends.
+  if (data.is_trial) {
+    const trialEnd = data.expiry_date ? new Date(data.expiry_date).getTime() : NaN;
+    if (!Number.isFinite(trialEnd) || trialEnd <= Date.now()) {
+      await a
+        .from("sessions")
+        .delete()
+        .eq("token_hash", tokenHash)
+        .then(
+          () => undefined,
+          () => undefined,
+        );
+      return null;
+    }
+    const daysLeft = Math.max(1, Math.ceil((trialEnd - Date.now()) / 86400000));
+    subscription = `Trial (${daysLeft} day${daysLeft === 1 ? "" : "s"} left)`;
+  }
+
   return {
     username: data.username,
     subscription,
