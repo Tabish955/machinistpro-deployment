@@ -85,6 +85,7 @@ export type Database = {
       }
       device_fingerprints: {
         Row: {
+          client_device_id: string | null
           fingerprint_hash: string
           first_seen: string
           id: string
@@ -97,6 +98,7 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          client_device_id?: string | null
           fingerprint_hash: string
           first_seen?: string
           id?: string
@@ -109,6 +111,7 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          client_device_id?: string | null
           fingerprint_hash?: string
           first_seen?: string
           id?: string
