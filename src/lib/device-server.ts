@@ -43,21 +43,22 @@ export function extractIp(req: Request): string {
   );
 }
 
-/** Trial fingerprint — includes UA + IP so it is hard to recycle. */
-export function hashFingerprint(sig: ClientSignals, ua: string, ipHash: string): string {
+/**
+ * Trial fingerprint — hardware/rendering signals only. IP and user-agent are
+ * deliberately excluded: they change with networks, VPNs and browser updates,
+ * which previously produced a "new device" and a fresh trial every time.
+ */
+export function hashFingerprint(sig: ClientSignals): string {
   const canonical = [
     sig.screen,
     sig.tz,
-    sig.lang,
     sig.platform,
     sig.hardware,
     sig.canvas,
     sig.webgl,
     sig.fonts,
-    ua,
-    ipHash,
   ].join("|");
-  return sha256(pepper() + "::" + canonical);
+  return sha256(pepper() + "::trialfp::" + canonical);
 }
 
 /**
