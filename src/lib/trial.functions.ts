@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { clientSignalsSchema } from "./device-server";
+import type { DeviceRow } from "./trial.server";
 
 const inputSchema = z.object({
   signals: clientSignalsSchema,
