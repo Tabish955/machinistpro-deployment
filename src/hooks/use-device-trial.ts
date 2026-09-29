@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@/lib/next-compat";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/store/toast-store";
-import { collectSignals } from "@/lib/fingerprint";
+import { collectSignals, getDeviceId } from "@/lib/fingerprint";
 import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
 
 export type TrialStatus =
@@ -31,7 +31,7 @@ export function useDeviceTrial() {
     void (async () => {
       try {
         const signals = await collectSignals();
-        const r = await checkTrial({ data: { signals } });
+        const r = await checkTrial({ data: { signals, deviceId: getDeviceId() } });
         if (cancelled) return;
         if (!r.hasTrial) setStatus({ state: "none" });
         else if (r.active)
@@ -50,7 +50,7 @@ export function useDeviceTrial() {
     setStarting(true);
     try {
       const signals = await collectSignals();
-      const r = await startTrial({ data: { signals } });
+      const r = await startTrial({ data: { signals, deviceId: getDeviceId() } });
       if (r.ok && r.sessionToken) {
         const expiryDate = new Date(r.expiresAt).toLocaleDateString();
         const subscription = `Trial (${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} left)`;

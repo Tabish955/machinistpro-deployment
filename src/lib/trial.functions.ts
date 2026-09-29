@@ -1,78 +1,87 @@
 // Device-based 14-day trial with anti-bypass. No user account required.
-// Fingerprint = server hash of (client signals + UA + IP + pepper).
-// One trial per device forever, capped at 3 trials per IP hash.
+// Device identity = hardware fingerprint (no IP/UA, so network changes don't
+// create a "new device") PLUS a persistent client device ID stored in
+// localStorage + cookie. If EITHER has already used a trial, no new trial.
+// IP is only used as a secondary rate limit (max 3 trials per network).
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { issueSession } from "./session-server";
-import {
-  clientSignalsSchema,
-  hashFingerprint,
-  hashIp,
-  extractIp,
-  type ClientSignals,
-} from "./device-server";
+import { clientSignalsSchema } from "./device-server";
+import type { DeviceRow } from "./trial.server";
 
-const TRIAL_DAYS = 14;
-const MAX_TRIALS_PER_IP = 3;
-
-async function loadContext(signals: ClientSignals) {
-  const req = getRequest();
-  if (!req) throw new Error("no request");
-  const ip = extractIp(req);
-  const ua = req.headers.get("user-agent")?.slice(0, 512) ?? "";
-  const ipHash = hashIp(ip);
-  const fpHash = hashFingerprint(signals, ua, ipHash);
-  return { ipHash, fpHash, ua };
-}
+const inputSchema = z.object({
+  signals: clientSignalsSchema,
+  deviceId: z.string().min(8).max(128).optional(),
+});
 
 export const getDeviceTrialStatus = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ signals: clientSignalsSchema }).parse(d))
+  .inputValidator((d: unknown) => inputSchema.parse(d))
   .handler(async ({ data }) => {
-    const { fpHash } = await loadContext(data.signals);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: dev } = await supabaseAdmin
-      .from("device_fingerprints")
-      .select("trial_used, trial_started_at, trial_expires_at")
-      .eq("fingerprint_hash", fpHash)
-      .maybeSingle();
-    if (!dev?.trial_used || !dev.trial_expires_at) return { hasTrial: false as const };
-    const now = Date.now();
+    const { loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
+    const { issueSession } = await import("./session-server");
+    const { ipHash, fpHash, didHash, ua } = loadContext(data);
+    void ipHash; void ua;
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash);
+    const dev = usedTrial(rows);
+    if (!dev) return { hasTrial: false as const };
+    if (!dev.trial_expires_at) return { hasTrial: true as const, startedAt: dev.trial_started_at, expiresAt: "", daysLeft: 0, active: false };
     const exp = new Date(dev.trial_expires_at).getTime();
     return {
       hasTrial: true as const,
       startedAt: dev.trial_started_at,
       expiresAt: dev.trial_expires_at,
-      daysLeft: Math.max(0, Math.ceil((exp - now) / 86400000)),
-      active: now < exp,
+      daysLeft: daysLeftUntil(dev.trial_expires_at),
+      active: Date.now() < exp,
     };
   });
 
 export const startDeviceTrial = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ signals: clientSignalsSchema }).parse(d))
+  .inputValidator((d: unknown) => inputSchema.parse(d))
   .handler(async ({ data }) => {
-    const { ipHash, fpHash, ua } = await loadContext(data.signals);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
+    const { issueSession } = await import("./session-server");
+    const { ipHash, fpHash, didHash, ua } = loadContext(data);
+    void ipHash; void ua;
 
-    // Device already used?
-    const dev = await supabaseAdmin
-      .from("device_fingerprints")
-      .select("id, trial_used, trial_expires_at")
-      .eq("fingerprint_hash", fpHash)
-      .maybeSingle();
-    // Already used on this device: resume the SAME trial window instead of
-    // granting a new one. Signing out never costs the user their trial, and it
-    // never extends past the original 14-day window.
-    if (dev.data?.trial_used && dev.data.trial_expires_at) {
-      const exp = new Date(dev.data.trial_expires_at).getTime();
-      const now = Date.now();
-      if (now < exp) {
-        const daysLeft = Math.max(1, Math.ceil((exp - now) / 86400000));
-        const expiresAtDate = dev.data.trial_expires_at;
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash);
+    const dev = usedTrial(rows);
+
+    // Link both identifiers to each other so clearing one never frees a trial.
+    const link = async (row: DeviceRow) => {
+      await supabaseAdmin
+        .from("device_fingerprints")
+        .update({ last_seen: new Date().toISOString(), ...(didHash ? { client_device_id: didHash } : {}) })
+        .eq("id", row.id);
+      const hasFp = rows.length > 0; // cheap: ensure fp row exists too
+      if (hasFp) {
+        const { data: fpRow } = await supabaseAdmin
+          .from("device_fingerprints")
+          .select("id")
+          .eq("fingerprint_hash", fpHash)
+          .maybeSingle();
+        if (!fpRow) {
+          await supabaseAdmin.from("device_fingerprints").insert({
+            fingerprint_hash: fpHash,
+            client_device_id: didHash,
+            ip_hash: ipHash,
+            user_agent: ua,
+            trial_used: true,
+            trial_started_at: row.trial_started_at,
+            trial_expires_at: row.trial_expires_at,
+          });
+        }
+      }
+    };
+
+    if (dev) {
+      await link(dev);
+      if (dev.trial_expires_at && Date.now() < new Date(dev.trial_expires_at).getTime()) {
+        const daysLeft = Math.max(1, daysLeftUntil(dev.trial_expires_at));
         const issued = await issueSession({
           username: "Trial User",
           subscription: `Trial (${daysLeft} day${daysLeft === 1 ? "" : "s"} left)`,
-          expiryDate: expiresAtDate,
+          expiryDate: dev.trial_expires_at,
           isTrial: true,
           rememberMe: false,
         });
@@ -81,20 +90,14 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
           resumed: true as const,
           sessionToken: issued.token,
           sessionExpiresAt: issued.expiresAt,
-          expiresAt: expiresAtDate,
+          expiresAt: dev.trial_expires_at,
           daysLeft,
         };
       }
-      return {
-        ok: false as const,
-        reason: "Your 14-day trial for this device has already ended.",
-      };
-    }
-    if (dev.data?.trial_used) {
-      return { ok: false as const, reason: "A trial has already been used on this device." };
+      return { ok: false as const, reason: "Your 14-day trial for this device has already ended." };
     }
 
-    // IP quota
+    // IP quota (secondary network-level limit)
     const ipRow = await supabaseAdmin
       .from("trial_ip_log")
       .select("trial_count")
@@ -107,50 +110,30 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
     const started = new Date();
     const expires = new Date(started.getTime() + TRIAL_DAYS * 86400000);
 
-    if (dev.data) {
-      await supabaseAdmin
-        .from("device_fingerprints")
-        .update({
-          trial_used: true,
-          trial_started_at: started.toISOString(),
-          trial_expires_at: expires.toISOString(),
-          last_seen: started.toISOString(),
-          user_agent: ua,
-          ip_hash: ipHash,
-        })
-        .eq("id", dev.data.id);
-    } else {
-      const ins = await supabaseAdmin
-        .from("device_fingerprints")
-        .insert({
-          fingerprint_hash: fpHash,
-          ip_hash: ipHash,
-          user_agent: ua,
-          trial_used: true,
-          trial_started_at: started.toISOString(),
-          trial_expires_at: expires.toISOString(),
-        })
-        .select("id")
-        .single();
-      if (ins.error || !ins.data)
-        return { ok: false as const, reason: "Device registration failed." };
-    }
+    const ins = await supabaseAdmin
+      .from("device_fingerprints")
+      .insert({
+        fingerprint_hash: fpHash,
+        client_device_id: didHash,
+        ip_hash: ipHash,
+        user_agent: ua,
+        trial_used: true,
+        trial_started_at: started.toISOString(),
+        trial_expires_at: expires.toISOString(),
+      })
+      .select("id")
+      .single();
+    if (ins.error || !ins.data) return { ok: false as const, reason: "Device registration failed." };
 
     if (ipRow.data) {
       await supabaseAdmin
         .from("trial_ip_log")
-        .update({
-          trial_count: ipRow.data.trial_count + 1,
-          last_trial_at: started.toISOString(),
-        })
+        .update({ trial_count: ipRow.data.trial_count + 1, last_trial_at: started.toISOString() })
         .eq("ip_hash", ipHash);
     } else {
       await supabaseAdmin.from("trial_ip_log").insert({ ip_hash: ipHash, trial_count: 1 });
     }
 
-    // Issue a server-persisted trial session. The client must use this token —
-    // it used to fabricate `trial_<uuid>` locally which the server could not
-    // validate at all.
     const issued = await issueSession({
       username: "Trial User",
       subscription: `Trial (${TRIAL_DAYS} days left)`,

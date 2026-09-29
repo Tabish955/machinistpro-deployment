@@ -83,9 +83,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           body: JSON.stringify({ sessionToken: token }),
         });
         if (res.status !== 200) {
+          const wasTrial = localStorage.getItem("mp_trial") === "1";
           localStorage.removeItem("mp_session");
           localStorage.removeItem("mp_user");
           localStorage.removeItem("mp_trial");
+          if (wasTrial && res.status === 401) {
+            const { toast } = await import("@/store/toast-store");
+            toast.error("Trial ended", "Your 14-day trial has expired on this device.");
+          }
           setCheckFailed(true);
           router.replace("/login");
           return;

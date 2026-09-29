@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { collectSignals } from "@/lib/fingerprint";
+import { collectSignals, getDeviceId } from "@/lib/fingerprint";
 import { getDeviceTrialStatus, startDeviceTrial } from "@/lib/trial.functions";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -28,7 +28,7 @@ export function TrialBanner() {
     (async () => {
       try {
         const signals = await collectSignals();
-        const r = await check({ data: { signals } });
+        const r = await check({ data: { signals, deviceId: getDeviceId() } });
         if (cancelled) return;
         if (!r.hasTrial) setStatus({ state: "none" });
         else if (r.active)
@@ -47,7 +47,7 @@ export function TrialBanner() {
     setStarting(true);
     try {
       const signals = await collectSignals();
-      const r = await start({ data: { signals } });
+      const r = await start({ data: { signals, deviceId: getDeviceId() } });
       if (r.ok) setStatus({ state: "active", daysLeft: r.daysLeft, expiresAt: r.expiresAt });
       else setStatus({ state: "blocked", reason: r.reason });
     } finally {
