@@ -80,6 +80,35 @@ function fontsHash(): string {
   return found.join(",");
 }
 
+const DID_KEY = "mp_did";
+
+function readCookie(name: string): string | null {
+  const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * Persistent random device ID mirrored across localStorage, sessionStorage and
+ * a 10-year cookie. Clearing one store restores it from the others.
+ */
+export function getDeviceId(): string {
+  let id: string | null = null;
+  try {
+    id = localStorage.getItem(DID_KEY) || sessionStorage.getItem(DID_KEY) || readCookie(DID_KEY);
+  } catch {
+    id = readCookie(DID_KEY);
+  }
+  if (!id || id.length < 8) id = crypto.randomUUID();
+  try {
+    localStorage.setItem(DID_KEY, id);
+    sessionStorage.setItem(DID_KEY, id);
+  } catch {
+    /* storage unavailable */
+  }
+  document.cookie = `${DID_KEY}=${encodeURIComponent(id)}; max-age=315360000; path=/; SameSite=Lax`;
+  return id;
+}
+
 export async function collectSignals(): Promise<DeviceSignals> {
   const nav = navigator as Navigator & { deviceMemory?: number };
   return {
