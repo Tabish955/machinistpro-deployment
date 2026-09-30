@@ -95,7 +95,5 @@ export function TrialBanner() {
       </div>
     );
   }
-  return (
-    <div className={`${base} border-red-500/40 bg-red-500/10 text-red-400`}>{status.reason}</div>
-  );
+  return null;
 }
