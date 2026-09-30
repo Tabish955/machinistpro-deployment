@@ -479,8 +479,23 @@ export async function getExchangeRates(
     }
   } catch {}
 
+  // 6. Network unreachable — prefer any stale saved rates over static baselines.
+  const stale = getFromCache<{ rates: Record<string, number>; timestamp: string }>(localCacheKey);
+  if (stale && stale.rates && Object.keys(stale.rates).length > 5) {
+    const lastUpdated = new Date(stale.timestamp).getTime();
+    return {
+      data: {
+        base: baseUpper,
+        date: stale.timestamp.split("T")[0],
+        rates: stale.rates,
+        lastUpdated: isNaN(lastUpdated) ? Date.now() : lastUpdated,
+        source: "cache",
+      },
+      isFromCache: true,
+    };
+  }
 
-  // 6. Offline fallback to baseline
+  // 7. Offline fallback to baseline
   const baseRateUSD = DEFAULT_BASELINE_USD_RATES[baseUpper] || 1;
   const derivedRates: Record<string, number> = {};
   for (const [code, usdRate] of Object.entries(DEFAULT_BASELINE_USD_RATES)) {
