@@ -8,6 +8,13 @@
       "when": 1790681966833,
       "tag": "0000_trial_device_id",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790772285017,
+      "tag": "0001_trial_hw_hash",
+      "breakpoints": true
     }
   ]
 }

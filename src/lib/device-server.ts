@@ -61,6 +61,28 @@ export function hashFingerprint(sig: ClientSignals): string {
   return sha256(pepper() + "::trialfp::" + canonical);
 }
 
+/** Normalise a WebGL renderer string so Chrome/Edge/Firefox on one GPU agree. */
+export function normaliseGpu(webgl: string): string {
+  const s = webgl.toLowerCase();
+  const m = s.match(/(nvidia|geforce|rtx|gtx|quadro|radeon|amd|intel|apple|adreno|mali|powervr|m[1-4])[^,|)]*/);
+  const raw = (m ? m[0] : s)
+    .replace(/direct3d.*|opengl.*|vulkan.*|metal.*|\(0x[0-9a-f]+\)/g, "")
+    .replace(/\b(angle|graphics|series|gpu|family|\(r\)|\(tm\))\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+  return raw.slice(0, 40);
+}
+
+/**
+ * Cross-browser hardware hash: only signals every engine reports the same on
+ * one machine (screen, timezone, CPU cores, GPU model). Canvas/fonts/UA/memory
+ * are excluded because they differ between Chrome, Firefox and Edge.
+ */
+export function hashHardware(sig: ClientSignals): string {
+  const cores = (sig.hardware.match(/^(\d+)c/) || [])[1] ?? "0";
+  const canonical = [sig.screen, sig.tz, cores, normaliseGpu(sig.webgl)].join("|");
+  return sha256(pepper() + "::hwx::" + canonical);
+}
+
 /**
  * Hardware ID used for one-device licence locking. Deliberately excludes IP so a
  * paid client keeps working when their network changes, but stays bound to the

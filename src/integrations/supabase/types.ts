@@ -88,6 +88,7 @@ export type Database = {
           client_device_id: string | null
           fingerprint_hash: string
           first_seen: string
+          hw_hash: string | null
           id: string
           ip_hash: string | null
           last_seen: string
@@ -101,6 +102,7 @@ export type Database = {
           client_device_id?: string | null
           fingerprint_hash: string
           first_seen?: string
+          hw_hash?: string | null
           id?: string
           ip_hash?: string | null
           last_seen?: string
@@ -114,6 +116,7 @@ export type Database = {
           client_device_id?: string | null
           fingerprint_hash?: string
           first_seen?: string
+          hw_hash?: string | null
           id?: string
           ip_hash?: string | null
           last_seen?: string

@@ -23,7 +23,7 @@ export function TrialBanner() {
   const start = useServerFn(startDeviceTrial);
 
   useEffect(() => {
-    if (isPaid) return;
+    if (isPaid || !user) return;
     let cancelled = false;
     (async () => {
       try {
@@ -55,12 +55,15 @@ export function TrialBanner() {
     }
   }
 
-  if (isPaid) return null;
+  if (isPaid || !user) return null;
   if (status.state === "loading") return null;
   if (status.state === "active" && status.daysLeft > 3) return null;
 
   const base = "mx-auto mb-4 max-w-6xl rounded-lg border px-4 py-3 text-sm";
-  if (status.state === "none") {
+  // Inside the dashboard the visitor already has a session (paid or trial):
+  // never offer a new trial here.
+  if (status.state === "none" || status.state === "blocked") return null;
+  if (false) {
     return (
       <div
         className={`${base} border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between`}
@@ -92,7 +95,5 @@ export function TrialBanner() {
       </div>
     );
   }
-  return (
-    <div className={`${base} border-red-500/40 bg-red-500/10 text-red-400`}>{status.reason}</div>
-  );
+  return null;
 }

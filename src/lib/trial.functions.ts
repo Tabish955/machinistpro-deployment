@@ -19,9 +19,9 @@ export const getDeviceTrialStatus = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
     const { issueSession } = await import("./session-server");
-    const { ipHash, fpHash, didHash, ua } = loadContext(data);
+    const { ipHash, fpHash, hwHash, didHash, ua } = loadContext(data);
     void ipHash; void ua;
-    const rows = await findDevices(supabaseAdmin, fpHash, didHash);
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash);
     const dev = usedTrial(rows);
     if (!dev) return { hasTrial: false as const };
     if (!dev.trial_expires_at) return { hasTrial: true as const, startedAt: dev.trial_started_at, expiresAt: "", daysLeft: 0, active: false };
@@ -41,17 +41,17 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
     const { issueSession } = await import("./session-server");
-    const { ipHash, fpHash, didHash, ua } = loadContext(data);
+    const { ipHash, fpHash, hwHash, didHash, ua } = loadContext(data);
     void ipHash; void ua;
 
-    const rows = await findDevices(supabaseAdmin, fpHash, didHash);
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash);
     const dev = usedTrial(rows);
 
     // Link both identifiers to each other so clearing one never frees a trial.
     const link = async (row: DeviceRow) => {
       await supabaseAdmin
         .from("device_fingerprints")
-        .update({ last_seen: new Date().toISOString(), ...(didHash ? { client_device_id: didHash } : {}) })
+        .update({ last_seen: new Date().toISOString(), hw_hash: hwHash, ...(didHash ? { client_device_id: didHash } : {}) })
         .eq("id", row.id);
       const hasFp = rows.length > 0; // cheap: ensure fp row exists too
       if (hasFp) {
@@ -63,6 +63,7 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
         if (!fpRow) {
           await supabaseAdmin.from("device_fingerprints").insert({
             fingerprint_hash: fpHash,
+        hw_hash: hwHash,
             client_device_id: didHash,
             ip_hash: ipHash,
             user_agent: ua,
@@ -114,6 +115,7 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
       .from("device_fingerprints")
       .insert({
         fingerprint_hash: fpHash,
+        hw_hash: hwHash,
         client_device_id: didHash,
         ip_hash: ipHash,
         user_agent: ua,
