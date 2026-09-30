@@ -10,11 +10,31 @@ export function CurrencySuite() {
   const [currentRate, setCurrentRate] = useState(1);
   const [ratesUSD, setRatesUSD] = useState<Record<string, number>>({});
 
-  // Fetch USD baseline rates for the forex market table
+  // Fetch USD baseline rates for the forex market table, then keep them live.
   useEffect(() => {
-    getExchangeRates("USD")
-      .then((res) => setRatesUSD(res.data.rates))
-      .catch((err) => console.error("Failed to load base USD rates for market overview", err));
+    let cancelled = false;
+
+    const load = (force: boolean) => {
+      getExchangeRates("USD", force)
+        .then((res) => {
+          if (!cancelled) setRatesUSD(res.data.rates);
+        })
+        .catch((err) => console.error("Failed to load base USD rates for market overview", err));
+    };
+
+    load(true);
+    const interval = setInterval(() => load(true), 60_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const handlePairChange = (base: string, target: string, rate: number) => {
