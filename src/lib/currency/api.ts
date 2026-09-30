@@ -325,6 +325,29 @@ export const DEFAULT_BASELINE_USD_RATES: Record<string, number> = {
 };
 
 /**
+ * Maximum age of persisted (localStorage) rates before they are considered stale.
+ * Anything older is discarded and re-fetched live.
+ */
+export const MAX_CACHE_AGE_MS = 15 * 60 * 1000; // 15 minutes
+
+function normalizeRateMap(
+  raw: Record<string, unknown>,
+  baseUpper: string,
+  baseLower: string
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === "number" && !isNaN(v) && v > 0) {
+      out[k.toUpperCase()] = v;
+      out[k.toLowerCase()] = v;
+    }
+  }
+  out[baseUpper] = 1;
+  out[baseLower] = 1;
+  return out;
+}
+
+/**
  * Direct rates fetching from currencyconverterpro source
  */
 export async function getExchangeRates(
@@ -336,7 +359,7 @@ export async function getExchangeRates(
   const cacheKey = `rates-${baseUpper}`;
   const localCacheKey = `${CACHE_KEYS.RATES_PREFIX}${baseUpper}`;
 
-  // 1. Check in-memory cache
+  // 1. Check in-memory cache (short TTL, managed by CurrencyCache)
   if (!forceRefresh) {
     const cachedRates = ratesCache.get(cacheKey);
     if (cachedRates) {
@@ -352,47 +375,97 @@ export async function getExchangeRates(
       };
     }
 
-    // 2. Check localStorage cache
+    // 2. Check localStorage cache — ONLY if it is still within MAX_CACHE_AGE_MS
     const localCached = getFromCache<{ rates: Record<string, number>; timestamp: string }>(localCacheKey);
     if (localCached && localCached.rates && Object.keys(localCached.rates).length > 5) {
       const lastUpdated = new Date(localCached.timestamp).getTime();
-      ratesCache.set(cacheKey, localCached.rates);
-      return {
-        data: {
-          base: baseUpper,
-          date: localCached.timestamp.split("T")[0],
-          rates: localCached.rates,
-          lastUpdated,
-          source: "cache",
-        },
-        isFromCache: true,
-      };
+      const age = Date.now() - lastUpdated;
+      if (!isNaN(lastUpdated) && age < MAX_CACHE_AGE_MS) {
+        ratesCache.set(cacheKey, localCached.rates);
+        return {
+          data: {
+            base: baseUpper,
+            date: localCached.timestamp.split("T")[0],
+            rates: localCached.rates,
+            lastUpdated,
+            source: "cache",
+          },
+          isFromCache: true,
+        };
+      }
+      // Stale — drop it so it can never be served again.
+      if (typeof window !== "undefined" && window.localStorage) {
+        try {
+          localStorage.removeItem(localCacheKey);
+        } catch {}
+      }
     }
   }
 
-  // 3. Fetch from @fawazahmed0/currency-api JSDelivr CDN
+  const bust = Date.now();
+  const noStore: RequestInit = { cache: "no-store" as RequestCache };
+
+  // 3. Cloudflare Pages CDN — must-revalidate, always serves the newest daily file.
+  try {
+    const url = `${API_ENDPOINTS.PAGES_CDN_BASE}/${baseLower}.min.json?_t=${bust}`;
+    const response = await fetch(url, noStore);
+    if (response.ok) {
+      const json = await response.json();
+      if (json && json[baseLower]) {
+        const fetchedRates = normalizeRateMap(json[baseLower], baseUpper, baseLower);
+        ratesCache.set(cacheKey, fetchedRates);
+        saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
+        return {
+          data: {
+            base: baseUpper,
+            date: json.date || new Date().toISOString().split("T")[0],
+            rates: fetchedRates,
+            lastUpdated: Date.now(),
+            source: "live",
+          },
+          isFromCache: false,
+        };
+      }
+    }
+  } catch {}
+
+  // 4. OpenER — live interbank rates refreshed hourly.
+  try {
+    const url = `${API_ENDPOINTS.OPEN_ER_BASE}/${baseUpper}?_t=${bust}`;
+    const response = await fetch(url, noStore);
+    if (response.ok) {
+      const json = await response.json();
+      if (json && json.rates) {
+        const fetchedRates = normalizeRateMap(json.rates, baseUpper, baseLower);
+        ratesCache.set(cacheKey, fetchedRates);
+        saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
+        return {
+          data: {
+            base: baseUpper,
+            date: new Date().toISOString().split("T")[0],
+            rates: fetchedRates,
+            lastUpdated: Date.now(),
+            source: "live",
+          },
+          isFromCache: false,
+        };
+      }
+    }
+  } catch {}
+
+  // 5. JSDelivr CDN — last network resort (edge-cached, can lag by a day).
   try {
     const data = await retryWithBackoff<any>(async () => {
-      const url = `${API_ENDPOINTS.RATES_BASE}/${baseLower}.json`;
-      const response = await fetch(url, { cache: "no-store" });
+      const url = `${API_ENDPOINTS.RATES_BASE}/${baseLower}.json?_t=${bust}`;
+      const response = await fetch(url, noStore);
       if (!response.ok) throw new Error(`JSDelivr fetch failed: ${response.status}`);
       return response.json();
     }, forceRefresh ? 1 : 2);
 
     if (data && data[baseLower]) {
-      const fetchedRates: Record<string, number> = {};
-      for (const [k, v] of Object.entries(data[baseLower])) {
-        if (typeof v === "number" && !isNaN(v) && v > 0) {
-          fetchedRates[k.toUpperCase()] = v;
-          fetchedRates[k.toLowerCase()] = v;
-        }
-      }
-      fetchedRates[baseUpper] = 1;
-      fetchedRates[baseLower] = 1;
-
+      const fetchedRates = normalizeRateMap(data[baseLower], baseUpper, baseLower);
       ratesCache.set(cacheKey, fetchedRates);
       saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
-
       return {
         data: {
           base: baseUpper,
@@ -404,72 +477,8 @@ export async function getExchangeRates(
         isFromCache: false,
       };
     }
-  } catch (e1) {
-    // 4. Fallback to Cloudflare Pages CDN
-    try {
-      const url = `${API_ENDPOINTS.PAGES_CDN_BASE}/${baseLower}.min.json?_t=${Date.now()}`;
-      const response = await fetch(url, { cache: "no-store" });
-      if (response.ok) {
-        const json = await response.json();
-        if (json && json[baseLower]) {
-          const fetchedRates: Record<string, number> = {};
-          for (const [k, v] of Object.entries(json[baseLower])) {
-            if (typeof v === "number" && !isNaN(v) && v > 0) {
-              fetchedRates[k.toUpperCase()] = v;
-              fetchedRates[k.toLowerCase()] = v;
-            }
-          }
-          fetchedRates[baseUpper] = 1;
-          fetchedRates[baseLower] = 1;
+  } catch {}
 
-          ratesCache.set(cacheKey, fetchedRates);
-          saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
-
-          return {
-            data: {
-              base: baseUpper,
-              date: json.date || new Date().toISOString().split("T")[0],
-              rates: fetchedRates,
-              lastUpdated: Date.now(),
-              source: "live",
-            },
-            isFromCache: false,
-          };
-        }
-      }
-    } catch (e2) {}
-
-    // 5. Fallback to OpenER
-    try {
-      const url = `${API_ENDPOINTS.OPEN_ER_BASE}/${baseUpper}`;
-      const response = await fetch(url, { cache: "no-store" });
-      if (response.ok) {
-        const json = await response.json();
-        if (json && json.rates) {
-          const fetchedRates: Record<string, number> = {};
-          for (const [k, v] of Object.entries(json.rates)) {
-            if (typeof v === "number" && !isNaN(v) && v > 0) {
-              fetchedRates[k.toUpperCase()] = v;
-              fetchedRates[k.toLowerCase()] = v;
-            }
-          }
-          ratesCache.set(cacheKey, fetchedRates);
-          saveToCache(localCacheKey, { rates: fetchedRates, timestamp: new Date().toISOString() });
-
-          return {
-            data: {
-              base: baseUpper,
-              date: new Date().toISOString().split("T")[0],
-              rates: fetchedRates,
-              lastUpdated: Date.now(),
-              source: "live",
-            },
-            isFromCache: false,
-          };
-        }
-      }
-    } catch (e3) {}
-  }
 
   // 6. Offline fallback to baseline
   const baseRateUSD = DEFAULT_BASELINE_USD_RATES[baseUpper] || 1;
