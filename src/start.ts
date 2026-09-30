@@ -27,7 +27,7 @@ const CSP = [
   // the worker outright — taking PDF import in the CAD Converter with it.
   // Narrower than widening script-src: it permits workers only, not scripts.
   "worker-src 'self' blob:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.lovable.dev https://*.lovable.app",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.lovable.dev https://*.lovable.app https://cdn.jsdelivr.net https://latest.currency-api.pages.dev https://*.currency-api.pages.dev https://open.er-api.com",
   "frame-ancestors 'self' https://*.lovable.dev https://*.lovable.app",
   "base-uri 'self'",
   "form-action 'self'",
