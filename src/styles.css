@@ -748,3 +748,11 @@ html.light .cursor-ring {
     content: "";
   }
 }
+
+/* Mobile / touch friendliness */
+html, body { overflow-x: hidden; }
+@media (pointer: coarse) {
+  html, body, input, textarea, select, button, a, [contenteditable="true"], .allow-select { cursor: auto !important; }
+  button, [role="button"] { touch-action: manipulation; }
+}
+.allow-select, .font-mono, table, td, th { -webkit-user-select: text; user-select: text; }

@@ -48,9 +48,17 @@ export function extractIp(req: Request): string {
  * deliberately excluded: they change with networks, VPNs and browser updates,
  * which previously produced a "new device" and a fresh trial every time.
  */
+/** Orientation-independent screen: always "long x short x depth". */
+export function normaliseScreen(screen: string): string {
+  const m = screen.match(/^(\d+)x(\d+)(x\d+)?/);
+  if (!m) return screen;
+  const a = +m[1], b = +m[2];
+  return `${Math.max(a, b)}x${Math.min(a, b)}${m[3] ?? ""}`;
+}
+
 export function hashFingerprint(sig: ClientSignals): string {
   const canonical = [
-    sig.screen,
+    normaliseScreen(sig.screen),
     sig.tz,
     sig.platform,
     sig.hardware,
@@ -81,7 +89,7 @@ export function normaliseGpu(webgl: string): string {
  */
 export function hashHardware(sig: ClientSignals): string {
   const cores = (sig.hardware.match(/^(\d+)c/) || [])[1] ?? "0";
-  const canonical = [sig.screen, sig.tz, cores, normaliseGpu(sig.webgl)].join("|");
+  const canonical = [normaliseScreen(sig.screen), sig.tz, cores, normaliseGpu(sig.webgl)].join("|");
   return sha256(pepper() + "::hwx::" + canonical);
 }
 

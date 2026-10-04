@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <Header />
-            <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6">
+            <main className="flex-1 min-w-0 p-3 sm:p-4 lg:p-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-6 overflow-x-hidden">
               <TrialBanner />
               {children}
             </main>

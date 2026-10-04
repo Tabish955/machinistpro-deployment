@@ -17,13 +17,18 @@ export const getDeviceTrialStatus = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => inputSchema.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
+    const { setAnchor, loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
     const { issueSession } = await import("./session-server");
-    const { ipHash, fpHash, hwHash, didHash, ua } = loadContext(data);
+    const { ipHash, fpHash, hwHash, didHash, ua, anchorId } = loadContext(data);
     void ipHash; void ua;
-    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash);
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash, anchorId);
     const dev = usedTrial(rows);
     if (!dev) return { hasTrial: false as const };
+    setAnchor(dev.id);
+    // Backfill identifiers on legacy rows so every future lookup matches.
+    await supabaseAdmin.from("device_fingerprints")
+      .update({ hw_hash: hwHash, last_seen: new Date().toISOString(), ...(didHash ? { client_device_id: didHash } : {}) })
+      .eq("id", dev.id);
     if (!dev.trial_expires_at) return { hasTrial: true as const, startedAt: dev.trial_started_at, expiresAt: "", daysLeft: 0, active: false };
     const exp = new Date(dev.trial_expires_at).getTime();
     return {
@@ -39,12 +44,12 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => inputSchema.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
+    const { setAnchor, loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
     const { issueSession } = await import("./session-server");
-    const { ipHash, fpHash, hwHash, didHash, ua } = loadContext(data);
+    const { ipHash, fpHash, hwHash, didHash, ua, anchorId } = loadContext(data);
     void ipHash; void ua;
 
-    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash);
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash, anchorId);
     const dev = usedTrial(rows);
 
     // Link both identifiers to each other so clearing one never frees a trial.
@@ -76,6 +81,7 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
     };
 
     if (dev) {
+      setAnchor(dev.id);
       await link(dev);
       if (dev.trial_expires_at && Date.now() < new Date(dev.trial_expires_at).getTime()) {
         const daysLeft = Math.max(1, daysLeftUntil(dev.trial_expires_at));
@@ -126,6 +132,7 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (ins.error || !ins.data) return { ok: false as const, reason: "Device registration failed." };
+    setAnchor(ins.data.id);
 
     if (ipRow.data) {
       await supabaseAdmin
