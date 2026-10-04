@@ -9,72 +9,47 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
-import { Route as FaqRouteImport } from './routes/faq'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
-import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
-import { Route as DashboardCncRouteImport } from './routes/dashboard/cnc'
-import { Route as DashboardConverterRouteImport } from './routes/dashboard/converter'
-import { Route as DashboardCurrencyRouteImport } from './routes/dashboard/currency'
-import { Route as DashboardDxfConverterRouteImport } from './routes/dashboard/dxf-converter'
-import { Route as DashboardElectricalRouteImport } from './routes/dashboard/electrical'
-import { Route as DashboardEngineeringRouteImport } from './routes/dashboard/engineering'
-import { Route as DashboardFavoritesRouteImport } from './routes/dashboard/favorites'
-import { Route as DashboardFormulasRouteImport } from './routes/dashboard/formulas'
-import { Route as DashboardGeometryRouteImport } from './routes/dashboard/geometry'
-import { Route as DashboardHistoryRouteImport } from './routes/dashboard/history'
-import { Route as DashboardIndustrialRouteImport } from './routes/dashboard/industrial'
-import { Route as DashboardLevelRouteImport } from './routes/dashboard/level'
-import { Route as DashboardMachiningRouteImport } from './routes/dashboard/machining'
-import { Route as DashboardMaterialsRouteImport } from './routes/dashboard/materials'
-import { Route as DashboardPricingRouteImport } from './routes/dashboard/pricing'
-import { Route as DashboardScientificRouteImport } from './routes/dashboard/scientific'
-import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
-import { Route as DashboardTapDrillRouteImport } from './routes/dashboard/tap-drill'
-import { Route as DashboardTolerancesRouteImport } from './routes/dashboard/tolerances'
-import { Route as DashboardWeightRouteImport } from './routes/dashboard/weight'
-import { Route as DashboardWorkspaceRouteImport } from './routes/dashboard/workspace'
 import { Route as LocalDxfWorkshopRouteImport } from './routes/local/dxf-workshop'
-import { Route as ApiAuthHealthRouteImport } from './routes/api/auth/health'
-import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
-import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as DashboardWorkspaceRouteImport } from './routes/dashboard/workspace'
+import { Route as DashboardWeightRouteImport } from './routes/dashboard/weight'
+import { Route as DashboardTolerancesRouteImport } from './routes/dashboard/tolerances'
+import { Route as DashboardTapDrillRouteImport } from './routes/dashboard/tap-drill'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DashboardScientificRouteImport } from './routes/dashboard/scientific'
+import { Route as DashboardPricingRouteImport } from './routes/dashboard/pricing'
+import { Route as DashboardMaterialsRouteImport } from './routes/dashboard/materials'
+import { Route as DashboardMachiningRouteImport } from './routes/dashboard/machining'
+import { Route as DashboardLevelRouteImport } from './routes/dashboard/level'
+import { Route as DashboardIndustrialRouteImport } from './routes/dashboard/industrial'
+import { Route as DashboardHistoryRouteImport } from './routes/dashboard/history'
+import { Route as DashboardGeometryRouteImport } from './routes/dashboard/geometry'
+import { Route as DashboardFormulasRouteImport } from './routes/dashboard/formulas'
+import { Route as DashboardFavoritesRouteImport } from './routes/dashboard/favorites'
+import { Route as DashboardEngineeringRouteImport } from './routes/dashboard/engineering'
+import { Route as DashboardElectricalRouteImport } from './routes/dashboard/electrical'
+import { Route as DashboardDxfConverterRouteImport } from './routes/dashboard/dxf-converter'
+import { Route as DashboardCurrencyRouteImport } from './routes/dashboard/currency'
+import { Route as DashboardConverterRouteImport } from './routes/dashboard/converter'
+import { Route as DashboardCncRouteImport } from './routes/dashboard/cnc'
+import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAuthHealthRouteImport } from './routes/api/auth/health'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRouteRoute = DashboardRouteRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FaqRoute = FaqRouteImport.update({
-  id: '/faq',
-  path: '/faq',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -82,14 +57,34 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRouteRoute = DashboardRouteRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -97,104 +92,14 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardAdminRoute = DashboardAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => DashboardRouteRoute,
+const LocalDxfWorkshopRoute = LocalDxfWorkshopRouteImport.update({
+  id: '/local/dxf-workshop',
+  path: '/local/dxf-workshop',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardCncRoute = DashboardCncRouteImport.update({
-  id: '/cnc',
-  path: '/cnc',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardConverterRoute = DashboardConverterRouteImport.update({
-  id: '/converter',
-  path: '/converter',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardCurrencyRoute = DashboardCurrencyRouteImport.update({
-  id: '/currency',
-  path: '/currency',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardDxfConverterRoute = DashboardDxfConverterRouteImport.update({
-  id: '/dxf-converter',
-  path: '/dxf-converter',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardElectricalRoute = DashboardElectricalRouteImport.update({
-  id: '/electrical',
-  path: '/electrical',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardEngineeringRoute = DashboardEngineeringRouteImport.update({
-  id: '/engineering',
-  path: '/engineering',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardFavoritesRoute = DashboardFavoritesRouteImport.update({
-  id: '/favorites',
-  path: '/favorites',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardFormulasRoute = DashboardFormulasRouteImport.update({
-  id: '/formulas',
-  path: '/formulas',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardGeometryRoute = DashboardGeometryRouteImport.update({
-  id: '/geometry',
-  path: '/geometry',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardHistoryRoute = DashboardHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardIndustrialRoute = DashboardIndustrialRouteImport.update({
-  id: '/industrial',
-  path: '/industrial',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardLevelRoute = DashboardLevelRouteImport.update({
-  id: '/level',
-  path: '/level',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardMachiningRoute = DashboardMachiningRouteImport.update({
-  id: '/machining',
-  path: '/machining',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardMaterialsRoute = DashboardMaterialsRouteImport.update({
-  id: '/materials',
-  path: '/materials',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardPricingRoute = DashboardPricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardScientificRoute = DashboardScientificRouteImport.update({
-  id: '/scientific',
-  path: '/scientific',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardTapDrillRoute = DashboardTapDrillRouteImport.update({
-  id: '/tap-drill',
-  path: '/tap-drill',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardTolerancesRoute = DashboardTolerancesRouteImport.update({
-  id: '/tolerances',
-  path: '/tolerances',
+const DashboardWorkspaceRoute = DashboardWorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardWeightRoute = DashboardWeightRouteImport.update({
@@ -202,24 +107,114 @@ const DashboardWeightRoute = DashboardWeightRouteImport.update({
   path: '/weight',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardWorkspaceRoute = DashboardWorkspaceRouteImport.update({
-  id: '/workspace',
-  path: '/workspace',
+const DashboardTolerancesRoute = DashboardTolerancesRouteImport.update({
+  id: '/tolerances',
+  path: '/tolerances',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const LocalDxfWorkshopRoute = LocalDxfWorkshopRouteImport.update({
-  id: '/local/dxf-workshop',
-  path: '/local/dxf-workshop',
+const DashboardTapDrillRoute = DashboardTapDrillRouteImport.update({
+  id: '/tap-drill',
+  path: '/tap-drill',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardScientificRoute = DashboardScientificRouteImport.update({
+  id: '/scientific',
+  path: '/scientific',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardPricingRoute = DashboardPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardMaterialsRoute = DashboardMaterialsRouteImport.update({
+  id: '/materials',
+  path: '/materials',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardMachiningRoute = DashboardMachiningRouteImport.update({
+  id: '/machining',
+  path: '/machining',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardLevelRoute = DashboardLevelRouteImport.update({
+  id: '/level',
+  path: '/level',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardIndustrialRoute = DashboardIndustrialRouteImport.update({
+  id: '/industrial',
+  path: '/industrial',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardHistoryRoute = DashboardHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardGeometryRoute = DashboardGeometryRouteImport.update({
+  id: '/geometry',
+  path: '/geometry',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardFormulasRoute = DashboardFormulasRouteImport.update({
+  id: '/formulas',
+  path: '/formulas',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardFavoritesRoute = DashboardFavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardEngineeringRoute = DashboardEngineeringRouteImport.update({
+  id: '/engineering',
+  path: '/engineering',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardElectricalRoute = DashboardElectricalRouteImport.update({
+  id: '/electrical',
+  path: '/electrical',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardDxfConverterRoute = DashboardDxfConverterRouteImport.update({
+  id: '/dxf-converter',
+  path: '/dxf-converter',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardCurrencyRoute = DashboardCurrencyRouteImport.update({
+  id: '/currency',
+  path: '/currency',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardConverterRoute = DashboardConverterRouteImport.update({
+  id: '/converter',
+  path: '/converter',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardCncRoute = DashboardCncRouteImport.update({
+  id: '/cnc',
+  path: '/cnc',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardAdminRoute = DashboardAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthHealthRoute = ApiAuthHealthRouteImport.update({
-  id: '/api/auth/health',
-  path: '/api/auth/health',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
-  id: '/api/auth/login',
-  path: '/api/auth/login',
+const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
+  id: '/api/auth/session',
+  path: '/api/auth/session',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
@@ -227,9 +222,14 @@ const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
   path: '/api/auth/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
-  id: '/api/auth/session',
-  path: '/api/auth/session',
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthHealthRoute = ApiAuthHealthRouteImport.update({
+  id: '/api/auth/health',
+  path: '/api/auth/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -488,46 +488,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faq': {
-      id: '/faq'
-      path: '/faq'
-      fullPath: '/faq'
-      preLoaderRoute: typeof FaqRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -537,18 +502,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -558,144 +551,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/admin': {
-      id: '/dashboard/admin'
-      path: '/admin'
-      fullPath: '/dashboard/admin'
-      preLoaderRoute: typeof DashboardAdminRouteImport
-      parentRoute: typeof DashboardRouteRoute
+    '/local/dxf-workshop': {
+      id: '/local/dxf-workshop'
+      path: '/local/dxf-workshop'
+      fullPath: '/local/dxf-workshop'
+      preLoaderRoute: typeof LocalDxfWorkshopRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/dashboard/cnc': {
-      id: '/dashboard/cnc'
-      path: '/cnc'
-      fullPath: '/dashboard/cnc'
-      preLoaderRoute: typeof DashboardCncRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/converter': {
-      id: '/dashboard/converter'
-      path: '/converter'
-      fullPath: '/dashboard/converter'
-      preLoaderRoute: typeof DashboardConverterRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/currency': {
-      id: '/dashboard/currency'
-      path: '/currency'
-      fullPath: '/dashboard/currency'
-      preLoaderRoute: typeof DashboardCurrencyRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/dxf-converter': {
-      id: '/dashboard/dxf-converter'
-      path: '/dxf-converter'
-      fullPath: '/dashboard/dxf-converter'
-      preLoaderRoute: typeof DashboardDxfConverterRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/electrical': {
-      id: '/dashboard/electrical'
-      path: '/electrical'
-      fullPath: '/dashboard/electrical'
-      preLoaderRoute: typeof DashboardElectricalRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/engineering': {
-      id: '/dashboard/engineering'
-      path: '/engineering'
-      fullPath: '/dashboard/engineering'
-      preLoaderRoute: typeof DashboardEngineeringRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/favorites': {
-      id: '/dashboard/favorites'
-      path: '/favorites'
-      fullPath: '/dashboard/favorites'
-      preLoaderRoute: typeof DashboardFavoritesRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/formulas': {
-      id: '/dashboard/formulas'
-      path: '/formulas'
-      fullPath: '/dashboard/formulas'
-      preLoaderRoute: typeof DashboardFormulasRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/geometry': {
-      id: '/dashboard/geometry'
-      path: '/geometry'
-      fullPath: '/dashboard/geometry'
-      preLoaderRoute: typeof DashboardGeometryRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/history': {
-      id: '/dashboard/history'
-      path: '/history'
-      fullPath: '/dashboard/history'
-      preLoaderRoute: typeof DashboardHistoryRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/industrial': {
-      id: '/dashboard/industrial'
-      path: '/industrial'
-      fullPath: '/dashboard/industrial'
-      preLoaderRoute: typeof DashboardIndustrialRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/level': {
-      id: '/dashboard/level'
-      path: '/level'
-      fullPath: '/dashboard/level'
-      preLoaderRoute: typeof DashboardLevelRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/machining': {
-      id: '/dashboard/machining'
-      path: '/machining'
-      fullPath: '/dashboard/machining'
-      preLoaderRoute: typeof DashboardMachiningRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/materials': {
-      id: '/dashboard/materials'
-      path: '/materials'
-      fullPath: '/dashboard/materials'
-      preLoaderRoute: typeof DashboardMaterialsRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/pricing': {
-      id: '/dashboard/pricing'
-      path: '/pricing'
-      fullPath: '/dashboard/pricing'
-      preLoaderRoute: typeof DashboardPricingRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/scientific': {
-      id: '/dashboard/scientific'
-      path: '/scientific'
-      fullPath: '/dashboard/scientific'
-      preLoaderRoute: typeof DashboardScientificRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/settings': {
-      id: '/dashboard/settings'
-      path: '/settings'
-      fullPath: '/dashboard/settings'
-      preLoaderRoute: typeof DashboardSettingsRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/tap-drill': {
-      id: '/dashboard/tap-drill'
-      path: '/tap-drill'
-      fullPath: '/dashboard/tap-drill'
-      preLoaderRoute: typeof DashboardTapDrillRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/tolerances': {
-      id: '/dashboard/tolerances'
-      path: '/tolerances'
-      fullPath: '/dashboard/tolerances'
-      preLoaderRoute: typeof DashboardTolerancesRouteImport
+    '/dashboard/workspace': {
+      id: '/dashboard/workspace'
+      path: '/workspace'
+      fullPath: '/dashboard/workspace'
+      preLoaderRoute: typeof DashboardWorkspaceRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/weight': {
@@ -705,32 +572,158 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardWeightRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/workspace': {
-      id: '/dashboard/workspace'
-      path: '/workspace'
-      fullPath: '/dashboard/workspace'
-      preLoaderRoute: typeof DashboardWorkspaceRouteImport
+    '/dashboard/tolerances': {
+      id: '/dashboard/tolerances'
+      path: '/tolerances'
+      fullPath: '/dashboard/tolerances'
+      preLoaderRoute: typeof DashboardTolerancesRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/local/dxf-workshop': {
-      id: '/local/dxf-workshop'
-      path: '/local/dxf-workshop'
-      fullPath: '/local/dxf-workshop'
-      preLoaderRoute: typeof LocalDxfWorkshopRouteImport
+    '/dashboard/tap-drill': {
+      id: '/dashboard/tap-drill'
+      path: '/tap-drill'
+      fullPath: '/dashboard/tap-drill'
+      preLoaderRoute: typeof DashboardTapDrillRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/scientific': {
+      id: '/dashboard/scientific'
+      path: '/scientific'
+      fullPath: '/dashboard/scientific'
+      preLoaderRoute: typeof DashboardScientificRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/pricing': {
+      id: '/dashboard/pricing'
+      path: '/pricing'
+      fullPath: '/dashboard/pricing'
+      preLoaderRoute: typeof DashboardPricingRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/materials': {
+      id: '/dashboard/materials'
+      path: '/materials'
+      fullPath: '/dashboard/materials'
+      preLoaderRoute: typeof DashboardMaterialsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/machining': {
+      id: '/dashboard/machining'
+      path: '/machining'
+      fullPath: '/dashboard/machining'
+      preLoaderRoute: typeof DashboardMachiningRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/level': {
+      id: '/dashboard/level'
+      path: '/level'
+      fullPath: '/dashboard/level'
+      preLoaderRoute: typeof DashboardLevelRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/industrial': {
+      id: '/dashboard/industrial'
+      path: '/industrial'
+      fullPath: '/dashboard/industrial'
+      preLoaderRoute: typeof DashboardIndustrialRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/history': {
+      id: '/dashboard/history'
+      path: '/history'
+      fullPath: '/dashboard/history'
+      preLoaderRoute: typeof DashboardHistoryRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/geometry': {
+      id: '/dashboard/geometry'
+      path: '/geometry'
+      fullPath: '/dashboard/geometry'
+      preLoaderRoute: typeof DashboardGeometryRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/formulas': {
+      id: '/dashboard/formulas'
+      path: '/formulas'
+      fullPath: '/dashboard/formulas'
+      preLoaderRoute: typeof DashboardFormulasRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/favorites': {
+      id: '/dashboard/favorites'
+      path: '/favorites'
+      fullPath: '/dashboard/favorites'
+      preLoaderRoute: typeof DashboardFavoritesRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/engineering': {
+      id: '/dashboard/engineering'
+      path: '/engineering'
+      fullPath: '/dashboard/engineering'
+      preLoaderRoute: typeof DashboardEngineeringRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/electrical': {
+      id: '/dashboard/electrical'
+      path: '/electrical'
+      fullPath: '/dashboard/electrical'
+      preLoaderRoute: typeof DashboardElectricalRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/dxf-converter': {
+      id: '/dashboard/dxf-converter'
+      path: '/dxf-converter'
+      fullPath: '/dashboard/dxf-converter'
+      preLoaderRoute: typeof DashboardDxfConverterRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/currency': {
+      id: '/dashboard/currency'
+      path: '/currency'
+      fullPath: '/dashboard/currency'
+      preLoaderRoute: typeof DashboardCurrencyRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/converter': {
+      id: '/dashboard/converter'
+      path: '/converter'
+      fullPath: '/dashboard/converter'
+      preLoaderRoute: typeof DashboardConverterRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/cnc': {
+      id: '/dashboard/cnc'
+      path: '/cnc'
+      fullPath: '/dashboard/cnc'
+      preLoaderRoute: typeof DashboardCncRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/admin': {
+      id: '/dashboard/admin'
+      path: '/admin'
+      fullPath: '/dashboard/admin'
+      preLoaderRoute: typeof DashboardAdminRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/health': {
-      id: '/api/auth/health'
-      path: '/api/auth/health'
-      fullPath: '/api/auth/health'
-      preLoaderRoute: typeof ApiAuthHealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/login': {
-      id: '/api/auth/login'
-      path: '/api/auth/login'
-      fullPath: '/api/auth/login'
-      preLoaderRoute: typeof ApiAuthLoginRouteImport
+    '/api/auth/session': {
+      id: '/api/auth/session'
+      path: '/api/auth/session'
+      fullPath: '/api/auth/session'
+      preLoaderRoute: typeof ApiAuthSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/logout': {
@@ -740,11 +733,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/session': {
-      id: '/api/auth/session'
-      path: '/api/auth/session'
-      fullPath: '/api/auth/session'
-      preLoaderRoute: typeof ApiAuthSessionRouteImport
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/health': {
+      id: '/api/auth/health'
+      path: '/api/auth/health'
+      fullPath: '/api/auth/health'
+      preLoaderRoute: typeof ApiAuthHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

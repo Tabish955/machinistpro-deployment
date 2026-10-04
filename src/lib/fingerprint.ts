@@ -112,7 +112,7 @@ export function getDeviceId(): string {
 export async function collectSignals(): Promise<DeviceSignals> {
   const nav = navigator as Navigator & { deviceMemory?: number };
   return {
-    screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+    screen: `${Math.max(screen.width, screen.height)}x${Math.min(screen.width, screen.height)}x${screen.colorDepth}`,
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown",
     lang: navigator.languages?.join(",").slice(0, 32) || navigator.language,
     platform: navigator.platform,

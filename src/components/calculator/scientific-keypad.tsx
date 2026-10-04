@@ -108,7 +108,7 @@ export function ScientificKeypad({ onOpenConstants, onOpenVariables }: Scientifi
       </div>
 
       {/* Main Scientific Functions + Numeric Matrix */}
-      <div className="grid grid-cols-5 sm:grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-6 gap-1 sm:gap-1.5">
         {/* Row 1 */}
         {renderKey(isSecondFunction ? "sin⁻¹" : "sin", () =>
           inputFunction(isSecondFunction ? "asin" : "sin"),

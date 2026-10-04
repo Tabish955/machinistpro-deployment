@@ -1,4 +1,4 @@
-import { getRequest } from "@tanstack/react-start/server";
+import { getRequest, getCookie, setCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { clientSignalsSchema, hashFingerprint, hashHardware, hashIp, extractIp, sha256, pepper } from "./device-server";
 export const TRIAL_DAYS = 14;
@@ -25,7 +25,18 @@ export function loadContext(input: TrialInput) {
   const fpHash = hashFingerprint(input.signals);
   const hwHash = hashHardware(input.signals);
   const didHash = input.deviceId ? sha256(pepper() + "::did::" + input.deviceId) : null;
-  return { ipHash, fpHash, hwHash, didHash, ua };
+  let anchorId: string | null = null;
+  try { anchorId = getCookie(ANCHOR_COOKIE) ?? null; } catch { anchorId = null; }
+  if (anchorId && !/^[0-9a-f-]{36}$/i.test(anchorId)) anchorId = null;
+  return { ipHash, fpHash, hwHash, didHash, ua, anchorId };
+}
+
+/** Server-set HttpOnly cookie holding the device row id — scripts can't clear it. */
+export const ANCHOR_COOKIE = "mp_tanchor";
+export function setAnchor(id: string) {
+  try {
+    setCookie(ANCHOR_COOKIE, id, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 315360000 });
+  } catch { /* ignore */ }
 }
 
 type Admin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
@@ -36,8 +47,10 @@ export async function findDevices(
   fpHash: string,
   didHash: string | null,
   hwHash?: string,
+  anchorId?: string | null,
 ): Promise<DeviceRow[]> {
   const parts = [`fingerprint_hash.eq.${fpHash}`];
+  if (anchorId) parts.push(`id.eq.${anchorId}`);
   if (didHash) parts.push(`client_device_id.eq.${didHash}`);
   if (hwHash) parts.push(`hw_hash.eq.${hwHash}`);
   const { data } = await a
