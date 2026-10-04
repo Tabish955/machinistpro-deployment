@@ -63,13 +63,15 @@ export function hashFingerprint(sig: ClientSignals): string {
 
 /** Normalise a WebGL renderer string so Chrome/Edge/Firefox on one GPU agree. */
 export function normaliseGpu(webgl: string): string {
-  const s = webgl.toLowerCase();
-  const m = s.match(/(nvidia|geforce|rtx|gtx|quadro|radeon|amd|intel|apple|adreno|mali|powervr|m[1-4])[^,|)]*/);
-  const raw = (m ? m[0] : s)
-    .replace(/direct3d.*|opengl.*|vulkan.*|metal.*|\(0x[0-9a-f]+\)/g, "")
-    .replace(/\b(angle|graphics|series|gpu|family|\(r\)|\(tm\))\b/g, "")
-    .replace(/[^a-z0-9]/g, "");
-  return raw.slice(0, 40);
+  let r = webgl.split("|").pop() ?? webgl;
+  const angle = r.match(/angle \(([^,]*),\s*([^,]*)/i);
+  if (angle) r = angle[2];
+  return r
+    .toLowerCase()
+    .replace(/\(0x[0-9a-f]+\)|direct3d.*|opengl.*|vulkan.*|metal.*|\/.*$/g, "")
+    .replace(/\b(corporation|inc|angle|graphics|series|gpu|family|\(r\)|\(tm\))\b/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 40);
 }
 
 /**
