@@ -19,9 +19,9 @@ export const getDeviceTrialStatus = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { setAnchor, loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
     const { issueSession } = await import("./session-server");
-    const { ipHash, fpHash, hwHash, didHash, ua, anchorId } = loadContext(data);
+    const { ipHash, fpHash, hwHash, didHash, ua, anchorId, altHashes } = loadContext(data);
     void ipHash; void ua;
-    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash, anchorId);
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash, anchorId, altHashes);
     const dev = usedTrial(rows);
     if (!dev) return { hasTrial: false as const };
     setAnchor(dev.id);
@@ -46,10 +46,10 @@ export const startDeviceTrial = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { setAnchor, loadContext, findDevices, usedTrial, daysLeftUntil, TRIAL_DAYS, MAX_TRIALS_PER_IP } = await import("./trial.server");
     const { issueSession } = await import("./session-server");
-    const { ipHash, fpHash, hwHash, didHash, ua, anchorId } = loadContext(data);
+    const { ipHash, fpHash, hwHash, didHash, ua, anchorId, altHashes } = loadContext(data);
     void ipHash; void ua;
 
-    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash, anchorId);
+    const rows = await findDevices(supabaseAdmin, fpHash, didHash, hwHash, anchorId, altHashes);
     const dev = usedTrial(rows);
 
     // Link both identifiers to each other so clearing one never frees a trial.

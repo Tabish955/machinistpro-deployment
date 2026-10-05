@@ -48,17 +48,19 @@ export function extractIp(req: Request): string {
  * deliberately excluded: they change with networks, VPNs and browser updates,
  * which previously produced a "new device" and a fresh trial every time.
  */
-/** Orientation-independent screen: always "long x short x depth". */
-export function normaliseScreen(screen: string): string {
-  const m = screen.match(/^(\d+)x(\d+)(x\d+)?/);
-  if (!m) return screen;
-  const a = +m[1], b = +m[2];
-  return `${Math.max(a, b)}x${Math.min(a, b)}${m[3] ?? ""}`;
+/** Both orientations of a screen string ("long x short" first), so rotating a phone never looks like a new device. */
+export function screenVariants(screen: string): string[] {
+  const m = screen.match(/^(\d+)x(\d+)(x\d+)?$/);
+  if (!m) return [screen];
+  const a = +m[1], b = +m[2], d = m[3] ?? "";
+  const land = `${Math.max(a, b)}x${Math.min(a, b)}${d}`;
+  const port = `${Math.min(a, b)}x${Math.max(a, b)}${d}`;
+  return land === port ? [land] : [land, port];
 }
 
 export function hashFingerprint(sig: ClientSignals): string {
   const canonical = [
-    normaliseScreen(sig.screen),
+    sig.screen,
     sig.tz,
     sig.platform,
     sig.hardware,
@@ -89,7 +91,7 @@ export function normaliseGpu(webgl: string): string {
  */
 export function hashHardware(sig: ClientSignals): string {
   const cores = (sig.hardware.match(/^(\d+)c/) || [])[1] ?? "0";
-  const canonical = [normaliseScreen(sig.screen), sig.tz, cores, normaliseGpu(sig.webgl)].join("|");
+  const canonical = [sig.screen, sig.tz, cores, normaliseGpu(sig.webgl)].join("|");
   return sha256(pepper() + "::hwx::" + canonical);
 }
 

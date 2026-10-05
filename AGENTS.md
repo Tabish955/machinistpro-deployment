@@ -10,3 +10,5 @@
 > the editor, so keep the branch in a working state.
 
 <!-- LOVABLE:END -->
+
+- Trial device lookup ORs fingerprint, hardware hash (both screen orientations), device id and an HttpOnly anchor cookie; never extend trial_expires_at on resume — so sign-out, rotation or storage clears can never reset a trial.

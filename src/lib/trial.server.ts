@@ -1,6 +1,6 @@
 import { getRequest, getCookie, setCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { clientSignalsSchema, hashFingerprint, hashHardware, hashIp, extractIp, sha256, pepper } from "./device-server";
+import { clientSignalsSchema, screenVariants, hashFingerprint, hashHardware, hashIp, extractIp, sha256, pepper } from "./device-server";
 export const TRIAL_DAYS = 14;
 export const MAX_TRIALS_PER_IP = 3;
 
@@ -22,13 +22,15 @@ export function loadContext(input: TrialInput) {
   if (!req) throw new Error("no request");
   const ua = req.headers.get("user-agent")?.slice(0, 512) ?? "";
   const ipHash = hashIp(extractIp(req));
-  const fpHash = hashFingerprint(input.signals);
-  const hwHash = hashHardware(input.signals);
+  const variants = screenVariants(input.signals.screen).map((screen) => ({ ...input.signals, screen }));
+  const fpHash = hashFingerprint(variants[0]);
+  const hwHash = hashHardware(variants[0]);
+  const altHashes = variants.slice(1).flatMap((v) => [hashFingerprint(v), hashHardware(v)]);
   const didHash = input.deviceId ? sha256(pepper() + "::did::" + input.deviceId) : null;
   let anchorId: string | null = null;
   try { anchorId = getCookie(ANCHOR_COOKIE) ?? null; } catch { anchorId = null; }
   if (anchorId && !/^[0-9a-f-]{36}$/i.test(anchorId)) anchorId = null;
-  return { ipHash, fpHash, hwHash, didHash, ua, anchorId };
+  return { ipHash, fpHash, hwHash, didHash, ua, anchorId, altHashes };
 }
 
 /** Server-set HttpOnly cookie holding the device row id — scripts can't clear it. */
@@ -48,9 +50,11 @@ export async function findDevices(
   didHash: string | null,
   hwHash?: string,
   anchorId?: string | null,
+  altHashes: string[] = [],
 ): Promise<DeviceRow[]> {
   const parts = [`fingerprint_hash.eq.${fpHash}`];
   if (anchorId) parts.push(`id.eq.${anchorId}`);
+  for (const h of altHashes) parts.push(`fingerprint_hash.eq.${h}`, `hw_hash.eq.${h}`);
   if (didHash) parts.push(`client_device_id.eq.${didHash}`);
   if (hwHash) parts.push(`hw_hash.eq.${hwHash}`);
   const { data } = await a
